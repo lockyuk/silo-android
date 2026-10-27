@@ -376,61 +376,6 @@ fun SettingsDownloadsScreen(
     }
 }
 
-/**
- * Notifications. The Apple apps have no in-app notification preferences;
- * Android keeps them on their own page under Preferences.
- */
-@Composable
-fun SettingsNotificationsScreen(viewModel: SettingsViewModel, onBackClick: () -> Unit) {
-    val state by viewModel.uiState.collectAsState()
-
-    SettingsPageScaffold(title = "Notifications", onBackClick = onBackClick) {
-        item(key = "in-app") {
-            SettingsSection(
-                title = null,
-                footer = "Show alerts inside Silo as new releases arrive.",
-            ) {
-                SettingsSwitchRow(
-                    label = "In-App Notifications",
-                    checked = state.notificationsEnabled,
-                    onCheckedChange = viewModel::setNotificationsEnabled,
-                )
-            }
-        }
-        if (state.notificationsEnabled) {
-            item(key = "topics") {
-                SettingsSection(
-                    title = "Notify Me About",
-                    footer = "Favorites and Next Up cover new episodes of series you follow. Watchlist covers " +
-                        "titles that become available. Continue Watching covers titles you started but " +
-                        "haven't finished.",
-                ) {
-                    SettingsSwitchRow(
-                        label = "Favorites",
-                        checked = state.notifyFavorites,
-                        onCheckedChange = viewModel::setNotifyFavorites,
-                    )
-                    SettingsSwitchRow(
-                        label = "Watchlist",
-                        checked = state.notifyWatchlist,
-                        onCheckedChange = viewModel::setNotifyWatchlist,
-                    )
-                    SettingsSwitchRow(
-                        label = "Continue Watching",
-                        checked = state.notifyContinueWatching,
-                        onCheckedChange = viewModel::setNotifyContinueWatching,
-                    )
-                    SettingsSwitchRow(
-                        label = "Next Up",
-                        checked = state.notifyNextUp,
-                        onCheckedChange = viewModel::setNotifyNextUp,
-                    )
-                }
-            }
-        }
-    }
-}
-
 /** How Profile Selection's descriptions name this device. */
 internal const val PROFILE_LAUNCH_DEVICE = "this device"
 

@@ -1,6 +1,10 @@
 package org.siloserver.silo.repository
 
+import org.siloserver.silo.model.notifications.EmailAddressVerificationRequest
+import org.siloserver.silo.model.notifications.EmailNotificationPreferences
+import org.siloserver.silo.model.notifications.EmailNotificationPreferencesUpdate
 import org.siloserver.silo.model.notifications.NotificationCapability
+import org.siloserver.silo.model.personal.UserLibrary
 import org.siloserver.silo.model.notifications.NotificationPreferences
 import org.siloserver.silo.model.notifications.NotificationPreferencesUpdate
 import org.siloserver.silo.model.notifications.NotificationRow
@@ -156,6 +160,8 @@ class NotificationsRepository(
     private val _nextCursor = MutableStateFlow<String?>(null)
     private val _preferences = MutableStateFlow<NotificationPreferences?>(null)
     private val _capability = MutableStateFlow<NotificationCapability?>(null)
+    private val _emailPreferences = MutableStateFlow<EmailNotificationPreferences?>(null)
+    private val _libraries = MutableStateFlow<List<UserLibrary>>(emptyList())
 
     /** True while [connectRealtime] is parked after an auth-class [NotificationRealtimeEvent.Closed]. */
     private val _realtimeFatal = MutableStateFlow(false)
@@ -165,6 +171,12 @@ class NotificationsRepository(
     val nextCursor: StateFlow<String?> = _nextCursor.asStateFlow()
     val preferences: StateFlow<NotificationPreferences?> = _preferences.asStateFlow()
     val capability: StateFlow<NotificationCapability?> = _capability.asStateFlow()
+
+    /** The profile's own email settings; null until loaded or when email is off. */
+    val emailPreferences: StateFlow<EmailNotificationPreferences?> = _emailPreferences.asStateFlow()
+
+    /** Movie and TV libraries the profile can open, for library choices. */
+    val libraries: StateFlow<List<UserLibrary>> = _libraries.asStateFlow()
 
     /**
      * True while [connectRealtime] is parked after an auth-class [NotificationRealtimeEvent.Closed]
@@ -336,6 +348,46 @@ class NotificationsRepository(
         if (result is ApiResult.Success) publishFor(viewer) { _capability.value = result.data }
     }
 
+    suspend fun loadEmailPreferences() {
+        val viewer = viewer()
+        val result = viewer.api.getEmailPreferences()
+        if (result is ApiResult.Success) publishFor(viewer) { _emailPreferences.value = result.data }
+    }
+
+    suspend fun updateEmailPreferences(
+        update: EmailNotificationPreferencesUpdate,
+    ): ApiResult<EmailNotificationPreferences> {
+        val viewer = viewer()
+        val result = viewer.api.updateEmailPreferences(update)
+        if (!current(viewer)) return ApiResult.Error(0, "identity_changed", "The active viewer changed.")
+        if (result is ApiResult.Success) publishFor(viewer) { _emailPreferences.value = result.data }
+        return result
+    }
+
+    /** Emails a confirmation link to [email]; the address applies once it is opened. */
+    suspend fun requestEmailAddress(email: String, verificationId: String): ApiResult<Unit> {
+        val viewer = viewer()
+        val result = viewer.api.requestEmailAddress(EmailAddressVerificationRequest(verificationId, email))
+        if (result is ApiResult.Success && current(viewer)) loadEmailPreferences()
+        return result
+    }
+
+    suspend fun clearEmailAddress(): ApiResult<EmailNotificationPreferences> {
+        val viewer = viewer()
+        val result = viewer.api.clearEmailAddress()
+        if (!current(viewer)) return ApiResult.Error(0, "identity_changed", "The active viewer changed.")
+        if (result is ApiResult.Success) publishFor(viewer) { _emailPreferences.value = result.data }
+        return result
+    }
+
+    suspend fun loadLibraries() {
+        val viewer = viewer()
+        val result = viewer.api.profileLibraries()
+        if (result is ApiResult.Success) {
+            publishFor(viewer) { _libraries.value = result.data.filter { it.type == "movies" || it.type == "series" } }
+        }
+    }
+
     /**
      * Clears all state on profile switch (badge is per-profile) and signals
      * [resetSignals] so a foregrounded starter can reconnect the realtime
@@ -352,6 +404,8 @@ class NotificationsRepository(
         _nextCursor.value = null
         _preferences.value = null
         _capability.value = null
+        _emailPreferences.value = null
+        _libraries.value = emptyList()
         _resetSignals.tryEmit(Unit)
     }
 

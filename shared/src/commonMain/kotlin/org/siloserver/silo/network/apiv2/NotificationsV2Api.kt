@@ -89,4 +89,23 @@ class NotificationsV2Api(
         }
     override suspend fun capability(): ApiResult<NotificationCapability> =
         exchange(HttpMethod.Get, "/api/v2/notifications/capabilities")
+    override suspend fun getEmailPreferences(): ApiResult<EmailNotificationPreferences> =
+        exchange(HttpMethod.Get, "/api/v2/notifications/email-preferences")
+    override suspend fun updateEmailPreferences(
+        update: EmailNotificationPreferencesUpdate,
+    ): ApiResult<EmailNotificationPreferences> =
+        exchange(HttpMethod.Put, "/api/v2/notifications/email-preferences") {
+            contentType(ContentType.Application.Json); setBody(update)
+        }
+    override suspend fun requestEmailAddress(request: EmailAddressVerificationRequest): ApiResult<Unit> =
+        exchange<kotlinx.serialization.json.JsonObject, Unit>(
+            HttpMethod.Put, "/api/v2/notifications/email-preferences/address",
+            { contentType(ContentType.Application.Json); setBody(request) },
+        ) { }
+    override suspend fun clearEmailAddress(): ApiResult<EmailNotificationPreferences> =
+        exchange(HttpMethod.Delete, "/api/v2/notifications/email-preferences/address")
+    override suspend fun profileLibraries(): ApiResult<List<org.siloserver.silo.model.personal.UserLibrary>> =
+        exchange<UserLibrariesV2, List<org.siloserver.silo.model.personal.UserLibrary>>(
+            HttpMethod.Get, "/api/v2/user/libraries",
+        ) { it.project() }
 }

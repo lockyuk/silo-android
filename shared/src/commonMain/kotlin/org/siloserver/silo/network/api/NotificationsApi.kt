@@ -1,6 +1,10 @@
 package org.siloserver.silo.network.api
 
+import org.siloserver.silo.model.notifications.EmailAddressVerificationRequest
+import org.siloserver.silo.model.notifications.EmailNotificationPreferences
+import org.siloserver.silo.model.notifications.EmailNotificationPreferencesUpdate
 import org.siloserver.silo.model.notifications.NotificationCapability
+import org.siloserver.silo.model.personal.UserLibrary
 import org.siloserver.silo.model.notifications.NotificationListResponse
 import org.siloserver.silo.model.notifications.NotificationPreferences
 import org.siloserver.silo.model.notifications.NotificationPreferencesUpdate
@@ -59,4 +63,23 @@ interface NotificationsApi {
 
     /** GET /api/v2/notifications/capabilities — drives the settings UI. */
     suspend fun capability(): ApiResult<NotificationCapability>
+
+    /** GET /api/v2/notifications/email-preferences. */
+    suspend fun getEmailPreferences(): ApiResult<EmailNotificationPreferences> = unsupported()
+
+    /** PUT /api/v2/notifications/email-preferences. */
+    suspend fun updateEmailPreferences(update: EmailNotificationPreferencesUpdate): ApiResult<EmailNotificationPreferences> =
+        unsupported()
+
+    /** PUT /api/v2/notifications/email-preferences/address: emails a confirmation link. */
+    suspend fun requestEmailAddress(request: EmailAddressVerificationRequest): ApiResult<Unit> = unsupported()
+
+    /** DELETE /api/v2/notifications/email-preferences/address. */
+    suspend fun clearEmailAddress(): ApiResult<EmailNotificationPreferences> = unsupported()
+
+    /** GET /api/v2/user/libraries as the acting profile: the libraries it can open. */
+    suspend fun profileLibraries(): ApiResult<List<UserLibrary>> = unsupported()
 }
+
+private fun <T> unsupported(): ApiResult<T> =
+    ApiResult.Error(0, "unsupported", "Not supported by this transport.")

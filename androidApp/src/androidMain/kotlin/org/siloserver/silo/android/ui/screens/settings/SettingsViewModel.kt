@@ -26,6 +26,9 @@ import org.siloserver.silo.model.download.effectiveDefault
 import org.siloserver.silo.model.download.labelFor
 import org.siloserver.silo.repository.DownloadsRepository
 import org.siloserver.silo.model.notifications.NotificationPreferencesUpdate
+import org.siloserver.silo.model.personal.UserLibrary
+import org.siloserver.silo.model.notifications.EmailNotificationPreferencesUpdate
+import org.siloserver.silo.model.notifications.EmailNotificationPreferences
 import org.siloserver.silo.model.settings.CardCaption
 import org.siloserver.silo.model.settings.CardPosterSize
 import org.siloserver.silo.model.settings.CardPresentation
@@ -180,6 +183,22 @@ data class SettingsUiState(
     val notifyWatchlist: Boolean = true,
     val notifyContinueWatching: Boolean = true,
     val notifyNextUp: Boolean = true,
+    val notifyNewEpisodes: Boolean = false,
+    val notifyNewMovies: Boolean = false,
+    // Which systems the server has switched on, for the status line.
+    val emailActive: Boolean = false,
+    val pushActive: Boolean = false,
+    // Push: instant on or off, and the libraries it covers (empty = all).
+    val pushEnabled: Boolean = true,
+    val pushLibraryIds: List<Int> = emptyList(),
+    // Email: the profile's address and sends; null until loaded.
+    val email: EmailNotificationPreferences? = null,
+    val emailAllowInstant: Boolean = true,
+    val emailDigestHour: Int = 8,
+    val emailDigestWeekday: Int = 0,
+    val emailMessage: String? = null,
+    /** Movie and TV libraries the profile can open. */
+    val notificationLibraries: List<UserLibrary> = emptyList(),
 )
 
 class SettingsViewModel(
@@ -458,19 +477,36 @@ class SettingsViewModel(
         combine(
             notificationsRepository.capability,
             notificationsRepository.preferences,
-        ) { capability, preferences ->
+            notificationsRepository.emailPreferences,
+            notificationsRepository.libraries,
+        ) { capability, preferences, email, libraries ->
             val available = capability?.inApp?.enabled == true
+            val emailActive = capability?.email?.available == true
+            val pushActive = capability?.androidPush?.available == true || capability?.applePush?.available == true
             _uiState.update { state ->
+                val base = state.copy(
+                    emailActive = emailActive,
+                    pushActive = pushActive,
+                    email = email.takeIf { emailActive },
+                    emailAllowInstant = capability?.email?.modes?.contains("per_episode") == true,
+                    emailDigestHour = capability?.email?.digestHour ?: 8,
+                    emailDigestWeekday = capability?.email?.digestWeekday ?: 0,
+                    notificationLibraries = libraries,
+                )
                 if (!available || preferences == null) {
-                    state.copy(notificationsAvailable = false)
+                    base.copy(notificationsAvailable = false)
                 } else {
-                    state.copy(
+                    base.copy(
                         notificationsAvailable = true,
                         notificationsEnabled = preferences.enabled,
                         notifyFavorites = preferences.notifyFavorites,
                         notifyWatchlist = preferences.notifyWatchlist,
                         notifyContinueWatching = preferences.notifyContinueWatching,
                         notifyNextUp = preferences.notifyNextUp,
+                        notifyNewEpisodes = preferences.notifyNewEpisodes,
+                        notifyNewMovies = preferences.notifyNewMovies,
+                        pushEnabled = preferences.pushEnabled,
+                        pushLibraryIds = preferences.pushLibraryIds,
                     )
                 }
             }
@@ -478,6 +514,8 @@ class SettingsViewModel(
 
         viewModelScope.launch { notificationsRepository.loadCapability() }
         viewModelScope.launch { notificationsRepository.loadPreferences() }
+        viewModelScope.launch { notificationsRepository.loadEmailPreferences() }
+        viewModelScope.launch { notificationsRepository.loadLibraries() }
     }
 
     // -- Media cards --
@@ -579,6 +617,62 @@ class SettingsViewModel(
 
     fun setNotifyNextUp(value: Boolean) {
         updateNotificationPreferences(NotificationPreferencesUpdate(notifyNextUp = value))
+    }
+
+    fun setNotifyNewEpisodes(value: Boolean) {
+        updateNotificationPreferences(NotificationPreferencesUpdate(notifyNewEpisodes = value))
+    }
+
+    fun setNotifyNewMovies(value: Boolean) {
+        updateNotificationPreferences(NotificationPreferencesUpdate(notifyNewMovies = value))
+    }
+
+    fun setPushEnabled(value: Boolean) {
+        updateNotificationPreferences(NotificationPreferencesUpdate(pushEnabled = value))
+    }
+
+    fun setPushLibraries(ids: List<Int>) {
+        updateNotificationPreferences(NotificationPreferencesUpdate(pushLibraryIds = ids))
+    }
+
+    fun setEmailInstant(value: Boolean) = updateEmail(EmailNotificationPreferencesUpdate(instant = value))
+
+    fun setEmailDaily(value: Boolean) = updateEmail(EmailNotificationPreferencesUpdate(daily = value))
+
+    fun setEmailWeekly(value: Boolean) = updateEmail(EmailNotificationPreferencesUpdate(weekly = value))
+
+    fun setEmailLibraries(ids: List<Int>) = updateEmail(EmailNotificationPreferencesUpdate(libraryIds = ids))
+
+    /** "followed" or "all". */
+    fun setEmailContent(content: String) = updateEmail(EmailNotificationPreferencesUpdate(content = content))
+
+    private fun updateEmail(update: EmailNotificationPreferencesUpdate) {
+        viewModelScope.launch {
+            val result = notificationsRepository.updateEmailPreferences(update)
+            _uiState.update { it.copy(emailMessage = (result as? ApiResult.Error)?.message) }
+        }
+    }
+
+    /** Emails a confirmation link; the address applies once it is opened. */
+    fun requestEmailAddress(address: String) {
+        viewModelScope.launch {
+            val result = notificationsRepository.requestEmailAddress(address.trim(), java.util.UUID.randomUUID().toString())
+            _uiState.update {
+                it.copy(
+                    emailMessage = when (result) {
+                        is ApiResult.Error -> result.message
+                        else -> "Check ${address.trim()} for a link to confirm it."
+                    },
+                )
+            }
+        }
+    }
+
+    fun clearEmailAddress() {
+        viewModelScope.launch {
+            val result = notificationsRepository.clearEmailAddress()
+            _uiState.update { it.copy(emailMessage = (result as? ApiResult.Error)?.message) }
+        }
     }
 
     /**

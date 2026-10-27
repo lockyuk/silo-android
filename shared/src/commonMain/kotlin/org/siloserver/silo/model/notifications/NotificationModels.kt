@@ -170,6 +170,13 @@ data class NotificationPreferences(
     @SerialName("notify_watchlist") val notifyWatchlist: Boolean = true,
     @SerialName("notify_continue_watching") val notifyContinueWatching: Boolean = true,
     @SerialName("notify_next_up") val notifyNextUp: Boolean = true,
+    /** Every new episode / movie the profile can open, followed or not. */
+    @SerialName("notify_new_episodes") val notifyNewEpisodes: Boolean = false,
+    @SerialName("notify_new_movies") val notifyNewMovies: Boolean = false,
+    /** Instant phone push; off keeps notifications in the inbox only. */
+    @SerialName("push_enabled") val pushEnabled: Boolean = true,
+    /** Libraries push covers; empty covers every library. */
+    @SerialName("push_library_ids") val pushLibraryIds: List<Int> = emptyList(),
 )
 
 /**
@@ -184,6 +191,47 @@ data class NotificationPreferencesUpdate(
     @SerialName("notify_watchlist") val notifyWatchlist: Boolean? = null,
     @SerialName("notify_continue_watching") val notifyContinueWatching: Boolean? = null,
     @SerialName("notify_next_up") val notifyNextUp: Boolean? = null,
+    @SerialName("notify_new_episodes") val notifyNewEpisodes: Boolean? = null,
+    @SerialName("notify_new_movies") val notifyNewMovies: Boolean? = null,
+    @SerialName("push_enabled") val pushEnabled: Boolean? = null,
+    @SerialName("push_library_ids") val pushLibraryIds: List<Int>? = null,
+)
+
+/**
+ * GET/PUT /api/v2/notifications/email-preferences: the profile's own email.
+ * Instant, daily and weekly combine freely.
+ */
+@Serializable
+data class EmailNotificationPreferences(
+    val mode: String = "off",
+    @SerialName("custom_email") val customEmail: String = "",
+    @SerialName("pending_email") val pendingEmail: String = "",
+    @SerialName("can_edit_address") val canEditAddress: Boolean = false,
+    val instant: Boolean = false,
+    val daily: Boolean = false,
+    val weekly: Boolean = false,
+    /** "followed" or "all". */
+    val content: String = "followed",
+    val types: List<String> = emptyList(),
+    @SerialName("library_ids") val libraryIds: List<Int> = emptyList(),
+    @SerialName("max_age_hours") val maxAgeHours: Int = 0,
+)
+
+/** Partial PUT body for [EmailNotificationPreferences]; nulls are omitted. */
+@Serializable
+data class EmailNotificationPreferencesUpdate(
+    val instant: Boolean? = null,
+    val daily: Boolean? = null,
+    val weekly: Boolean? = null,
+    val content: String? = null,
+    @SerialName("library_ids") val libraryIds: List<Int>? = null,
+)
+
+/** PUT /api/v2/notifications/email-preferences/address body. */
+@Serializable
+data class EmailAddressVerificationRequest(
+    @SerialName("verification_id") val verificationId: String,
+    val email: String,
 )
 
 /** GET /api/v2/notifications/capabilities — drives the settings UI. */
@@ -226,6 +274,7 @@ data class CapabilityAccountChannel(
     val available: Boolean = false,
     val modes: List<String> = emptyList(),
     @SerialName("digest_hour") val digestHour: Int = 0,
+    @SerialName("digest_weekday") val digestWeekday: Int = 0,
 )
 
 // ---- Realtime frames (events websocket) -----------------------------------
