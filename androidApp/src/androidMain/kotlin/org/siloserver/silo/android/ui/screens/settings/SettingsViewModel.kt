@@ -619,14 +619,6 @@ class SettingsViewModel(
         updateNotificationPreferences(NotificationPreferencesUpdate(notifyNextUp = value))
     }
 
-    fun setNotifyNewEpisodes(value: Boolean) {
-        updateNotificationPreferences(NotificationPreferencesUpdate(notifyNewEpisodes = value))
-    }
-
-    fun setNotifyNewMovies(value: Boolean) {
-        updateNotificationPreferences(NotificationPreferencesUpdate(notifyNewMovies = value))
-    }
-
     fun setPushEnabled(value: Boolean) {
         updateNotificationPreferences(NotificationPreferencesUpdate(pushEnabled = value))
     }
@@ -642,9 +634,6 @@ class SettingsViewModel(
     fun setEmailWeekly(value: Boolean) = updateEmail(EmailNotificationPreferencesUpdate(weekly = value))
 
     fun setEmailLibraries(ids: List<Int>) = updateEmail(EmailNotificationPreferencesUpdate(libraryIds = ids))
-
-    /** "followed" or "all". */
-    fun setEmailContent(content: String) = updateEmail(EmailNotificationPreferencesUpdate(content = content))
 
     private fun updateEmail(update: EmailNotificationPreferencesUpdate) {
         viewModelScope.launch {

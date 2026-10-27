@@ -45,8 +45,8 @@ private val ActiveGreen = Color(0xFF34C759)
 
 /**
  * Notifications, matching the web settings page: which systems the server
- * runs, what to be told about, then email (address, instant / daily / weekly
- * in any mix, libraries, what to send) and push (on or off, libraries).
+ * runs, then email (address, instant / daily / weekly in any mix, libraries)
+ * and push (on or off, libraries). Both cover everything new.
  */
 @Composable
 fun SettingsNotificationsScreen(viewModel: SettingsViewModel, onBackClick: () -> Unit) {
@@ -64,63 +64,6 @@ fun SettingsNotificationsScreen(viewModel: SettingsViewModel, onBackClick: () ->
             ) {
                 StatusRow("Email", state.emailActive)
                 StatusRow("Push", state.pushActive)
-            }
-        }
-        item(key = "in-app") {
-            SettingsSection(
-                title = null,
-                footer = "Show alerts inside Silo as new releases arrive.",
-            ) {
-                SettingsSwitchRow(
-                    label = "In-App Notifications",
-                    checked = state.notificationsEnabled,
-                    onCheckedChange = viewModel::setNotificationsEnabled,
-                )
-            }
-        }
-        if (state.notificationsEnabled) {
-            item(key = "topics") {
-                SettingsSection(
-                    title = "Notify Me About",
-                    footer = "Favorites and Next Up cover new episodes of series you follow. Watchlist covers " +
-                        "titles that become available. Continue Watching covers titles you started but " +
-                        "haven't finished.",
-                ) {
-                    SettingsSwitchRow(
-                        label = "Favorites",
-                        checked = state.notifyFavorites,
-                        onCheckedChange = viewModel::setNotifyFavorites,
-                    )
-                    SettingsSwitchRow(
-                        label = "Watchlist",
-                        checked = state.notifyWatchlist,
-                        onCheckedChange = viewModel::setNotifyWatchlist,
-                    )
-                    SettingsSwitchRow(
-                        label = "Continue Watching",
-                        checked = state.notifyContinueWatching,
-                        onCheckedChange = viewModel::setNotifyContinueWatching,
-                    )
-                    SettingsSwitchRow(
-                        label = "Next Up",
-                        checked = state.notifyNextUp,
-                        onCheckedChange = viewModel::setNotifyNextUp,
-                    )
-                }
-            }
-            item(key = "everything-new") {
-                SettingsSection(title = "Everything New") {
-                    SettingsSwitchRow(
-                        label = "Every new episode",
-                        checked = state.notifyNewEpisodes,
-                        onCheckedChange = viewModel::setNotifyNewEpisodes,
-                    )
-                    SettingsSwitchRow(
-                        label = "Every new movie",
-                        checked = state.notifyNewMovies,
-                        onCheckedChange = viewModel::setNotifyNewMovies,
-                    )
-                }
             }
         }
         val email = state.email
@@ -203,10 +146,6 @@ private fun EmailSection(state: SettingsUiState, viewModel: SettingsViewModel) {
         }
         if (email.instant || email.daily || email.weekly) {
             LibraryPills(state.notificationLibraries, email.libraryIds, viewModel::setEmailLibraries)
-            PillGroup(title = "What to send") {
-                Pill("Shows I follow", email.content != "all") { viewModel.setEmailContent("followed") }
-                Pill("Everything new", email.content == "all") { viewModel.setEmailContent("all") }
-            }
         }
     }
     if (editing) {
