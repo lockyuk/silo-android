@@ -16,16 +16,19 @@ import kotlinx.serialization.json.booleanOrNull
  */
 enum class NotificationType {
     EpisodeAvailable,
+    MovieAvailable,
     RequestFulfilled,
     Unknown,
     ;
 
     companion object {
         const val EpisodeAvailableWire = "episode.available"
+        const val MovieAvailableWire = "movie.available"
         const val RequestFulfilledWire = "request.fulfilled"
 
         fun fromWire(wire: String): NotificationType = when (wire) {
             EpisodeAvailableWire -> EpisodeAvailable
+            MovieAvailableWire -> MovieAvailable
             RequestFulfilledWire -> RequestFulfilled
             else -> Unknown
         }
@@ -95,6 +98,12 @@ data class NotificationRow(
     @SerialName("poster_path") val posterPath: String = "",
     @SerialName("poster_url") val posterUrl: String = "",
     @SerialName("poster_thumbhash") val posterThumbhash: String = "",
+    /** Wide backdrop for a rich notification; empty on servers that predate it. */
+    @SerialName("image_url") val imageUrl: String = "",
+    /** Absolute poster link for a rich notification. */
+    @SerialName("thumbnail_url") val thumbnailUrl: String = "",
+    /** Buttons a rich notification offers, in display order. */
+    val actions: List<NotificationAction> = emptyList(),
     @SerialName("reason_flags") val reasonFlags: JsonObject = JsonObject(emptyMap()),
     @SerialName("created_at") val createdAt: String,
     @SerialName("read_at") val readAt: String? = null,
@@ -105,6 +114,18 @@ data class NotificationRow(
 
     val isRead: Boolean get() = !readAt.isNullOrBlank()
 }
+
+/**
+ * One rich-notification button. [id] is `play` (open [url]), `mute_series`
+ * (mute [seriesId]) or `mark_read`; clients skip ids they do not implement.
+ */
+@Serializable
+data class NotificationAction(
+    val id: String,
+    val title: String = "",
+    val url: String? = null,
+    @SerialName("series_id") val seriesId: String? = null,
+)
 
 /** GET /api/v2/notifications — newest-first page. */
 @Serializable

@@ -189,7 +189,11 @@ android {
     namespace = "org.siloserver.silo.android"
     compileSdk = 36
     defaultConfig {
-        applicationId = "org.siloserver.silo"
+        // A self-hosted build in the operator's own Firebase project overrides
+        // the package with -PsiloApplicationId so it installs beside the store
+        // app, and asks the server for direct FCM delivery with
+        // -PsiloPushProvider=fcm_direct. Store builds set neither.
+        applicationId = providers.gradleProperty("siloApplicationId").getOrElse("org.siloserver.silo")
         minSdk = 24
         targetSdk = 36
         // Shares one Play listing with the TV app (same applicationId). Two
@@ -208,6 +212,11 @@ android {
         // the android-shared value — this field is reserved for future
         // flavor wiring.
         buildConfigField("boolean", "FFMPEG_AUDIO_ENABLED", "true")
+        buildConfigField(
+            "String",
+            "PUSH_PROVIDER",
+            "\"${providers.gradleProperty("siloPushProvider").getOrElse("")}\"",
+        )
     }
     buildFeatures {
         compose = true

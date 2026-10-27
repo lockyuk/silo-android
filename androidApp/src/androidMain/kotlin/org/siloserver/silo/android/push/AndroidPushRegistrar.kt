@@ -163,7 +163,7 @@ class AndroidPushRegistrar internal constructor(
 
     private suspend fun register(token: String, owner: DurableLoginAuthority, attempt: Any): ApiResult<PushDeviceRegisterResponse> {
         if (token.length !in 64..512) return failure("invalid_push_token")
-        val result = apply(owner, PushDeviceRegisterRequest("android", token, deviceIdProvider()), attempt)
+        val result = apply(owner, PushDeviceRegisterRequest("android", token, deviceIdProvider(), provider = pushProvider), attempt)
         return result.map { checkNotNull(it) }
     }
     /**
@@ -235,7 +235,7 @@ class AndroidPushRegistrar internal constructor(
             val token = tokenProvider.token()?.trim()?.takeIf { it.length in 64..512 }
                 ?: return@withLock failure("invalid_push_token")
             // The registration it held, or the one register() sends, with the current token.
-            val request = record.intent.registration?.copy(token = token) ?: PushDeviceRegisterRequest("android", token, device)
+            val request = record.intent.registration?.copy(token = token) ?: PushDeviceRegisterRequest("android", token, device, provider = pushProvider)
             applyOnServer(owner, request, attempt, mayReconcile = true)
         }
     }
@@ -616,3 +616,9 @@ internal suspend fun tolerateFailure(step: suspend () -> Unit) {
     } catch (_: Exception) {
     }
 }
+
+/**
+ * The push provider this build registers with: empty (the Silo relay) for
+ * store builds, `fcm_direct` for builds in the operator's own Firebase project.
+ */
+private val pushProvider: String? = org.siloserver.silo.android.BuildConfig.PUSH_PROVIDER.ifBlank { null }

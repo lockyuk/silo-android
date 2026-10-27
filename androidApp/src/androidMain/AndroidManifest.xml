@@ -152,6 +152,12 @@
             </intent-filter>
         </service>
 
+        <!-- Rich notification buttons (mark read, mute show); explicit
+             PendingIntents only. -->
+        <receiver
+            android:name=".push.PushActionReceiver"
+            android:exported="false" />
+
         <!-- Disable WorkManager's androidx.startup auto-init so our explicit
              `WorkManager.initialize(this, workManagerConfiguration)` call in
              SiloApplication.onCreate wins with AppWorkerFactory wired

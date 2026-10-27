@@ -28,12 +28,13 @@ internal data class InboxCardModel(
  * Folds a [NotificationRow] into an [InboxCardModel]. [now] is the reference
  * instant for the relative-time label (injected for deterministic tests).
  *
- * Episode rows render as a rich card (poster + series title + SxEy/episode
- * subtitle); every other type — including unrecognized ones — renders a
+ * Episode and movie rows render as a rich card (poster + title + SxEy/episode
+ * or "New movie" subtitle); every other type — including unrecognized ones — renders a
  * posterless fallback card with a friendly type label.
  */
 internal fun inboxCardModel(row: NotificationRow, now: Instant): InboxCardModel {
     val isEpisode = row.type == NotificationType.EpisodeAvailable
+    val isMovie = row.type == NotificationType.MovieAvailable
     val seriesTitle = row.seriesTitle.ifBlank { null }
     val episodeTitle = row.episodeTitle.ifBlank { null }
     val posterUrl = row.posterUrl.ifBlank { null }
@@ -48,9 +49,13 @@ internal fun inboxCardModel(row: NotificationRow, now: Instant): InboxCardModel 
 
     return InboxCardModel(
         id = row.id,
-        isRich = isEpisode && (posterUrl != null || seriesTitle != null),
-        title = if (isEpisode) (seriesTitle ?: "New episode available") else fallbackTitleForType(row.rawType),
-        subtitle = subtitle,
+        isRich = (isEpisode || isMovie) && (posterUrl != null || seriesTitle != null),
+        title = when {
+            isEpisode -> seriesTitle ?: "New episode available"
+            isMovie -> seriesTitle ?: "New movie available"
+            else -> fallbackTitleForType(row.rawType)
+        },
+        subtitle = if (isMovie) "New movie" else subtitle,
         posterUrl = posterUrl,
         posterThumbhash = posterThumbhash,
         relativeTime = relativeTime(row.createdAt, now),

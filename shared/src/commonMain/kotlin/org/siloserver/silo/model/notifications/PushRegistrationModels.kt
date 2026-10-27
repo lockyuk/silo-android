@@ -9,6 +9,8 @@ data class PushDeviceRegisterRequest(
     val token: String,
     @SerialName("device_id") val deviceId: String,
     @SerialName("push_mode") val pushMode: String = "private_push",
+    /** Who sends this installation's pushes; null keeps the server default, the Silo relay. */
+    val provider: String? = null,
 ) { override fun toString() = "PushDeviceRegisterRequest(<redacted>)" }
 
 @Serializable
