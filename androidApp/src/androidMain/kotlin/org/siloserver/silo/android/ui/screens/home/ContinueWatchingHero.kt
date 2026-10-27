@@ -34,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,8 +48,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
+import androidx.compose.ui.zIndex
 import kotlinx.coroutines.delay
+import org.koin.compose.koinInject
 import org.siloserver.silo.common.ui.components.ThumbhashImage
+import org.siloserver.silo.network.ApiResult
+import org.siloserver.silo.repository.CatalogRepository
 import org.siloserver.silo.model.section.ResolvedSection
 import org.siloserver.silo.model.section.SectionItem
 import kotlin.math.absoluteValue
@@ -109,12 +114,17 @@ internal fun ContinueWatchingHero(
             HeroPage(
                 item = item,
                 offset = offset,
+                // Pages overlap during the crossfade; only the one in front
+                // takes taps, so a tap never opens the item fading in.
+                interactive = page == pagerState.currentPage,
                 // Only the page on screen drifts, so a page returns to its
                 // resting framing before it comes back.
                 zooming = page == pagerState.settledPage && !dragged,
                 onOpen = { onOpen(item) },
                 onResume = { onResume(item) },
-                modifier = Modifier.graphicsLayer {
+                modifier = Modifier
+                    .zIndex(if (page == pagerState.currentPage) 1f else 0f)
+                    .graphicsLayer {
                     // Crossfade rather than slide: the outgoing page holds its
                     // place and fades while the next fades in over it.
                     translationX = size.width * (pagerState.currentPage - page + pagerState.currentPageOffsetFraction) * 0.85f
@@ -139,11 +149,13 @@ internal fun ContinueWatchingHero(
 private fun HeroPage(
     item: SectionItem,
     offset: Float,
+    interactive: Boolean,
     zooming: Boolean,
     onOpen: () -> Unit,
     onResume: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val artwork = rememberHeroArtwork(item)
     val zoom = remember(item.contentId) { Animatable(1f) }
     LaunchedEffect(zooming) {
         if (zooming) {
@@ -156,56 +168,94 @@ private fun HeroPage(
         modifier = modifier
             .padding(horizontal = 16.dp)
             .fillMaxWidth()
-            .aspectRatio(4f / 5f)
             .clip(RoundedCornerShape(14.dp))
-            .background(Color(0xFF15171C))
-            .clickable(onClick = onOpen),
+            .background(Color.Black)
+            .then(if (interactive) Modifier.clickable(onClick = onOpen) else Modifier),
     ) {
-        val artwork = item.backdropUrl ?: item.posterUrl
-        if (artwork != null) {
-            ThumbhashImage(
-                url = artwork,
-                thumbhash = item.backdropThumbhash ?: item.posterThumbhash,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        val scale = zoom.value + offset * 0.04f
-                        scaleX = scale
-                        scaleY = scale
-                    },
-            )
-        }
-        // Darken the lower half so the text reads on any artwork.
+        // The backdrop keeps close to its own 16:9 shape, so a 1920-pixel
+        // image stays sharp on a phone; the details sit below it as it
+        // fades into black.
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        0f to Color.Transparent,
-                        0.35f to Color.Transparent,
-                        0.72f to Color.Black.copy(alpha = 0.72f),
-                        1f to Color.Black.copy(alpha = 0.94f),
-                    ),
-                ),
-        )
-        HeroDetails(
-            item = item,
-            onOpen = onOpen,
-            onResume = onResume,
-            modifier = Modifier
-                .align(Alignment.BottomStart)
                 .fillMaxWidth()
-                .padding(16.dp)
-                .graphicsLayer { translationY = offset * 40f },
-        )
+                .aspectRatio(4f / 3f)
+                .clip(RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp)),
+        ) {
+            if (artwork.url != null) {
+                ThumbhashImage(
+                    url = artwork.url,
+                    thumbhash = artwork.thumbhash,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    crossfadeMillis = 500,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            val scale = zoom.value + offset * 0.04f
+                            scaleX = scale
+                            scaleY = scale
+                        },
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0f to Color.Transparent,
+                            0.45f to Color.Transparent,
+                            1f to Color.Black,
+                        ),
+                    ),
+            )
+        }
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Spacer(
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(4f / 3f * 1.55f),
+            )
+            HeroDetails(
+                item = item,
+                interactive = interactive,
+                onOpen = onOpen,
+                onResume = onResume,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+                    .graphicsLayer { translationY = offset * 40f },
+            )
+        }
     }
+}
+
+/** Artwork for the hero: the show's or movie's own backdrop. */
+private data class HeroArtwork(val url: String?, val thumbhash: String?)
+
+/**
+ * The hero draws the title's own backdrop at full size. An episode in
+ * Continue Watching carries its small still, so the show's detail is read
+ * (cached and shared with Home's warm-up) for its backdrop; until it
+ * arrives the item's own picture stands in.
+ */
+@Composable
+private fun rememberHeroArtwork(item: SectionItem): HeroArtwork {
+    val catalog: CatalogRepository = koinInject()
+    val fallback = HeroArtwork(item.backdropUrl ?: item.posterUrl, item.backdropThumbhash ?: item.posterThumbhash)
+    val detailId = if (item.type.equals("episode", ignoreCase = true)) item.seriesId?.takeIf { it.isNotBlank() } else item.contentId
+    val artwork by produceState(fallback, detailId) {
+        if (detailId == null) return@produceState
+        val detail = (catalog.warmItemDetail(detailId) as? ApiResult.Success)?.data ?: return@produceState
+        val url = detail.backdropUrl?.takeIf { it.isNotBlank() } ?: return@produceState
+        value = HeroArtwork(url, detail.backdropThumbhash ?: fallback.thumbhash)
+    }
+    return artwork
 }
 
 @Composable
 private fun HeroDetails(
     item: SectionItem,
+    interactive: Boolean,
     onOpen: () -> Unit,
     onResume: () -> Unit,
     modifier: Modifier = Modifier,
@@ -245,7 +295,7 @@ private fun HeroDetails(
         HeroProgress(item)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             Button(
-                onClick = onResume,
+                onClick = { if (interactive) onResume() },
                 colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.weight(1f),
@@ -255,7 +305,7 @@ private fun HeroDetails(
                 Text(if ((item.positionSeconds ?: 0.0) > 0) "Resume" else "Play", fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
             FilledTonalButton(
-                onClick = onOpen,
+                onClick = { if (interactive) onOpen() },
                 colors = ButtonDefaults.filledTonalButtonColors(containerColor = Color.White.copy(alpha = 0.2f), contentColor = Color.White),
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.weight(1f),
