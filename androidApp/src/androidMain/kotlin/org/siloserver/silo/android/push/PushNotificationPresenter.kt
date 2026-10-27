@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
+import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import java.net.HttpURLConnection
@@ -105,7 +106,19 @@ class PushNotificationPresenter internal constructor(
                 ),
             )
         artwork.poster?.let { builder.setLargeIcon(it) }
-        if (artwork.backdrop != null) {
+        val synopsis = richRow?.overview?.trim().orEmpty()
+        if (artwork.backdrop != null && synopsis.isNotEmpty()) {
+            // BigPictureStyle has room for one line of text, too little for a
+            // synopsis, so the expanded view is our own layout.
+            val expanded = RemoteViews(context.packageName, R.layout.notification_rich_expanded).apply {
+                setTextViewText(R.id.notification_title, content.title)
+                setTextViewText(R.id.notification_text, content.body)
+                setTextViewText(R.id.notification_synopsis, synopsis)
+                setImageViewBitmap(R.id.notification_backdrop, artwork.backdrop)
+            }
+            builder.setStyle(NotificationCompat.DecoratedCustomViewStyle())
+                .setCustomBigContentView(expanded)
+        } else if (artwork.backdrop != null) {
             builder.setStyle(
                 NotificationCompat.BigPictureStyle()
                     .bigPicture(artwork.backdrop)
@@ -113,7 +126,11 @@ class PushNotificationPresenter internal constructor(
                     .setSummaryText(content.body),
             )
         } else {
-            builder.setStyle(NotificationCompat.BigTextStyle().bigText(content.body))
+            builder.setStyle(
+                NotificationCompat.BigTextStyle().bigText(
+                    listOf(content.body, synopsis).filter { it.isNotEmpty() }.joinToString("\n"),
+                ),
+            )
         }
         if (richRow != null && issuingServerId != null && issuingProfileId != null) {
             richRow.actions.take(MAX_ACTIONS).forEach { action ->

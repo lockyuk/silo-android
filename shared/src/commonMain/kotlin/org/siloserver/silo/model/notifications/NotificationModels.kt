@@ -98,6 +98,8 @@ data class NotificationRow(
     @SerialName("poster_path") val posterPath: String = "",
     @SerialName("poster_url") val posterUrl: String = "",
     @SerialName("poster_thumbhash") val posterThumbhash: String = "",
+    /** Synopsis of the episode, or of the movie; empty on servers that predate it. */
+    val overview: String = "",
     /** Wide backdrop for a rich notification; empty on servers that predate it. */
     @SerialName("image_url") val imageUrl: String = "",
     /** Absolute poster link for a rich notification. */
