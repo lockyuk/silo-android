@@ -391,9 +391,7 @@ fun HomeScreen(
                             val opensUnifiedSeriesDetail =
                                 section.sectionType == "continue_watching" ||
                                     section.sectionType == "in_progress"
-                            HomeSectionRow(
-                                section = section,
-                                onItemClick = { contentId ->
+                            val openItem: (String) -> Unit = { contentId ->
                                     val item = section.items.firstOrNull { it.contentId == contentId }
                                     val seriesId = item
                                         ?.takeIf { it.type.equals("episode", ignoreCase = true) }
@@ -440,8 +438,8 @@ fun HomeScreen(
                                     } else {
                                         onItemClick(contentId)
                                     }
-                                },
-                                onItemPlay = { item ->
+                                }
+                            val playItem: (SectionItem) -> Unit = { item ->
                                     // Continue Watching can include audiobooks; the play
                                     // glyph must not drop them into the video player. Home
                                     // has no callback reaching Route.AudiobookPlayer (that
@@ -453,12 +451,24 @@ fun HomeScreen(
                                     } else {
                                         onPlayClick(item.contentId, item.positionSeconds)
                                     }
-                                },
+                                }
+                            if (opensUnifiedSeriesDetail) {
+                                ContinueWatchingHero(
+                                    section = section,
+                                    onOpen = { openItem(it.contentId) },
+                                    onResume = playItem,
+                                )
+                            } else {
+                            HomeSectionRow(
+                                section = section,
+                                onItemClick = openItem,
+                                onItemPlay = playItem,
                                 onSetWatched = viewModel::setWatched,
                                 onToggleFavorite = viewModel::toggleFavorite,
                                 onToggleWatchlist = viewModel::toggleWatchlist,
                                 onRemoveFromHome = viewModel::dismissFromHome,
                             )
+                            }
                         }
 
                         // iOS bottom padding = SiloTheme.largePadding (24), plus the
