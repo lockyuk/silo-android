@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
+import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import java.net.HttpURLConnection
@@ -102,18 +103,38 @@ class PushNotificationPresenter internal constructor(
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 ),
             )
-            .setStyle(
+        if (poster != null) {
+            // The system large icon is a fixed small thumbnail, so a poster
+            // notification draws both views itself to show it bigger.
+            builder.setStyle(NotificationCompat.DecoratedCustomViewStyle())
+                .setCustomContentView(posterViews(R.layout.notification_poster_collapsed, content, poster, synopsis = null))
+                .setCustomBigContentView(posterViews(R.layout.notification_poster_expanded, content, poster, synopsis))
+        } else {
+            builder.setStyle(
                 NotificationCompat.BigTextStyle().bigText(
                     listOf(content.body, synopsis).filter { it.isNotEmpty() }.joinToString("\n"),
                 ),
             )
-        poster?.let { builder.setLargeIcon(it) }
+        }
         val notification = builder.build()
 
         runCatching {
             NotificationManagerCompat.from(context)
                 .notify(deliveryId.hashCode(), notification)
         }
+    }
+
+    private fun posterViews(
+        layout: Int,
+        content: PushNotificationContent,
+        poster: Bitmap,
+        synopsis: String?,
+    ): RemoteViews = RemoteViews(context.packageName, layout).apply {
+        setTextViewText(R.id.notification_title, content.title)
+        setTextViewText(R.id.notification_text, content.body)
+        setImageViewBitmap(R.id.notification_poster, poster)
+        // Only the expanded layout has a synopsis view.
+        synopsis?.let { setTextViewText(R.id.notification_synopsis, it) }
     }
 
     /** Loads the poster within a short budget. */
@@ -310,7 +331,7 @@ class PushNotificationPresenter internal constructor(
         const val EXTRA_NAV_ROUTE = "silo_notification_nav_route"
 
         private const val ARTWORK_BUDGET_MS = 5_000L
-        private const val POSTER_MAX_WIDTH = 256
+        private const val POSTER_MAX_WIDTH = 342
 
         /** Identity the notification was generated for; see [present]. */
         const val EXTRA_SERVER_ID = "silo_notification_server_id"
