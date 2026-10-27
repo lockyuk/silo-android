@@ -297,13 +297,6 @@ class NotificationsRepository(
      */
     suspend fun get(id: String, owner: AuthScopeSnapshot): ApiResult<NotificationRow> = api.forScope(owner).get(id)
 
-    /** Marks [id] read in [owner]'s inbox, from a notification action. */
-    suspend fun markRead(id: String, owner: AuthScopeSnapshot): ApiResult<Unit> = api.forScope(owner).markRead(id)
-
-    /** Mutes [seriesId] for [owner], from a notification action. */
-    suspend fun muteSeries(seriesId: String, owner: AuthScopeSnapshot): ApiResult<Unit> =
-        api.forScope(owner).muteSeries(seriesId)
-
     suspend fun markRead(id: String) {
         val viewer = viewer()
         if (viewer.api.markRead(id) is ApiResult.Success) {

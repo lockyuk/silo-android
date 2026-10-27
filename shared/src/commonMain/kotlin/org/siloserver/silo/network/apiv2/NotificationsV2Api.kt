@@ -77,8 +77,6 @@ class NotificationsV2Api(
         exchange(HttpMethod.Get, "/api/v2/notifications/unread-count")
     override suspend fun markRead(id: String): ApiResult<Unit> =
         exchange(HttpMethod.Post, "/api/v2/notifications/${id.encodeURLPathPart()}/read")
-    override suspend fun muteSeries(seriesId: String): ApiResult<Unit> =
-        exchange(HttpMethod.Put, "/api/v2/notifications/series/${seriesId.encodeURLPathPart()}/mute")
     override suspend fun markAllRead(through: String): ApiResult<Unit> =
         exchange(HttpMethod.Post, "/api/v2/notifications/read-all") {
             contentType(ContentType.Application.Json); setBody(InboxReadThroughV2(through))

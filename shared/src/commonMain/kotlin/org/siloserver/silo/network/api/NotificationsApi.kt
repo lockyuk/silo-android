@@ -48,10 +48,6 @@ interface NotificationsApi {
     /** POST /api/v2/notifications/{id}/read — 204, idempotent. */
     suspend fun markRead(id: String): ApiResult<Unit>
 
-    /** PUT /api/v2/notifications/series/{id}/mute — stop notifying about one series. */
-    suspend fun muteSeries(seriesId: String): ApiResult<Unit> =
-        ApiResult.Error(0, "unsupported", "Muting a series is not supported by this transport.")
-
     /** POST /api/v2/notifications/read-all — 204; marks rows created at or before [through]. */
     suspend fun markAllRead(through: String): ApiResult<Unit>
 

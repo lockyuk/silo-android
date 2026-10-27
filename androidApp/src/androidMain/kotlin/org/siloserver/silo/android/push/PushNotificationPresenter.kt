@@ -10,20 +10,16 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
-import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.siloserver.silo.android.MainActivity
 import org.siloserver.silo.android.R
 import org.siloserver.silo.android.ui.navigation.Route
-import org.siloserver.silo.model.notifications.NotificationAction
 import org.siloserver.silo.model.notifications.NotificationRow
 import org.siloserver.silo.model.notifications.NotificationType
 import org.siloserver.silo.network.ApiResult
@@ -88,10 +84,11 @@ class PushNotificationPresenter internal constructor(
                 putExtra(EXTRA_PROFILE_ID, issuingProfileId)
             }
         }
-        // Rich content comes only from an attributed row: its artwork and
-        // actions belong to the identity that generated it.
+        // The poster and synopsis come only from an attributed row: they
+        // belong to the identity that generated it.
         val richRow = row.takeIf { attributable }
-        val artwork = richRow?.let { loadArtwork(it) } ?: NotificationArtwork(null, null)
+        val poster = richRow?.let { loadPoster(it) }
+        val synopsis = richRow?.overview?.trim().orEmpty()
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(content.title)
@@ -105,40 +102,12 @@ class PushNotificationPresenter internal constructor(
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 ),
             )
-        artwork.poster?.let { builder.setLargeIcon(it) }
-        val synopsis = richRow?.overview?.trim().orEmpty()
-        if (artwork.backdrop != null && synopsis.isNotEmpty()) {
-            // BigPictureStyle has room for one line of text, too little for a
-            // synopsis, so the expanded view is our own layout.
-            val expanded = RemoteViews(context.packageName, R.layout.notification_rich_expanded).apply {
-                setTextViewText(R.id.notification_title, content.title)
-                setTextViewText(R.id.notification_text, content.body)
-                setTextViewText(R.id.notification_synopsis, synopsis)
-                setImageViewBitmap(R.id.notification_backdrop, artwork.backdrop)
-            }
-            builder.setStyle(NotificationCompat.DecoratedCustomViewStyle())
-                .setCustomBigContentView(expanded)
-        } else if (artwork.backdrop != null) {
-            builder.setStyle(
-                NotificationCompat.BigPictureStyle()
-                    .bigPicture(artwork.backdrop)
-                    .bigLargeIcon(null as Bitmap?)
-                    .setSummaryText(content.body),
-            )
-        } else {
-            builder.setStyle(
+            .setStyle(
                 NotificationCompat.BigTextStyle().bigText(
                     listOf(content.body, synopsis).filter { it.isNotEmpty() }.joinToString("\n"),
                 ),
             )
-        }
-        if (richRow != null && issuingServerId != null && issuingProfileId != null) {
-            richRow.actions.take(MAX_ACTIONS).forEach { action ->
-                actionIntent(action, deliveryId, issuer, issuingServerId, issuingProfileId)?.let { intent ->
-                    builder.addAction(0, action.title.ifBlank { action.id }, intent)
-                }
-            }
-        }
+        poster?.let { builder.setLargeIcon(it) }
         val notification = builder.build()
 
         runCatching {
@@ -147,79 +116,11 @@ class PushNotificationPresenter internal constructor(
         }
     }
 
-    /**
-     * The PendingIntent for one rich-notification button. Play opens the
-     * player through the same identity-checked route extras as a tap; the
-     * background actions need the push's issuer to act as the right login, so
-     * a push that does not name one gets no background buttons.
-     */
-    private fun actionIntent(
-        action: NotificationAction,
-        deliveryId: String,
-        issuer: PushIssuer?,
-        serverEntryId: String,
-        profileId: String,
-    ): PendingIntent? {
-        val requestCode = (deliveryId + action.id).hashCode()
-        val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        return when (action.id) {
-            ACTION_PLAY -> {
-                val contentId = action.url?.removePrefix("/watch/")?.takeIf { it.isNotBlank() && it != action.url }
-                    ?: return null
-                val intent = Intent(context, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    putExtra(EXTRA_DELIVERY_ID, deliveryId)
-                    putExtra(EXTRA_NAV_ROUTE, Route.Player(contentId = contentId).route)
-                    putExtra(EXTRA_SERVER_ID, serverEntryId)
-                    putExtra(EXTRA_PROFILE_ID, profileId)
-                }
-                PendingIntent.getActivity(context, requestCode, intent, pendingFlags)
-            }
-            ACTION_MARK_READ, ACTION_MUTE_SERIES -> {
-                if (issuer == null) return null
-                if (action.id == ACTION_MUTE_SERIES && action.seriesId.isNullOrBlank()) return null
-                val intent = Intent(context, PushActionReceiver::class.java).apply {
-                    putExtra(PushActionReceiver.EXTRA_ACTION, action.id)
-                    putExtra(EXTRA_DELIVERY_ID, deliveryId)
-                    putExtra(PushActionReceiver.EXTRA_SERIES_ID, action.seriesId)
-                    putExtra(PushActionReceiver.EXTRA_ISSUER_SERVER_ID, issuer.serverId)
-                    putExtra(PushActionReceiver.EXTRA_ISSUER_PROFILE_ID, issuer.profileId)
-                }
-                PendingIntent.getBroadcast(context, requestCode, intent, pendingFlags)
-            }
-            else -> null
-        }
-    }
-
-    /**
-     * Runs a background notification action as the login that the push was
-     * issued for, then removes the notification. Nothing happens when that
-     * login is gone.
-     */
-    suspend fun performAction(action: String, deliveryId: String, seriesId: String?, issuer: PushIssuer) {
-        withinPushBudget {
-            val target = targets.resolve(issuer) ?: return@withinPushBudget
-            val scope = target.owner.scope
-            when (action) {
-                ACTION_MARK_READ -> notificationsRepository.markRead(deliveryId, scope)
-                ACTION_MUTE_SERIES -> {
-                    seriesId?.let { notificationsRepository.muteSeries(it, scope) }
-                    notificationsRepository.markRead(deliveryId, scope)
-                }
-            }
-        }
-        runCatching { NotificationManagerCompat.from(context).cancel(deliveryId.hashCode()) }
-    }
-
-    /** Loads the backdrop and poster in parallel within a short budget. */
-    private suspend fun loadArtwork(row: NotificationRow): NotificationArtwork =
+    /** Loads the poster within a short budget. */
+    private suspend fun loadPoster(row: NotificationRow): Bitmap? =
         withTimeoutOrNull(ARTWORK_BUDGET_MS) {
-            coroutineScope {
-                val backdrop = async { loadBitmap(row.imageUrl, BACKDROP_MAX_WIDTH) }
-                val poster = async { loadBitmap(row.thumbnailUrl.ifBlank { row.posterUrl }, POSTER_MAX_WIDTH) }
-                NotificationArtwork(backdrop.await(), poster.await())
-            }
-        } ?: NotificationArtwork(null, null)
+            loadBitmap(row.thumbnailUrl.ifBlank { row.posterUrl }, POSTER_MAX_WIDTH)
+        }
 
     private suspend fun loadBitmap(url: String, maxWidth: Int): Bitmap? {
         if (!url.startsWith("https://") && !url.startsWith("http://")) return null
@@ -408,12 +309,7 @@ class PushNotificationPresenter internal constructor(
         const val EXTRA_DELIVERY_ID = "silo_notification_delivery_id"
         const val EXTRA_NAV_ROUTE = "silo_notification_nav_route"
 
-        const val ACTION_PLAY = "play"
-        const val ACTION_MUTE_SERIES = "mute_series"
-        const val ACTION_MARK_READ = "mark_read"
-        private const val MAX_ACTIONS = 3
         private const val ARTWORK_BUDGET_MS = 5_000L
-        private const val BACKDROP_MAX_WIDTH = 720
         private const val POSTER_MAX_WIDTH = 256
 
         /** Identity the notification was generated for; see [present]. */
@@ -426,8 +322,6 @@ private data class FetchedNotification(
     val row: NotificationRow?,
     val attribution: PushNotificationAttribution?,
 )
-
-private data class NotificationArtwork(val backdrop: Bitmap?, val poster: Bitmap?)
 
 private data class PushNotificationContent(
     val title: String,
