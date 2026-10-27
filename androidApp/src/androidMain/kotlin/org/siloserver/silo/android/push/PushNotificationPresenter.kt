@@ -11,8 +11,10 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
 import android.widget.RemoteViews
+import android.text.SpannableStringBuilder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.text.HtmlCompat
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
@@ -92,7 +94,12 @@ class PushNotificationPresenter internal constructor(
         // the image; otherwise the poster and synopsis are shown as before.
         val styled = richRow?.push?.takeIf { it.title.isNotBlank() }
         val content = if (styled != null) {
-            baseContent.copy(title = styled.title, body = styled.body.ifBlank { baseContent.body })
+            // The server's templates may bold, italicise, underline, strike
+            // or colour text, as a small HTML subset with values escaped.
+            baseContent.copy(
+                title = fromHtml(styled.title),
+                body = styled.body.takeIf { it.isNotBlank() }?.let(::fromHtml) ?: baseContent.body,
+            )
         } else {
             baseContent
         }
@@ -127,7 +134,7 @@ class PushNotificationPresenter internal constructor(
                 .setStyle(
                     NotificationCompat.BigPictureStyle()
                         .bigPicture(backdrop)
-                        .setSummaryText(listOf(content.body, synopsis).filter { it.isNotEmpty() }.joinToString(" — ")),
+                        .setSummaryText(joinText(" — ", content.body, synopsis)),
                 )
         } else if (poster != null) {
             // The system large icon is a fixed small thumbnail, so a poster
@@ -137,16 +144,17 @@ class PushNotificationPresenter internal constructor(
                 .setCustomBigContentView(posterViews(R.layout.notification_poster_expanded, content, poster, synopsis))
         } else {
             builder.setStyle(
-                NotificationCompat.BigTextStyle().bigText(
-                    listOf(content.body, synopsis).filter { it.isNotEmpty() }.joinToString("\n"),
-                ),
+                NotificationCompat.BigTextStyle().bigText(joinText("\n", content.body, synopsis)),
             )
         }
         val notification = builder.build()
 
         runCatching {
-            NotificationManagerCompat.from(context)
-                .notify(deliveryId.hashCode(), notification)
+            val manager = NotificationManagerCompat.from(context)
+            // Reposting under the same id keeps whatever expanded or collapsed
+            // state the user left the old one in; a fresh post starts afresh.
+            manager.cancel(deliveryId.hashCode())
+            manager.notify(deliveryId.hashCode(), notification)
         }
     }
 
@@ -373,9 +381,23 @@ private data class FetchedNotification(
     val attribution: PushNotificationAttribution?,
 )
 
+/** Decodes the HTML subset the server's push templates produce. */
+private fun fromHtml(html: String): CharSequence =
+    HtmlCompat.fromHtml(html, HtmlCompat.FROM_HTML_MODE_COMPACT).trimEnd()
+
+/** Joins the non-empty parts with [separator], keeping their styling. */
+private fun joinText(separator: String, vararg parts: CharSequence): CharSequence {
+    val out = SpannableStringBuilder()
+    parts.filter { it.isNotEmpty() }.forEachIndexed { i, part ->
+        if (i > 0) out.append(separator)
+        out.append(part)
+    }
+    return out
+}
+
 private data class PushNotificationContent(
-    val title: String,
-    val body: String,
+    val title: CharSequence,
+    val body: CharSequence,
     val route: String,
 )
 
