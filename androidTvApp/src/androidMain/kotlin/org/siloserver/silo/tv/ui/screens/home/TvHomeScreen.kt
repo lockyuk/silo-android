@@ -14,8 +14,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -136,27 +138,78 @@ fun TvHomeScreen(
                 onInitialContentFocus = onInitialContentFocus,
             )
         else -> key(homeSectionPreferenceState.layoutRevision) {
-            TvHomeContent(
-                sections = visibleSections,
-                sectionsFullyResolved = state.sectionsFullyResolved,
-                onItemClick = onItemClick,
-                onItemDetailSelection = onItemDetailSelection,
-                onPlayItem = onPlayItem,
-                onSeeAll = onSeeAll,
-                onOpenForYou = onOpenForYou,
-                onInitialContentFocus = onInitialContentFocus,
-                focusRequest = focusRequest,
-                detailReturnFocusRequest = detailReturnFocusRequest,
-                detailReturnCardFocusRequester = detailReturnCardFocusRequester,
-                firstRowFocusRequester = firstRowFocusRequester,
-                firstRowContainerFocusRequester = firstRowContainerFocusRequester,
-                onContentUpFallbackChanged = onContentUpFallbackChanged,
-                onSetWatched = viewModel::setWatched,
-                onMarqueeTranslated = viewModel::refreshFromRealtime,
-                onToggleFavorite = viewModel::toggleFavorite,
-                onToggleWatchlist = viewModel::toggleWatchlist,
-                onRemoveFromHome = viewModel::dismissFromHome,
-            )
+            val heroSection = visibleSections.firstOrNull { it.isTvContinueWatchingRow() && it.items.isNotEmpty() }
+            // Home opens on the Continue Watching hero; Down leaves it for the
+            // rows and Up from the top row comes back.
+            var heroActive by rememberSaveable { mutableStateOf(true) }
+            var rowsFocusRequest by remember { mutableIntStateOf(0) }
+            // The shell tells a feed's up-fallback apart by identity, so each
+            // registration keeps one wrapper for its whole life.
+            val upWrappers = remember { java.util.IdentityHashMap<(Boolean) -> Boolean, (Boolean) -> Boolean>() }
+            if (heroSection != null && heroActive) {
+                TvContinueWatchingHero(
+                    section = heroSection,
+                    onResume = { item -> onPlayItem(item.contentId, item.type, item.positionSeconds) },
+                    onDetails = { item ->
+                        val target = item.tvContinueWatchingDetailTarget()
+                        onItemDetailSelection(target.contentId, target.seasonNumber, target.episodeContentId)
+                    },
+                    onDown = {
+                        heroActive = false
+                        rowsFocusRequest++
+                    },
+                    onInitialContentFocus = onInitialContentFocus,
+                    focusRequest = focusRequest,
+                    detailReturnFocusRequest = detailReturnFocusRequest,
+                    resumeFocusRequester = firstRowFocusRequester,
+                    detailsFocusRequester = detailReturnCardFocusRequester,
+                    buttonsFocusRequester = firstRowContainerFocusRequester,
+                )
+            } else {
+                TvHomeContent(
+                    sections = visibleSections,
+                    sectionsFullyResolved = state.sectionsFullyResolved,
+                    onItemClick = onItemClick,
+                    onItemDetailSelection = onItemDetailSelection,
+                    onPlayItem = onPlayItem,
+                    onSeeAll = onSeeAll,
+                    onOpenForYou = onOpenForYou,
+                    onInitialContentFocus = onInitialContentFocus,
+                    focusRequest = focusRequest + rowsFocusRequest,
+                    detailReturnFocusRequest = detailReturnFocusRequest,
+                    detailReturnCardFocusRequester = detailReturnCardFocusRequester,
+                    firstRowFocusRequester = firstRowFocusRequester,
+                    firstRowContainerFocusRequester = firstRowContainerFocusRequester,
+                    onContentUpFallbackChanged = if (heroSection == null || onContentUpFallbackChanged == null) {
+                        onContentUpFallbackChanged
+                    } else {
+                        { inner ->
+                            onContentUpFallbackChanged(
+                                inner?.let {
+                                    upWrappers.getOrPut(it) {
+                                        { isRepeat ->
+                                            val handled = it(isRepeat)
+                                            // Up from the top row returns to the hero
+                                            // instead of the menu bar.
+                                            if (!handled && !isRepeat) {
+                                                heroActive = true
+                                                true
+                                            } else {
+                                                handled
+                                            }
+                                        }
+                                    }
+                                },
+                            )
+                        }
+                    },
+                    onSetWatched = viewModel::setWatched,
+                    onMarqueeTranslated = viewModel::refreshFromRealtime,
+                    onToggleFavorite = viewModel::toggleFavorite,
+                    onToggleWatchlist = viewModel::toggleWatchlist,
+                    onRemoveFromHome = viewModel::dismissFromHome,
+                )
+            }
         }
     }
 }
