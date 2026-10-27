@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -272,9 +273,8 @@ private fun HeroDetails(
                 contentScale = ContentScale.Fit,
                 alignment = Alignment.BottomStart,
                 transparent = true,
-                modifier = Modifier
-                    .fillMaxWidth(0.62f)
-                    .heightIn(max = 72.dp),
+                // Sized to the logo's own shape, so it starts at the text's edge.
+                modifier = Modifier.sizeIn(maxWidth = 240.dp, maxHeight = 72.dp),
             )
         } else {
             Text(

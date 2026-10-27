@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
@@ -303,9 +304,8 @@ private fun HeroText(item: SectionItem) {
                 contentScale = ContentScale.Fit,
                 alignment = Alignment.BottomStart,
                 transparent = true,
-                modifier = Modifier
-                    .width(380.dp)
-                    .heightIn(max = 130.dp),
+                // Sized to the logo's own shape, so it starts at the text's edge.
+                modifier = Modifier.sizeIn(maxWidth = 380.dp, maxHeight = 130.dp),
             )
         } else {
             Text(showTitle, fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
