@@ -131,6 +131,12 @@ data class NotificationPushContent(
     val synopsis: String = "",
     val image: String = "poster",
     @SerialName("image_url") val imageUrl: String = "",
+    /** Show the image in the collapsed notification. */
+    @SerialName("collapsed_image") val collapsedImage: Boolean = true,
+    /** Show the image in the expanded view. */
+    @SerialName("expanded_image") val expandedImage: Boolean = true,
+    /** Offer an expanded view; false keeps the notification collapsed. */
+    val expanded: Boolean = true,
     val count: Int = 0,
 )
 

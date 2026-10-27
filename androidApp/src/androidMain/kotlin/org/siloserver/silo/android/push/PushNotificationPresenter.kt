@@ -12,6 +12,7 @@ import android.graphics.BitmapFactory
 import android.os.Build
 import android.widget.RemoteViews
 import android.text.SpannableStringBuilder
+import android.view.View
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.text.HtmlCompat
@@ -129,21 +130,40 @@ class PushNotificationPresenter internal constructor(
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 ),
             )
-        if (backdrop != null) {
-            builder.setLargeIcon(null as Bitmap?)
-                .setStyle(
-                    NotificationCompat.BigPictureStyle()
-                        .bigPicture(backdrop)
-                        .setSummaryText(joinText(" — ", content.body, synopsis)),
-                )
-        } else if (poster != null) {
-            // The system large icon is a fixed small thumbnail, so a poster
-            // notification draws both views itself to show it bigger.
-            builder.setStyle(NotificationCompat.DecoratedCustomViewStyle())
-                .setCustomContentView(posterViews(R.layout.notification_poster_collapsed, content, poster, synopsis = null))
-                .setCustomBigContentView(posterViews(R.layout.notification_poster_expanded, content, poster, synopsis))
-        } else {
-            builder.setStyle(
+        // Where the server's settings put the image, and whether there is an
+        // expanded view: Android opens the newest notification expanded
+        // whenever it has one, so leaving it out keeps the push collapsed.
+        val collapsedImage = styled?.collapsedImage ?: true
+        val expandedImage = styled?.expandedImage ?: true
+        val expandedView = styled?.expanded ?: true
+        when {
+            backdrop != null -> {
+                if (collapsedImage) builder.setLargeIcon(backdrop)
+                if (expandedView && expandedImage) {
+                    builder.setStyle(
+                        NotificationCompat.BigPictureStyle()
+                            .bigPicture(backdrop)
+                            .bigLargeIcon(null as Bitmap?)
+                            .setSummaryText(joinText(" — ", content.body, synopsis)),
+                    )
+                } else if (expandedView) {
+                    builder.setStyle(NotificationCompat.BigTextStyle().bigText(joinText("\n", content.body, synopsis)))
+                }
+            }
+            poster != null -> {
+                // The system large icon is a fixed small thumbnail, so a poster
+                // notification draws its views itself to show it bigger.
+                builder.setStyle(NotificationCompat.DecoratedCustomViewStyle())
+                    .setCustomContentView(
+                        posterViews(R.layout.notification_poster_collapsed, content, poster.takeIf { collapsedImage }, synopsis = null),
+                    )
+                if (expandedView) {
+                    builder.setCustomBigContentView(
+                        posterViews(R.layout.notification_poster_expanded, content, poster.takeIf { expandedImage }, synopsis),
+                    )
+                }
+            }
+            expandedView -> builder.setStyle(
                 NotificationCompat.BigTextStyle().bigText(joinText("\n", content.body, synopsis)),
             )
         }
@@ -161,12 +181,16 @@ class PushNotificationPresenter internal constructor(
     private fun posterViews(
         layout: Int,
         content: PushNotificationContent,
-        poster: Bitmap,
+        poster: Bitmap?,
         synopsis: String?,
     ): RemoteViews = RemoteViews(context.packageName, layout).apply {
         setTextViewText(R.id.notification_title, content.title)
         setTextViewText(R.id.notification_text, content.body)
-        setImageViewBitmap(R.id.notification_poster, poster)
+        if (poster != null) {
+            setImageViewBitmap(R.id.notification_poster, poster)
+        } else {
+            setViewVisibility(R.id.notification_poster, View.GONE)
+        }
         // Only the expanded layout has a synopsis view.
         synopsis?.let { setTextViewText(R.id.notification_synopsis, it) }
     }
