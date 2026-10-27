@@ -61,7 +61,7 @@ class PushNotificationPresenter internal constructor(
         val issuingProfileId = attribution?.profileId
         val attributable = attribution != null
 
-        val content = notificationContentFor(
+        val baseContent = notificationContentFor(
             // Both sources of text are withheld when we cannot say whose this
             // is. The ROW matters as much as the payload: if the identity moved
             // across the fetch, its series/episode details belong to whoever we
@@ -80,7 +80,7 @@ class PushNotificationPresenter internal constructor(
             // one opens its route only while its server and profile are the
             // active ones (MainActivity); otherwise it opens the app.
             if (attributable) {
-                putExtra(EXTRA_NAV_ROUTE, content.route)
+                putExtra(EXTRA_NAV_ROUTE, baseContent.route)
                 putExtra(EXTRA_SERVER_ID, issuingServerId)
                 putExtra(EXTRA_PROFILE_ID, issuingProfileId)
             }
@@ -88,8 +88,27 @@ class PushNotificationPresenter internal constructor(
         // The poster and synopsis come only from an attributed row: they
         // belong to the identity that generated it.
         val richRow = row.takeIf { attributable }
-        val poster = richRow?.let { loadPoster(it) }
-        val synopsis = richRow?.overview?.trim().orEmpty()
+        // The server's push settings, when it has them, choose the text and
+        // the image; otherwise the poster and synopsis are shown as before.
+        val styled = richRow?.push?.takeIf { it.title.isNotBlank() }
+        val content = if (styled != null) {
+            baseContent.copy(title = styled.title, body = styled.body.ifBlank { baseContent.body })
+        } else {
+            baseContent
+        }
+        val poster = when {
+            styled == null -> richRow?.let { loadPoster(it) }
+            styled.image == PUSH_IMAGE_POSTER -> withTimeoutOrNull(ARTWORK_BUDGET_MS) {
+                loadBitmap(styled.imageUrl.ifBlank { richRow.thumbnailUrl.ifBlank { richRow.posterUrl } }, POSTER_MAX_WIDTH)
+            }
+            else -> null
+        }
+        val backdrop = if (styled?.image == PUSH_IMAGE_BACKDROP) {
+            withTimeoutOrNull(ARTWORK_BUDGET_MS) { loadBitmap(styled.imageUrl.ifBlank { richRow.imageUrl }, BACKDROP_MAX_WIDTH) }
+        } else {
+            null
+        }
+        val synopsis = if (styled != null) styled.synopsis.trim() else richRow?.overview?.trim().orEmpty()
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(content.title)
@@ -103,7 +122,14 @@ class PushNotificationPresenter internal constructor(
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 ),
             )
-        if (poster != null) {
+        if (backdrop != null) {
+            builder.setLargeIcon(null as Bitmap?)
+                .setStyle(
+                    NotificationCompat.BigPictureStyle()
+                        .bigPicture(backdrop)
+                        .setSummaryText(listOf(content.body, synopsis).filter { it.isNotEmpty() }.joinToString(" — ")),
+                )
+        } else if (poster != null) {
             // The system large icon is a fixed small thumbnail, so a poster
             // notification draws both views itself to show it bigger.
             builder.setStyle(NotificationCompat.DecoratedCustomViewStyle())
@@ -332,6 +358,9 @@ class PushNotificationPresenter internal constructor(
 
         private const val ARTWORK_BUDGET_MS = 5_000L
         private const val POSTER_MAX_WIDTH = 342
+        private const val BACKDROP_MAX_WIDTH = 780
+        private const val PUSH_IMAGE_POSTER = "poster"
+        private const val PUSH_IMAGE_BACKDROP = "backdrop"
 
         /** Identity the notification was generated for; see [present]. */
         const val EXTRA_SERVER_ID = "silo_notification_server_id"

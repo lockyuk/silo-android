@@ -106,6 +106,8 @@ data class NotificationRow(
     @SerialName("thumbnail_url") val thumbnailUrl: String = "",
     /** Buttons a rich notification offers, in display order. */
     val actions: List<NotificationAction> = emptyList(),
+    /** Text and image from the server's push settings; null on servers without them. */
+    val push: NotificationPushContent? = null,
     @SerialName("reason_flags") val reasonFlags: JsonObject = JsonObject(emptyMap()),
     @SerialName("created_at") val createdAt: String,
     @SerialName("read_at") val readAt: String? = null,
@@ -116,6 +118,21 @@ data class NotificationRow(
 
     val isRead: Boolean get() = !readAt.isNullOrBlank()
 }
+
+/**
+ * A push notification as the server's admin templates render it. [image] is
+ * `poster`, `backdrop` or `none`; [imageUrl] is that image. [count] is above
+ * one when the push stands for several episodes of one show.
+ */
+@Serializable
+data class NotificationPushContent(
+    val title: String = "",
+    val body: String = "",
+    val synopsis: String = "",
+    val image: String = "poster",
+    @SerialName("image_url") val imageUrl: String = "",
+    val count: Int = 0,
+)
 
 /**
  * One rich-notification button. [id] is `play` (open [url]), `mute_series`
