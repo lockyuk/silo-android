@@ -190,6 +190,12 @@ class CatalogV2Api(
             client.get("/api/v2/catalog/people/$id") { scope?.let { authScope(it) } }
         }) { it.toDomain() }
 
+    /** Everything the person worked on, from `/api/v2/catalog/people/{id}/filmography`. */
+    suspend fun personFilmography(id: Long): ApiResult<org.siloserver.silo.model.catalog.Filmography> =
+        read<FilmographyReadV2, org.siloserver.silo.model.catalog.Filmography>({ scope ->
+            client.get("/api/v2/catalog/people/$id/filmography") { scope?.let { authScope(it) } }
+        }) { it.toDomain() }
+
     suspend fun people(query: String?, limit: Int = 20, mediaScope: String? = null): ApiResult<List<Person>> {
         if (limit !in 1..100) return ApiResult.Error(0, "validation_failed", "People search limit must be between 1 and 100.")
         return read<DetailCollectionReadV2<PersonReadV2>, List<Person>>({ scope ->

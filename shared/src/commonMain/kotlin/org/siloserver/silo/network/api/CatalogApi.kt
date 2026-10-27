@@ -96,6 +96,9 @@ class CatalogApi(client: HttpClient, private val v2: CatalogV2Api = CatalogV2Api
 
     suspend fun getPerson(id: Long): ApiResult<Person> = v2.person(id)
 
+    suspend fun getPersonFilmography(id: Long): ApiResult<org.siloserver.silo.model.catalog.Filmography> =
+        v2.personFilmography(id)
+
     suspend fun getPerson(id: Long, owner: AuthScopeSnapshot): ApiResult<Person> = personRefresh.detail(id, owner)
 
     suspend fun refreshPerson(id: Long, owner: AuthScopeSnapshot): ApiResult<Unit> = personRefresh.refresh(id, owner)

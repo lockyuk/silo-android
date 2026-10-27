@@ -384,6 +384,14 @@ class CatalogRepository(
     suspend fun getPerson(id: Long, owner: org.siloserver.silo.network.AuthScopeSnapshot): ApiResult<Person> =
         catalogApi.getPerson(id, owner)
 
+    /**
+     * Everything a person worked on, as their metadata provider lists it, with
+     * the titles the profile's libraries hold marked. Servers without the
+     * endpoint answer 404; callers fall back to [getPersonItems].
+     */
+    suspend fun getPersonFilmography(personId: Long): ApiResult<org.siloserver.silo.model.catalog.Filmography> =
+        catalogApi.getPersonFilmography(personId)
+
     /** Filmography for a person — movies and series they appear in. */
     suspend fun getPersonItems(
         personId: Long,

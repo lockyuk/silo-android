@@ -123,6 +123,14 @@ fun TvPersonDetailScreen(
                 onRetry = viewModel::reload,
                 modifier = Modifier.background(MaterialTheme.colorScheme.background),
             )
+            state.person != null && state.filmography != null -> TvFullFilmographyContent(
+                person = state.person!!,
+                state = state,
+                onTypeSelected = viewModel::setFilmographyType,
+                onLibrarySelected = viewModel::setFilmographyLibrary,
+                onToggleSelf = viewModel::toggleSelfAppearances,
+                onOpenItemDetail = onOpenItemDetail,
+            )
             state.person != null -> TvPersonDetailContent(
                 person = state.person!!,
                 state = state,
@@ -329,7 +337,7 @@ private fun TvPersonDetailContent(
 // portrait↔text gap, 72pt bold name, 22pt column spacing, 10pt column top
 // inset, secondary-gray bio capped at 7 lines / 920pt width.
 @Composable
-private fun PersonHeader(person: Person, bioFocusRequester: FocusRequester) {
+internal fun PersonHeader(person: Person, bioFocusRequester: FocusRequester) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(24.dp),
@@ -689,7 +697,7 @@ private fun FilmographyHeader(
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun FilterChoiceChip(
+internal fun FilterChoiceChip(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
@@ -760,14 +768,14 @@ private const val PersonGridColumns = 6
 private val PersonGridItemSpacing = 20.dp
 
 /** tvOS `continuumSecondaryText` (#99EDEDED). */
-private val PersonSecondaryText = Color(0x99EDEDED)
+internal val PersonSecondaryText = Color(0x99EDEDED)
 
 // Server bios often arrive with a dangling "..."/"…" truncation marker —
 // on its own line (any Unicode line break) or stacked straight after the
 // sentence period ("career...."). Strip the whole trailing dot/whitespace
 // run and restore a single period, so the bio ends cleanly; genuinely long
 // bios still get Compose's own overflow ellipsis at the 7-line cap.
-private fun cleanPersonBio(raw: String?): String? {
+internal fun cleanPersonBio(raw: String?): String? {
     var text = raw?.trim().orEmpty()
     // TMDB bios sourced from Wikipedia carry a trailing attribution
     // paragraph ("Description above from the Wikipedia article …, licensed

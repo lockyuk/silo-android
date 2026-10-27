@@ -3,6 +3,11 @@ package org.siloserver.silo.tv.ui.screens.people
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import org.siloserver.silo.model.catalog.BrowseItem
+import org.siloserver.silo.model.catalog.Filmography
+import org.siloserver.silo.model.catalog.FilmographyCredit
+import org.siloserver.silo.model.catalog.FilmographyLibraryFilter
+import org.siloserver.silo.model.catalog.FilmographyTypeFilter
+import org.siloserver.silo.model.catalog.filterFilmography
 import org.siloserver.silo.model.catalog.Person
 import org.siloserver.silo.model.catalog.isAudiobookItemType
 import org.siloserver.silo.model.catalog.personWorksFiltersForTv
@@ -49,7 +54,22 @@ data class TvPersonDetailUiState(
     val hasMore: Boolean = false,
     val pagingError: String? = null,
     val error: String? = null,
-)
+    /**
+     * Everything the person worked on, when the server can list it. Null while
+     * it loads or when the server cannot, in which case the library grid shows.
+     */
+    val filmography: Filmography? = null,
+    /** True until the full filmography has been asked for. */
+    val filmographyPending: Boolean = true,
+    val filmographyType: FilmographyTypeFilter = FilmographyTypeFilter.All,
+    val filmographyLibrary: FilmographyLibraryFilter = FilmographyLibraryFilter.All,
+    val showSelfAppearances: Boolean = false,
+) {
+    /** The credits the filmography chips select. */
+    val visibleCredits: List<FilmographyCredit>
+        get() = filmography?.credits.orEmpty()
+            .filterFilmography(filmographyType, filmographyLibrary, showSelfAppearances)
+}
 
 /**
  * Drives the Android TV person detail screen — the cast/crew profile plus their
@@ -164,9 +184,10 @@ class TvPersonDetailViewModel(
                             isLoading = false,
                             person = result.data,
                             error = null,
+                            isLoadingItems = it.filmographyPending,
                         )
                     }
-                    loadItems(_uiState.value.selectedFilter, reset = true)
+                    loadFilmography()
                 }
                 is ApiResult.Error -> _uiState.update {
                     it.copy(
@@ -182,6 +203,31 @@ class TvPersonDetailViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * Loads the full filmography; without one (an older server, or no provider
+     * that lists credits) the library grid loads instead.
+     */
+    private fun loadFilmography() {
+        viewModelScope.launch {
+            val result = catalogRepository.getPersonFilmography(personId)
+            val filmography = (result as? ApiResult.Success)?.data?.takeIf { it.available }
+            _uiState.update { it.copy(filmography = filmography, filmographyPending = false) }
+            if (filmography == null) loadItems(_uiState.value.selectedFilter, reset = true)
+        }
+    }
+
+    fun setFilmographyType(filter: FilmographyTypeFilter) {
+        _uiState.update { it.copy(filmographyType = filter) }
+    }
+
+    fun setFilmographyLibrary(filter: FilmographyLibraryFilter) {
+        _uiState.update { it.copy(filmographyLibrary = filter) }
+    }
+
+    fun toggleSelfAppearances() {
+        _uiState.update { it.copy(showSelfAppearances = !it.showSelfAppearances) }
     }
 
     fun applyFilter(filter: TvPersonMediaFilter) {

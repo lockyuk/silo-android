@@ -70,8 +70,8 @@ import org.siloserver.silo.model.catalog.personMetadataBadges
 import org.siloserver.silo.model.catalog.personWorksCountLabel
 import java.time.LocalDate
 
-private val SafePadding = 16.dp
-private val LargePadding = 24.dp
+internal val SafePadding = 16.dp
+internal val LargePadding = 24.dp
 
 /**
  * Person detail screen — actor / creator profile.
@@ -110,6 +110,16 @@ fun PersonDetailScreen(
                     onRefresh = { viewModel.reload() },
                     modifier = Modifier.fillMaxSize(),
                 ) {
+                if (state.filmography != null) {
+                    PersonFullFilmography(
+                        person = state.person!!,
+                        state = state,
+                        onTypeSelected = viewModel::setFilmographyType,
+                        onLibrarySelected = viewModel::setFilmographyLibrary,
+                        onToggleSelf = viewModel::toggleSelfAppearances,
+                        onItemClick = onItemClick,
+                    )
+                } else
                 PersonDetailContent(
                     person = state.person!!,
                     isRefreshingMetadata = state.isRefreshingMetadata,
@@ -270,7 +280,7 @@ private fun PersonDetailContent(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun PersonHeader(person: Person, isRefreshingMetadata: Boolean = false) {
+internal fun PersonHeader(person: Person, isRefreshingMetadata: Boolean = false) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(18.dp),
@@ -424,7 +434,7 @@ private fun FilmographyHeader(
 }
 
 @Composable
-private fun FilterChip(
+internal fun FilterChip(
     title: String,
     isSelected: Boolean,
     onClick: () -> Unit,

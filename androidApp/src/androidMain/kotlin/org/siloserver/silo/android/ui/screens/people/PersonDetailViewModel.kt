@@ -4,6 +4,11 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import org.siloserver.silo.model.catalog.BrowseItem
+import org.siloserver.silo.model.catalog.Filmography
+import org.siloserver.silo.model.catalog.FilmographyCredit
+import org.siloserver.silo.model.catalog.FilmographyLibraryFilter
+import org.siloserver.silo.model.catalog.FilmographyTypeFilter
+import org.siloserver.silo.model.catalog.filterFilmography
 import org.siloserver.silo.model.catalog.Person
 import org.siloserver.silo.model.catalog.isReadingMediaType
 import org.siloserver.silo.model.catalog.personWorksFiltersForMobile
@@ -58,7 +63,20 @@ data class PersonDetailUiState(
     /** True while the server-side metadata refresh poll is running (iOS
      *  isRefreshingMetadata — drives the "Loading metadata" pill). */
     val isRefreshingMetadata: Boolean = false,
-)
+    /**
+     * Everything the person worked on, when the server can list it. Null while
+     * it loads or when the server cannot, in which case the library grid shows.
+     */
+    val filmography: Filmography? = null,
+    val filmographyType: FilmographyTypeFilter = FilmographyTypeFilter.All,
+    val filmographyLibrary: FilmographyLibraryFilter = FilmographyLibraryFilter.All,
+    val showSelfAppearances: Boolean = false,
+) {
+    /** The credits the filmography chips select. */
+    val visibleCredits: List<FilmographyCredit>
+        get() = filmography?.credits.orEmpty()
+            .filterFilmography(filmographyType, filmographyLibrary, showSelfAppearances)
+}
 
 /**
  * Loads viewer person detail and their paginated works.
@@ -96,6 +114,18 @@ class PersonDetailViewModel(
                 owner.profileToken == now?.profileToken && owner.credentialGenerationId == now?.credentialGenerationId)
     }
 
+    fun setFilmographyType(filter: FilmographyTypeFilter) {
+        _uiState.update { it.copy(filmographyType = filter) }
+    }
+
+    fun setFilmographyLibrary(filter: FilmographyLibraryFilter) {
+        _uiState.update { it.copy(filmographyLibrary = filter) }
+    }
+
+    fun toggleSelfAppearances() {
+        _uiState.update { it.copy(showSelfAppearances = !it.showSelfAppearances) }
+    }
+
     fun reload() {
         val run = ++detailGeneration
         detailJob?.cancel()
@@ -113,9 +143,17 @@ class PersonDetailViewModel(
                             isLoading = false,
                             person = result.data,
                             error = null,
+                            isLoadingItems = true,
                         )
                     }
-                    loadItems(_uiState.value.selectedFilter, reset = true)
+                    // The full filmography replaces the library grid; without
+                    // one (an older server, or no provider that lists credits)
+                    // the grid loads instead.
+                    val filmography = (catalogRepository.getPersonFilmography(personId) as? ApiResult.Success)
+                        ?.data?.takeIf { it.available }
+                    if (!current(run, owner)) return@launch
+                    _uiState.update { it.copy(filmography = filmography, isLoadingItems = filmography == null) }
+                    if (filmography == null) loadItems(_uiState.value.selectedFilter, reset = true)
                     scheduleMetadataRefreshIfNeeded(result.data, run, owner)
                 }
                 is ApiResult.Error -> {
