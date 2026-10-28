@@ -46,6 +46,8 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -300,7 +302,7 @@ internal fun TvContinueWatchingHero(
                 .height(30.dp),
         ) {
             if (items.size > 1) {
-                HeroIndicators(count = items.size, current = index, progress = dwell.value)
+                HeroIndicators(count = items.size, current = index, progress = { dwell.value })
             }
         }
     }
@@ -425,7 +427,7 @@ private fun HeroProgress(item: SectionItem) {
 }
 
 @Composable
-private fun HeroIndicators(count: Int, current: Int, progress: Float, modifier: Modifier = Modifier) {
+private fun HeroIndicators(count: Int, current: Int, progress: () -> Float, modifier: Modifier = Modifier) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         repeat(count.coerceAtMost(12)) { i ->
             if (i == current) {
@@ -434,15 +436,13 @@ private fun HeroIndicators(count: Int, current: Int, progress: Float, modifier: 
                         .width(22.dp)
                         .height(6.dp)
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.3f)),
-                ) {
-                    Box(
-                        Modifier
-                            .fillMaxWidth(0.15f + 0.85f * progress)
-                            .height(6.dp)
-                            .background(Color.White),
-                    )
-                }
+                        .background(Color.White.copy(alpha = 0.3f))
+                        // Drawn from the timer each frame without recomposing
+                        // the hero: only this bar changes as it runs.
+                        .drawBehind {
+                            drawRect(Color.White, size = Size(size.width * (0.15f + 0.85f * progress()), size.height))
+                        },
+                )
             } else {
                 Box(
                     Modifier

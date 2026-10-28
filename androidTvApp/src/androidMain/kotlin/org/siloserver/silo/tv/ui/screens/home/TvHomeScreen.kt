@@ -42,7 +42,6 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
-import org.siloserver.silo.common.ui.components.PrefetchSectionArtwork
 import org.siloserver.silo.common.ui.components.ThumbhashImage
 import org.siloserver.silo.model.section.ResolvedSection
 import org.siloserver.silo.model.section.SectionItem
@@ -104,7 +103,6 @@ fun TvHomeScreen(
             layout = homeSectionPreferenceState.layout,
         )
     }
-    PrefetchSectionArtwork(remember(visibleSections) { visibleSections.map { it.items } })
     val sectionsHiddenByPreference =
         normalizedSections.isNotEmpty() && visibleSections.isEmpty()
 
@@ -117,14 +115,23 @@ fun TvHomeScreen(
     // finishing playback), complementing the realtime socket. While Home is
     // paused (the player, a detail page or another tab covers it) realtime
     // updates wait, so a large Home is not re-read beside the player's buffer.
+    // Resume and the first frame back on Home both ask for a re-read at the
+    // same moment; one read covers both, instead of a second one queued
+    // behind the first.
+    val lastReturnRefreshAt = remember { longArrayOf(Long.MIN_VALUE / 2) }
+    val refreshOnReturn = {
+        val now = android.os.SystemClock.uptimeMillis()
+        if (now - lastReturnRefreshAt[0] > ReturnRefreshWindowMillis && !viewModel.uiState.value.isLoading) {
+            lastReturnRefreshAt[0] = now
+            viewModel.refreshFromRealtime()
+        }
+    }
     androidx.lifecycle.compose.LifecycleResumeEffect(viewModel) {
         viewModel.onShown()
         // The effect runs as soon as it is added. On a new ViewModel that is
         // while its own first load is still running, and a second full Home
         // read would only supersede it; the first load runs a waiting update.
-        if (shouldRefreshOnResume() && !viewModel.uiState.value.isLoading) {
-            viewModel.refreshFromRealtime()
-        }
+        if (shouldRefreshOnResume()) refreshOnReturn()
         onPauseOrDispose { viewModel.onHidden() }
     }
     // A return from a detail page skips the resume refresh until the shell has
@@ -132,7 +139,7 @@ fun TvHomeScreen(
     // items are current as soon as it is back on screen.
     val refreshAllowed = shouldRefreshOnResume()
     LaunchedEffect(refreshAllowed) {
-        if (refreshAllowed && !viewModel.uiState.value.isLoading) viewModel.refreshFromRealtime()
+        if (refreshAllowed) refreshOnReturn()
     }
 
     when {
@@ -439,6 +446,9 @@ private fun ResolvedSection.isForYouRow(): Boolean {
         title.equals("for you", ignoreCase = true) ||
         title.equals("recommended for you", ignoreCase = true)
 }
+
+/** Re-read requests closer together than this are one return to Home. */
+private const val ReturnRefreshWindowMillis = 2_000L
 
 /** How much of the next row shows under the hero: its title and the top of its cards. */
 private val NextRowPeekHeight = 112.dp
