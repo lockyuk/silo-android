@@ -82,9 +82,9 @@ private const val HeroDwellMillis = 7_000
 private const val HeroFadeMillis = 1_000
 
 /**
- * Continue Watching as a full-screen, Netflix-style hero: the show's backdrop
- * fills the screen behind its logo, episode, synopsis and progress. Every
- * seven seconds it crossfades to the next item with a slow zoom. Resume
+ * Continue Watching as a full-screen, Netflix-style hero: the episode's still,
+ * or a movie's backdrop, fills the screen behind its logo, episode, synopsis
+ * and progress. Every seven seconds it crossfades to the next item with a slow zoom. Resume
  * starts playback; Details opens the show. Left from Resume and Right from
  * Details step through the items; Down leaves for the rows below.
  */
@@ -392,21 +392,26 @@ private fun HeroIndicators(count: Int, current: Int, progress: Float, modifier: 
 private data class HeroArtwork(val backdrop: String?, val thumbhash: String?, val logo: String?)
 
 /**
- * The show's or movie's own full-size backdrop and logo. An episode carries
- * its small still, so the show's detail is read (cached and shared with the
- * rest of Home); the item's own picture stands in until it arrives.
+ * An episode draws its own still, which Home asks for at hero width, and the
+ * show's logo; a movie, or an episode without a still, the title's own
+ * full-size backdrop. The show's or movie's detail is read for the logo and
+ * backdrop (cached and shared with the rest of Home); the item's own picture
+ * stands in until it arrives.
  */
 @Composable
 private fun rememberHeroArtwork(item: SectionItem): HeroArtwork {
     val catalog: CatalogRepository = koinInject()
     val fallback = HeroArtwork(item.backdropUrl ?: item.posterUrl, item.backdropThumbhash ?: item.posterThumbhash, item.logoUrl)
     val detailId = heroDetailId(item)
-    val artwork by produceState(fallback, detailId) {
+    val episodeStill = item.type.equals("episode", ignoreCase = true) &&
+        item.backdropIsEpisodeStill == true && !item.backdropUrl.isNullOrBlank()
+    val artwork by produceState(fallback, item.contentId, detailId) {
+        value = fallback
         if (detailId == null) return@produceState
         val detail = (catalog.warmItemDetail(detailId) as? ApiResult.Success)?.data ?: return@produceState
         value = HeroArtwork(
-            backdrop = detail.backdropUrl?.takeIf { it.isNotBlank() } ?: fallback.backdrop,
-            thumbhash = detail.backdropThumbhash ?: fallback.thumbhash,
+            backdrop = if (episodeStill) fallback.backdrop else detail.backdropUrl?.takeIf { it.isNotBlank() } ?: fallback.backdrop,
+            thumbhash = if (episodeStill) fallback.thumbhash else detail.backdropThumbhash ?: fallback.thumbhash,
             logo = detail.logoUrl?.takeIf { it.isNotBlank() } ?: fallback.logo,
         )
     }

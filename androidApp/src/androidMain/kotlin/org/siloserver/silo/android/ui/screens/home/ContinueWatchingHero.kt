@@ -230,27 +230,38 @@ private fun HeroPage(
     }
 }
 
-/** Artwork for the hero: the show's or movie's own backdrop. */
+/** Artwork for the hero: the episode's still, or the title's backdrop. */
 private data class HeroArtwork(val url: String?, val thumbhash: String?)
 
 /**
- * The hero draws the title's own backdrop at full size. An episode in
- * Continue Watching carries its small still, so the show's detail is read
- * (cached and shared with Home's warm-up) for its backdrop; until it
- * arrives the item's own picture stands in.
+ * An episode draws its own still, which Continue Watching carries at 1280
+ * wide. A movie, or an episode without a still, draws the title's own
+ * backdrop: the detail is read (cached and shared with Home's warm-up) for
+ * it, and the item's own picture stands in until it arrives.
  */
 @Composable
 private fun rememberHeroArtwork(item: SectionItem): HeroArtwork {
     val catalog: CatalogRepository = koinInject()
     val fallback = HeroArtwork(item.backdropUrl ?: item.posterUrl, item.backdropThumbhash ?: item.posterThumbhash)
-    val detailId = if (item.type.equals("episode", ignoreCase = true)) item.seriesId?.takeIf { it.isNotBlank() } else item.contentId
-    val artwork by produceState(fallback, detailId) {
+    val detailId = heroBackdropDetailId(item)
+    val artwork by produceState(fallback, item.contentId, detailId) {
+        value = fallback
         if (detailId == null) return@produceState
         val detail = (catalog.warmItemDetail(detailId) as? ApiResult.Success)?.data ?: return@produceState
         val url = detail.backdropUrl?.takeIf { it.isNotBlank() } ?: return@produceState
         value = HeroArtwork(url, detail.backdropThumbhash ?: fallback.thumbhash)
     }
     return artwork
+}
+
+/**
+ * The item whose detail holds the hero's backdrop: none for an episode with its
+ * own still, the show for an episode without one, the movie itself otherwise.
+ */
+private fun heroBackdropDetailId(item: SectionItem): String? {
+    if (!item.type.equals("episode", ignoreCase = true)) return item.contentId
+    if (item.backdropIsEpisodeStill == true && !item.backdropUrl.isNullOrBlank()) return null
+    return item.seriesId?.takeIf { it.isNotBlank() }
 }
 
 @Composable
