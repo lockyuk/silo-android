@@ -2994,7 +2994,7 @@ open class PlaybackSessionManager(
 
     /**
      * Reports the current playback position to the server.
-     * Called periodically (every ~10 seconds) during active playback.
+     * Called every second during active playback, and as soon as it pauses.
      */
     open suspend fun reportProgress(
         sessionId: String,

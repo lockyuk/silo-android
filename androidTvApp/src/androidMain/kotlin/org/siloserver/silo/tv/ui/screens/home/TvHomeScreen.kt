@@ -5,8 +5,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.runtime.Composable
@@ -22,15 +27,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Button
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import org.siloserver.silo.common.ui.components.PrefetchSectionArtwork
+import org.siloserver.silo.common.ui.components.ThumbhashImage
 import org.siloserver.silo.model.section.ResolvedSection
 import org.siloserver.silo.model.section.SectionItem
 import org.siloserver.silo.tv.data.preferences.TvHomeSectionPreferences
@@ -45,6 +58,7 @@ import org.siloserver.silo.tv.ui.focus.TvContentInitialFocusMaxAttempts
 import org.siloserver.silo.tv.ui.focus.TvObservedFocusResult
 import org.siloserver.silo.tv.ui.focus.claimFocusOrReport
 import org.siloserver.silo.tv.ui.focus.requestFocusUntilObserved
+import org.siloserver.silo.tv.ui.theme.RowDimens
 import org.siloserver.silo.viewmodel.HomeDismissal
 import org.siloserver.silo.viewmodel.HomeViewModel
 
@@ -90,6 +104,7 @@ fun TvHomeScreen(
             layout = homeSectionPreferenceState.layout,
         )
     }
+    PrefetchSectionArtwork(remember(visibleSections) { visibleSections.map { it.items } })
     val sectionsHiddenByPreference =
         normalizedSections.isNotEmpty() && visibleSections.isEmpty()
 
@@ -113,10 +128,11 @@ fun TvHomeScreen(
         onPauseOrDispose { viewModel.onHidden() }
     }
     // A return from a detail page skips the resume refresh until the shell has
-    // restored focus. An update that waited while Home was hidden runs then.
+    // restored focus; Home re-reads then, every time, so progress and new
+    // items are current as soon as it is back on screen.
     val refreshAllowed = shouldRefreshOnResume()
     LaunchedEffect(refreshAllowed) {
-        if (refreshAllowed) viewModel.runPendingRealtimeRefresh()
+        if (refreshAllowed && !viewModel.uiState.value.isLoading) viewModel.refreshFromRealtime()
     }
 
     when {
@@ -147,7 +163,12 @@ fun TvHomeScreen(
             // registration keeps one wrapper for its whole life.
             val upWrappers = remember { java.util.IdentityHashMap<(Boolean) -> Boolean, (Boolean) -> Boolean>() }
             if (heroSection != null && heroActive) {
+                // The hero leaves room at the bottom for the first line of the
+                // next row, as the phone does, so Home shows there is more below.
+                val nextSection = visibleSections.firstOrNull { it !== heroSection && it.items.isNotEmpty() }
+                Column(Modifier.fillMaxSize().background(Color.Black)) {
                 TvContinueWatchingHero(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
                     section = heroSection,
                     onResume = { item -> onPlayItem(item.contentId, item.type, item.positionSeconds) },
                     onDetails = { item ->
@@ -165,6 +186,8 @@ fun TvHomeScreen(
                     detailsFocusRequester = detailReturnCardFocusRequester,
                     buttonsFocusRequester = firstRowContainerFocusRequester,
                 )
+                if (nextSection != null) TvNextRowPeek(nextSection)
+                }
             } else {
                 TvHomeContent(
                     // The hero is Continue Watching, so the rows below leave it out.
@@ -415,4 +438,50 @@ private fun ResolvedSection.isForYouRow(): Boolean {
         type == "recommendations" ||
         title.equals("for you", ignoreCase = true) ||
         title.equals("recommended for you", ignoreCase = true)
+}
+
+/** How much of the next row shows under the hero: its title and the top of its cards. */
+private val NextRowPeekHeight = 112.dp
+
+/**
+ * The first line of the row after the hero: its title and the tops of its
+ * first posters, cut off by the screen's edge. It only shows what is below;
+ * Down from the hero moves into the rows themselves.
+ */
+@Composable
+private fun TvNextRowPeek(section: ResolvedSection) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(NextRowPeekHeight)
+            .clipToBounds()
+            .padding(start = 58.dp, top = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = section.title,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White.copy(alpha = 0.9f),
+            maxLines = 1,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            section.items.take(12).forEach { item ->
+                Box(
+                    modifier = Modifier
+                        .size(width = RowDimens.DensePosterWidth, height = RowDimens.DensePosterHeight)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color.White.copy(alpha = 0.08f)),
+                ) {
+                    ThumbhashImage(
+                        url = item.posterUrl ?: item.backdropUrl,
+                        thumbhash = item.posterThumbhash ?: item.backdropThumbhash,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
+        }
+    }
 }

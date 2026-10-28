@@ -28,6 +28,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -427,7 +428,9 @@ class PlaybackSessionLifecycle(
 
     /**
      * Push a position update from the player. Non-suspend — the actual server
-     * report happens on the internal 10s debounce loop (see [PROGRESS_REPORT_INTERVAL_MS]).
+     * report happens on the internal once-a-second loop (see
+     * [PROGRESS_REPORT_INTERVAL_MS]), and straight away when playback pauses,
+     * so every progress bar shows where it stopped.
      */
     fun reportPosition(
         positionSec: Double,
@@ -469,10 +472,14 @@ class PlaybackSessionLifecycle(
         if (persistenceDurationSec.isFinite() && persistenceDurationSec > 0) {
             lastPersistenceDuration = persistenceDurationSec
         }
+        if (isPaused && !lastIsPaused) reportNow.trySend(Unit)
         lastIsPaused = isPaused
     }
 
     @Volatile private var lastIsPaused: Boolean = false
+
+    /** Wakes the progress reporter early, when playback pauses. */
+    private val reportNow = kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED)
 
     /**
      * Tear down. Cancels reporter and recovery jobs, flushes a final progress
@@ -685,7 +692,7 @@ class PlaybackSessionLifecycle(
         reporterJob = scope.launch {
             var sequencedFailures = 0
             while (isActive) {
-                delay(PROGRESS_REPORT_INTERVAL_MS)
+                withTimeoutOrNull(PROGRESS_REPORT_INTERVAL_MS) { reportNow.receive() }
                 val sess = (_state.value as? SessionState.Active)?.session ?: continue
                 val pos = lastReportedPosition ?: continue
                 val result = sessionManager.reportProgress(
@@ -949,11 +956,11 @@ class PlaybackSessionLifecycle(
     companion object {
         private const val TAG = "PlaybackSessionLifecycle"
 
-        // Mirrors PROGRESS_REPORT_INTERVAL_MS in PlayerViewModel / TvPlayerViewModel.
-        const val PROGRESS_REPORT_INTERVAL_MS: Long = 10_000L
+        /** How often the reporter sends the position while playing. */
+        const val PROGRESS_REPORT_INTERVAL_MS: Long = 1_000L
 
         /** Consecutive failed sequenced progress ticks (~30 s) before warning. */
-        const val SEQUENCED_PROGRESS_WARNING_FAILURES: Int = 3
+        const val SEQUENCED_PROGRESS_WARNING_FAILURES: Int = 30
 
         // Mirrors iOS `serverOutageRecovery*` constants in PlayerViewModel.swift.
         const val OUTAGE_INITIAL_DELAY_MS: Long = 1_000L

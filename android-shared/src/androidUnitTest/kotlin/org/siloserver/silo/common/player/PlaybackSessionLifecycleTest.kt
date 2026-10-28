@@ -88,6 +88,21 @@ class PlaybackSessionLifecycleTest {
         assertEquals(2, manager.progressCallCount)
     }
 
+    @Test fun `pausing reports the position at once instead of waiting for the next tick`() = runTest {
+        val manager = FakeSessionManager()
+        val lifecycle = newLifecycle(manager)
+        lifecycle.adoptActiveSession(defaultStartParams(), makeSession("pausing"))
+        lifecycle.reportOwnedPosition(10.0, 100.0, false)
+        advanceTimeBy(PlaybackSessionLifecycle.PROGRESS_REPORT_INTERVAL_MS + 100)
+        val afterFirstTick = manager.progressCallCount
+        assertTrue(afterFirstTick >= 1)
+
+        // Pausing a moment later sends a report well before the next tick.
+        lifecycle.reportOwnedPosition(10.4, 100.0, true)
+        advanceTimeBy(50)
+        assertEquals(afterFirstTick + 1, manager.progressCallCount)
+    }
+
     @Test fun `a session the server ended is handed to the owner to leave, not renewed`() = runTest {
         val ended = ApiResult.Error(410, "playback_session_ended", "An administrator ended this playback session")
         for (sequenced in listOf(true, false)) {
@@ -124,7 +139,10 @@ class PlaybackSessionLifecycleTest {
         val manager = object : FakeSessionManager() {
             override fun isSequenced(sessionId: String) = true
         }.apply {
-            progressResults = ArrayDeque(listOf(failure, ApiResult.Success(Unit), failure, failure, failure))
+            progressResults = ArrayDeque(
+                listOf(failure, ApiResult.Success(Unit)) +
+                    List(PlaybackSessionLifecycle.SEQUENCED_PROGRESS_WARNING_FAILURES) { failure },
+            )
             progressDefault = ApiResult.Success(Unit)
         }
         val lifecycle = newLifecycle(manager)
@@ -135,15 +153,16 @@ class PlaybackSessionLifecycleTest {
         // One failure, then a success: the streak resets and nothing shows.
         advanceTimeBy(tick * 2 + 100)
         assertNull(lifecycle.notice.value)
-        // Two more failures stay quiet; the third consecutive one warns.
-        advanceTimeBy(tick * 2)
+        // Consecutive failures stay quiet until the threshold, which warns.
+        val threshold = PlaybackSessionLifecycle.SEQUENCED_PROGRESS_WARNING_FAILURES
+        advanceTimeBy(tick * (threshold - 1))
         assertNull(lifecycle.notice.value)
         advanceTimeBy(tick)
         assertNotNull(lifecycle.notice.value)
         // The next accepted sample clears it.
         advanceTimeBy(tick)
         assertNull(lifecycle.notice.value)
-        assertEquals(6, manager.progressCallCount)
+        assertEquals(threshold + 3, manager.progressCallCount)
         assertTrue(lifecycle.state.value is SessionState.Active)
     }
 
@@ -403,7 +422,7 @@ class PlaybackSessionLifecycleTest {
         // Simulate the player advancing.
         lifecycle.reportOwnedPosition(positionSec = 42.5, durationSec = 100.0, isPaused = false)
 
-        // Trigger the 10s reporter; the first call returns 404 -> recovery.
+        // Trigger the reporter; the first call returns 404 -> recovery.
         advanceTimeBy(PlaybackSessionLifecycle.PROGRESS_REPORT_INTERVAL_MS + 100)
         advanceUntilIdle()
 
@@ -446,7 +465,7 @@ class PlaybackSessionLifecycleTest {
         assertTrue(lifecycle.state.value is SessionState.Active)
         lifecycle.reportOwnedPosition(10.0, 100.0, isPaused = false)
 
-        // Trigger the 10s reporter -> NetworkError -> beginOutageRecovery.
+        // Trigger the reporter -> NetworkError -> beginOutageRecovery.
         advanceTimeBy(PlaybackSessionLifecycle.PROGRESS_REPORT_INTERVAL_MS + 100)
         advanceUntilIdle()
 

@@ -326,7 +326,7 @@ private fun LibraryBadge(inLibrary: Boolean) {
     ) {
         Text(
             text = if (inLibrary) "✓ In library" else "Not in library",
-            style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
+            style = MaterialTheme.typography.labelMedium.copy(fontSize = 14.sp),
             color = if (inLibrary) Color.White else PersonSecondaryText,
             fontWeight = FontWeight.Medium,
         )

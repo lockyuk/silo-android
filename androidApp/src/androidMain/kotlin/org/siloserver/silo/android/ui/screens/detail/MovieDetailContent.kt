@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -174,50 +175,9 @@ fun MovieDetailContent(
                 overviewText = if (hidesEpisodeOverview) null else detail.overview,
                 // No "Translate description" under a hidden description.
                 translation = if (hidesEpisodeOverview) null else translation,
-                belowOverview = {
-                    // PR #212 places the grouped playback card after overview,
-                    // credits, and translation—not inside the action stack.
-                    if (hasTrackSelectors) {
-                        PlaybackSelectorCard {
-                            EditionVersionSelectorRows(
-                                detail = detail,
-                                selectedVersionIndex = selectedVersionIndex,
-                                isAutoVersion = isAutoVersion,
-                                onVersionSelected = onVersionSelected,
-                            )
-                            if (audioTracks.isNotEmpty()) {
-                                PlaybackSelectorDivider()
-                                TrackSelectorRow(
-                                    icon = Icons.Outlined.AudioFile,
-                                    label = "Audio",
-                                    value = formatAudioValueLabel(
-                                        audioTracks,
-                                        selectedAudioIndex,
-                                        selectedVersion?.effectiveAudioTrackIndex,
-                                    ),
-                                    onClick = { showAudioPicker = true },
-                                    interactive = audioTracks.size > 1,
-                                )
-                            }
-                            if (subtitleTracks.isNotEmpty()) {
-                                PlaybackSelectorDivider()
-                                TrackSelectorRow(
-                                    icon = Icons.Outlined.ClosedCaption,
-                                    label = "Subtitles",
-                                    value = formatSubtitleValueLabel(
-                                        subtitleTracks,
-                                        selectedSubtitleIndex,
-                                        seriesSignature = detail.effectiveSubtitleTrackSignature,
-                                        seriesOff = detail.effectiveSubtitleTrackSignature == null &&
-                                            detail.effectiveSubtitleMode.equals("off", ignoreCase = true),
-                                    ),
-                                    onClick = { showSubtitlePicker = true },
-                                    interactive = subtitleTracks.size > 1,
-                                )
-                            }
-                        }
-                    }
-                },
+                // The episodes follow the synopsis directly; the version,
+                // audio and subtitle choices sit folded below the trailers.
+                belowOverview = null,
             ) {
                 HeroActionStack(
                     primaryLabel = computePlayLabel(detail),
@@ -335,6 +295,51 @@ fun MovieDetailContent(
         if (trailerEntries.isNotEmpty()) {
             item(contentType = "detail-trailers") {
                 TrailersRail(entries = trailerEntries, onPlayExtra = onPlayExtra)
+            }
+        }
+
+        if (hasTrackSelectors) {
+            item(contentType = "detail-playback-options") {
+                CollapsiblePlaybackOptions(modifier = Modifier.padding(horizontal = SafePadding)) {
+                    PlaybackSelectorCard {
+                        EditionVersionSelectorRows(
+                            detail = detail,
+                            selectedVersionIndex = selectedVersionIndex,
+                            isAutoVersion = isAutoVersion,
+                            onVersionSelected = onVersionSelected,
+                        )
+                        if (audioTracks.isNotEmpty()) {
+                            PlaybackSelectorDivider()
+                            TrackSelectorRow(
+                                icon = Icons.Outlined.AudioFile,
+                                label = "Audio",
+                                value = formatAudioValueLabel(
+                                    audioTracks,
+                                    selectedAudioIndex,
+                                    selectedVersion?.effectiveAudioTrackIndex,
+                                ),
+                                onClick = { showAudioPicker = true },
+                                interactive = audioTracks.size > 1,
+                            )
+                        }
+                        if (subtitleTracks.isNotEmpty()) {
+                            PlaybackSelectorDivider()
+                            TrackSelectorRow(
+                                icon = Icons.Outlined.ClosedCaption,
+                                label = "Subtitles",
+                                value = formatSubtitleValueLabel(
+                                    subtitleTracks,
+                                    selectedSubtitleIndex,
+                                    seriesSignature = detail.effectiveSubtitleTrackSignature,
+                                    seriesOff = detail.effectiveSubtitleTrackSignature == null &&
+                                        detail.effectiveSubtitleMode.equals("off", ignoreCase = true),
+                                ),
+                                onClick = { showSubtitlePicker = true },
+                                interactive = subtitleTracks.size > 1,
+                            )
+                        }
+                    }
+                }
             }
         }
 

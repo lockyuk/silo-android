@@ -310,10 +310,14 @@ fun SeriesDetailContent(
                 isCreditLoading = false,
                 reserveCreditSpace = !isExpandedDetailLayout && usesEpisodeEditorial,
                 translation = if (isExpandedDetailLayout || !usesEpisodeEditorial) translation else episodeTranslationLabel,
-                belowOverview = if (isExpandedDetailLayout) null else playbackSelector,
+                // Seasons and episodes follow the synopsis directly; the
+                // version, audio and subtitle choices sit folded further down.
+                belowOverview = null,
                 expandedBelowOverview = {
                     episodeSection(true)
-                    playbackSelector()
+                    if (selectedEpisodeContentId != null) {
+                        CollapsiblePlaybackOptions { playbackSelector() }
+                    }
                 },
             ) {
                 HeroActionStack(
@@ -477,6 +481,14 @@ fun SeriesDetailContent(
         if (trailerEntries.isNotEmpty()) {
             item(contentType = "detail-trailers") {
                 TrailersRail(entries = trailerEntries, onPlayExtra = onPlayExtra)
+            }
+        }
+
+        if (!isExpandedDetailLayout && selectedEpisodeContentId != null) {
+            item(contentType = "detail-playback-options") {
+                CollapsiblePlaybackOptions(modifier = Modifier.padding(horizontal = SafePadding)) {
+                    playbackSelector()
+                }
             }
         }
 

@@ -81,6 +81,7 @@ import org.siloserver.silo.common.diagnostics.DiagnosticsHomeScrollRegion
 import org.siloserver.silo.common.diagnostics.DiagnosticsListLogger
 import org.siloserver.silo.common.diagnostics.DiagnosticsListSnapshot
 import org.siloserver.silo.common.diagnostics.DiagnosticsListSurface
+import org.siloserver.silo.common.ui.components.PrefetchSectionArtwork
 import org.siloserver.silo.common.ui.components.DeferImagePresentationWhileScrolling
 import org.siloserver.silo.common.ui.components.avatarRef
 import org.siloserver.silo.model.catalog.isAudiobookItemType
@@ -140,6 +141,13 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.uiState.collectAsState()
+    // Home re-reads whenever it comes back on screen — returning from the
+    // player, a detail page or another tab — so progress and new items show
+    // at once. The rows on screen stay until the fresh ones arrive.
+    androidx.lifecycle.compose.LifecycleResumeEffect(viewModel) {
+        if (!viewModel.uiState.value.isLoading) viewModel.refreshFromRealtime()
+        onPauseOrDispose { }
+    }
     val sectionPreferences: HomeSectionPreferencesStore = koinInject()
     val preferenceRevision by sectionPreferences.revision.collectAsState()
     val serverRegistry: ServerRegistry = koinInject()
@@ -158,6 +166,7 @@ fun HomeScreen(
     ) {
         sectionPreferences.arrangedSections(sections, profileId = profileScopeId)
     }
+    PrefetchSectionArtwork(remember(regularSections) { regularSections.map { it.items } })
     val context = LocalContext.current
     val catalogRepository: CatalogRepository = koinInject()
     val catalogLanguage: CatalogLanguageRevision = koinInject()

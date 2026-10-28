@@ -3158,7 +3158,7 @@ class PlayerViewModel(
             }
         }
 
-        // Forward to the lifecycle so its 10s reporter has a fresh sample.
+        // Forward to the lifecycle so its once-a-second reporter has a fresh sample.
         // Recovery (404/outage) is fully owned by the lifecycle.
         sessionLifecycle.reportPosition(
             positionSec = positionSec,

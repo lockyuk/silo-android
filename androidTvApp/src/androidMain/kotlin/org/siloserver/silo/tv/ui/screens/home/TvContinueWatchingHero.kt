@@ -30,7 +30,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.runtime.Composable
@@ -111,6 +110,7 @@ internal fun TvContinueWatchingHero(
     detailsFocusRequester: FocusRequester?,
     /** The shell's first-row container requester; it lands on the buttons. */
     buttonsFocusRequester: FocusRequester?,
+    modifier: Modifier = Modifier,
 ) {
     val items = section.items
     if (items.isEmpty()) return
@@ -146,7 +146,7 @@ internal fun TvContinueWatchingHero(
     PrefetchHeroArtwork(items[(index + 1) % items.size])
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
             .onFocusChanged { heroHasFocus = it.hasFocus }
@@ -271,15 +271,6 @@ internal fun TvContinueWatchingHero(
                     .padding(end = 58.dp, bottom = 52.dp),
             )
         }
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 8.dp),
-        ) {
-            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(20.dp))
-            Text("More to watch", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
-        }
     }
 }
 
@@ -324,7 +315,7 @@ private fun HeroText(item: SectionItem) {
     val isEpisode = item.type.equals("episode", ignoreCase = true)
     val showTitle = if (isEpisode) item.seriesTitle?.takeIf { it.isNotBlank() } ?: item.title else item.title
     Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.widthIn(max = 520.dp)) {
-        Text("CONTINUE WATCHING", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.7f), letterSpacing = 2.sp)
+        Text("CONTINUE WATCHING", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.7f), letterSpacing = 2.sp)
         val logo = artwork.logo
         if (logo != null) {
             ThumbhashImage(

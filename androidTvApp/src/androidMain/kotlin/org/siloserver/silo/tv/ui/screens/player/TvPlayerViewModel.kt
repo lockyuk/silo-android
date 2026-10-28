@@ -3644,7 +3644,7 @@ class TvPlayerViewModel(
                 if (previousPosition < creditsStart && positionSec >= creditsStart) onApproachingEnd()
             }
         }
-        // Forward to the lifecycle so its 10s reporter has a fresh sample.
+        // Forward to the lifecycle so its once-a-second reporter has a fresh sample.
         sessionLifecycle.reportPosition(
             positionSec = positionSec,
             durationSec = _uiState.value.duration,
