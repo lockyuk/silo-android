@@ -308,7 +308,9 @@ fun SeriesDetailContent(
                     !hidesSelectedEpisodeOverview,
                 directorText = fixedSeriesCredit,
                 isCreditLoading = false,
-                reserveCreditSpace = !isExpandedDetailLayout && usesEpisodeEditorial,
+                // The series credit never changes, so it needs no reserved
+                // second line; reserving one left a gap under a short credit.
+                reserveCreditSpace = false,
                 translation = if (isExpandedDetailLayout || !usesEpisodeEditorial) translation else episodeTranslationLabel,
                 // Seasons and episodes follow the synopsis directly; the
                 // version, audio and subtitle choices sit folded further down.

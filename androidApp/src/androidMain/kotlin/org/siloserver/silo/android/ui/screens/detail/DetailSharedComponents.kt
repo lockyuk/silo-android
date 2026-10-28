@@ -67,6 +67,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -598,7 +599,10 @@ fun DetailHero(
     belowOverview: (@Composable () -> Unit)? = null,
     actions: @Composable () -> Unit,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
+    // The page spaces its sections 36dp apart; the hero ends 16dp sooner, so
+    // the seasons or cast below sit as close to the credit line as the hero's
+    // own rows sit to each other.
+    Column(modifier = modifier.fillMaxWidth().trimBottom(HeroSectionGapTrim)) {
         DetailHeroArtwork(
             artworkUrl = detail.backdropUrl ?: detail.posterUrl,
             artworkThumbhash = detail.backdropThumbhash ?: detail.posterThumbhash,
@@ -614,7 +618,7 @@ fun DetailHero(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = SafePadding)
-                .padding(top = 8.dp, bottom = 12.dp),
+                .padding(top = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -1761,4 +1765,14 @@ private fun runtimeText(minutes: Int): String {
         h > 0 -> "${h}h"
         else -> "${m}m"
     }
+}
+
+/** How much nearer the hero lets the next section come than the page's 36dp. */
+private val HeroSectionGapTrim = 16.dp
+
+/** Reports [amount] less height than measured, so what follows moves up. */
+private fun Modifier.trimBottom(amount: Dp): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    val height = (placeable.height - amount.roundToPx()).coerceAtLeast(0)
+    layout(placeable.width, height) { placeable.place(0, 0) }
 }
