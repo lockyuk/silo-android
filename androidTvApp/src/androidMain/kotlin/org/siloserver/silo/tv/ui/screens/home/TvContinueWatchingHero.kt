@@ -15,6 +15,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -91,10 +92,11 @@ private val HeroEasing = CubicBezierEasing(0.45f, 0f, 0.25f, 1f)
 private const val HeroZoom = 1.08f
 
 /**
- * Continue Watching as a full-screen, Netflix-style hero: the episode's still,
- * or a movie's backdrop, fills the screen behind its logo, episode, synopsis
- * and progress. Every seven seconds it crossfades to the next item with a slow zoom. Resume
- * starts playback; Details opens the show. Left from Resume and Right from
+ * Continue Watching as a Netflix-style hero, laid out like the phone's: under
+ * the row's title, a rounded card shows the episode's still, or a movie's
+ * backdrop, behind its logo, episode, synopsis, progress and buttons, with
+ * the item dots below. Every eight seconds it crossfades to the next item
+ * with a slow zoom. Resume starts playback; Details opens the show. Left from Resume and Right from
  * Details step through the items; Down leaves for the rows below.
  */
 @Composable
@@ -145,10 +147,10 @@ internal fun TvContinueWatchingHero(
     // Keep the next backdrop in the cache so the crossfade never waits.
     PrefetchHeroArtwork(items[(index + 1) % items.size])
 
-    Box(
+    Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .padding(start = HeroSideMargin, end = HeroSideMargin, top = 24.dp)
             .onFocusChanged { heroHasFocus = it.hasFocus }
             .onPreviewKeyEvent { event ->
                 if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
@@ -159,124 +161,168 @@ internal fun TvContinueWatchingHero(
                 }
             },
     ) {
-        AnimatedContent(
-            targetState = items[index],
-            // The next backdrop fades in over the current one, which stays
-            // fully drawn underneath until it is covered, so the picture
-            // never dims mid-way.
-            transitionSpec = {
-                (fadeIn(tween(HeroFadeMillis, easing = HeroEasing)) togetherWith
-                    fadeOut(tween(200, delayMillis = HeroFadeMillis)))
-                    .apply { targetContentZIndex = 1f }
-            },
-            contentKey = { it.contentId },
-            label = "hero",
-        ) { item ->
-            HeroBackdrop(item)
-        }
-        // Scrims: darken the left and the bottom for the text.
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(
-                        0f to Color.Black.copy(alpha = 0.88f),
-                        0.42f to Color.Black.copy(alpha = 0.55f),
-                        0.75f to Color.Transparent,
-                    ),
-                ),
+        Text(
+            text = section.title.ifBlank { "Continue Watching" },
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            modifier = Modifier.padding(bottom = 12.dp),
         )
+        // The card: the picture, faded to black behind the details, with
+        // rounded corners as on the phone.
         Box(
-            Modifier
-                .fillMaxSize()
-                .background(Brush.verticalGradient(0.55f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.85f))),
-        )
-
-        AnimatedContent(
-            targetState = items[index],
-            // The old text drifts up and away first; the new text rises into
-            // place over the second half of the crossfade.
-            transitionSpec = {
-                (
-                    fadeIn(tween(HeroFadeMillis / 2, delayMillis = HeroFadeMillis / 2, easing = HeroEasing)) +
-                        slideInVertically(tween(HeroFadeMillis / 2, delayMillis = HeroFadeMillis / 2, easing = HeroEasing)) { it / 10 }
-                    ) togetherWith (
-                    fadeOut(tween(HeroFadeMillis * 2 / 5, easing = HeroEasing)) +
-                        slideOutVertically(tween(HeroFadeMillis * 2 / 5, easing = HeroEasing)) { -it / 14 }
-                    ) using SizeTransform(clip = false)
-            },
-            contentKey = { it.contentId },
-            label = "hero-details",
             modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 58.dp, bottom = 96.dp),
-        ) { item ->
-            HeroText(item)
-        }
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 58.dp, bottom = 40.dp)
-                .then(if (buttonsFocusRequester != null) Modifier.focusRequester(buttonsFocusRequester) else Modifier)
-                .focusGroup(),
+                .fillMaxWidth()
+                .weight(1f)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color.Black),
         ) {
-            val item = items[index]
-            Button(
-                onClick = { onResume(item) },
-                colors = heroButtonColors(),
-                modifier = Modifier
-                    .focusRequester(resume)
-                    .onPreviewKeyEvent { event ->
-                        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft && items.size > 1) {
-                            step(-1)
-                            true
-                        } else {
-                            false
-                        }
-                    },
-            ) {
-                Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(22.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(if ((item.positionSeconds ?: 0.0) > 0) "Resume" else "Play", fontWeight = FontWeight.Bold)
+            AnimatedContent(
+                targetState = items[index],
+                // The next picture fades in over the current one, which stays
+                // fully drawn underneath until it is covered, so the picture
+                // never dims mid-way.
+                transitionSpec = {
+                    (fadeIn(tween(HeroFadeMillis, easing = HeroEasing)) togetherWith
+                        fadeOut(tween(200, delayMillis = HeroFadeMillis)))
+                        .apply { targetContentZIndex = 1f }
+                },
+                contentKey = { it.contentId },
+                label = "hero",
+            ) { item ->
+                HeroBackdrop(item)
             }
-            Button(
-                onClick = { onDetails(item) },
-                colors = heroButtonColors(),
+            // Scrims: darken the left and the bottom for the text.
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.horizontalGradient(
+                            0f to Color.Black.copy(alpha = 0.85f),
+                            0.45f to Color.Black.copy(alpha = 0.45f),
+                            0.75f to Color.Transparent,
+                        ),
+                    ),
+            )
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Brush.verticalGradient(0.4f to Color.Transparent, 1f to Color.Black)),
+            )
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier
-                    .focusRequester(details)
-                    .onPreviewKeyEvent { event ->
-                        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight && items.size > 1) {
-                            step(1)
-                            true
-                        } else {
-                            false
-                        }
-                    },
+                    .align(Alignment.BottomStart)
+                    .padding(start = 32.dp, end = 32.dp, bottom = 28.dp),
             ) {
-                Icon(Icons.Outlined.Info, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Details", fontWeight = FontWeight.SemiBold)
+                AnimatedContent(
+                    targetState = items[index],
+                    // The old text drifts up and away first; the new text rises
+                    // into place over the second half of the crossfade.
+                    transitionSpec = {
+                        (
+                            fadeIn(tween(HeroFadeMillis / 2, delayMillis = HeroFadeMillis / 2, easing = HeroEasing)) +
+                                slideInVertically(tween(HeroFadeMillis / 2, delayMillis = HeroFadeMillis / 2, easing = HeroEasing)) { it / 10 }
+                            ) togetherWith (
+                            fadeOut(tween(HeroFadeMillis * 2 / 5, easing = HeroEasing)) +
+                                slideOutVertically(tween(HeroFadeMillis * 2 / 5, easing = HeroEasing)) { -it / 14 }
+                            ) using SizeTransform(clip = false)
+                    },
+                    contentKey = { it.contentId },
+                    contentAlignment = Alignment.BottomStart,
+                    label = "hero-details",
+                ) { item ->
+                    HeroText(item)
+                }
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    modifier = Modifier
+                        .then(if (buttonsFocusRequester != null) Modifier.focusRequester(buttonsFocusRequester) else Modifier)
+                        .focusGroup(),
+                ) {
+                    val item = items[index]
+                    Button(
+                        onClick = { onResume(item) },
+                        colors = heroButtonColors(),
+                        shape = heroButtonShape(),
+                        scale = ButtonDefaults.scale(focusedScale = 1.04f),
+                        contentPadding = HeroButtonPadding,
+                        modifier = Modifier
+                            .widthIn(min = HeroButtonMinWidth)
+                            .focusRequester(resume)
+                            .onPreviewKeyEvent { event ->
+                                if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft && items.size > 1) {
+                                    step(-1)
+                                    true
+                                } else {
+                                    false
+                                }
+                            },
+                    ) {
+                        Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(24.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(if ((item.positionSeconds ?: 0.0) > 0) "Resume" else "Play", fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Button(
+                        onClick = { onDetails(item) },
+                        colors = heroButtonColors(),
+                        shape = heroButtonShape(),
+                        scale = ButtonDefaults.scale(focusedScale = 1.04f),
+                        contentPadding = HeroButtonPadding,
+                        modifier = Modifier
+                            .widthIn(min = HeroButtonMinWidth)
+                            .focusRequester(details)
+                            .onPreviewKeyEvent { event ->
+                                if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight && items.size > 1) {
+                                    step(1)
+                                    true
+                                } else {
+                                    false
+                                }
+                            },
+                    ) {
+                        Icon(Icons.Outlined.Info, contentDescription = null, modifier = Modifier.size(22.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Details", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
             }
         }
 
-        if (items.size > 1) {
-            HeroIndicators(
-                count = items.size,
-                current = index,
-                progress = dwell.value,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 58.dp, bottom = 52.dp),
-            )
+        // The dots sit under the card, centred, as on the phone; with a
+        // single item the space stays so the card keeps its size.
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(30.dp),
+        ) {
+            if (items.size > 1) {
+                HeroIndicators(count = items.size, current = index, progress = dwell.value)
+            }
         }
     }
 }
 
+/** Matches the rows' left edge, so the hero lines up with the peek below it. */
+private val HeroSideMargin = 58.dp
+
+private val HeroButtonMinWidth = 190.dp
+
+private val HeroButtonPadding = PaddingValues(horizontal = 26.dp, vertical = 11.dp)
+
+@Composable
+private fun heroButtonShape() = ButtonDefaults.shape(shape = RoundedCornerShape(8.dp))
+
+/**
+ * As on the phone, Resume is solid white and Details translucent grey; on the
+ * TV that follows the focus, so the button the remote is on is the white one.
+ */
 @Composable
 private fun heroButtonColors() = ButtonDefaults.colors(
-    containerColor = Color.White.copy(alpha = 0.18f),
+    containerColor = Color.White.copy(alpha = 0.2f),
     contentColor = Color.White,
     focusedContainerColor = Color.White,
     focusedContentColor = Color.Black,
@@ -314,8 +360,7 @@ private fun HeroText(item: SectionItem) {
     val artwork = rememberHeroArtwork(item)
     val isEpisode = item.type.equals("episode", ignoreCase = true)
     val showTitle = if (isEpisode) item.seriesTitle?.takeIf { it.isNotBlank() } ?: item.title else item.title
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.widthIn(max = 520.dp)) {
-        Text("CONTINUE WATCHING", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.7f), letterSpacing = 2.sp)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.widthIn(max = 520.dp)) {
         val logo = artwork.logo
         if (logo != null) {
             ThumbhashImage(
@@ -326,7 +371,7 @@ private fun HeroText(item: SectionItem) {
                 alignment = Alignment.BottomStart,
                 transparent = true,
                 // Sized to the logo's own shape, so it starts at the text's edge.
-                modifier = Modifier.sizeIn(maxWidth = 380.dp, maxHeight = 130.dp),
+                modifier = Modifier.sizeIn(maxWidth = 340.dp, maxHeight = 96.dp),
             )
         } else {
             Text(showTitle, fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -335,7 +380,7 @@ private fun HeroText(item: SectionItem) {
             Text(it, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.92f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         item.overview?.trim()?.takeIf { it.isNotEmpty() }?.let {
-            Text(it, fontSize = 15.sp, lineHeight = 21.sp, color = Color.White.copy(alpha = 0.8f), maxLines = 3, overflow = TextOverflow.Ellipsis)
+            Text(it, fontSize = 15.sp, lineHeight = 21.sp, color = Color.White.copy(alpha = 0.8f), maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         HeroProgress(item)
     }
@@ -359,7 +404,7 @@ private fun HeroProgress(item: SectionItem) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(
             modifier = Modifier
-                .width(300.dp)
+                .width(380.dp)
                 .height(4.dp)
                 .clip(RoundedCornerShape(2.dp))
                 .background(Color.White.copy(alpha = 0.28f)),
@@ -386,7 +431,7 @@ private fun HeroIndicators(count: Int, current: Int, progress: Float, modifier: 
             if (i == current) {
                 Box(
                     Modifier
-                        .width(26.dp)
+                        .width(22.dp)
                         .height(6.dp)
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.3f)),

@@ -166,7 +166,7 @@ fun TvHomeScreen(
                 // The hero leaves room at the bottom for the first line of the
                 // next row, as the phone does, so Home shows there is more below.
                 val nextSection = visibleSections.firstOrNull { it !== heroSection && it.items.isNotEmpty() }
-                Column(Modifier.fillMaxSize().background(Color.Black)) {
+                Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
                 TvContinueWatchingHero(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     section = heroSection,
