@@ -167,7 +167,8 @@ fun TvHomeScreen(
                 )
             } else {
                 TvHomeContent(
-                    sections = visibleSections,
+                    // The hero is Continue Watching, so the rows below leave it out.
+                    sections = if (heroSection != null) visibleSections - heroSection else visibleSections,
                     sectionsFullyResolved = state.sectionsFullyResolved,
                     onItemClick = onItemClick,
                     onItemDetailSelection = onItemDetailSelection,
