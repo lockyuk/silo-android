@@ -1,11 +1,15 @@
 package org.siloserver.silo.tv.ui.screens.home
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
@@ -76,10 +80,16 @@ import org.siloserver.silo.tv.ui.focus.TvObservedFocusResult
 import org.siloserver.silo.tv.ui.focus.requestFocusUntilObserved
 
 /** How long each item stays before the hero moves to the next. */
-private const val HeroDwellMillis = 7_000
+private const val HeroDwellMillis = 8_000
 
 /** The crossfade between two items. */
-private const val HeroFadeMillis = 1_000
+private const val HeroFadeMillis = 2_200
+
+/** Eases the crossfade in and out, so it starts and settles gently. */
+private val HeroEasing = CubicBezierEasing(0.45f, 0f, 0.25f, 1f)
+
+/** How far the slow zoom goes over an item's whole time on screen. */
+private const val HeroZoom = 1.08f
 
 /**
  * Continue Watching as a full-screen, Netflix-style hero: the episode's still,
@@ -151,7 +161,14 @@ internal fun TvContinueWatchingHero(
     ) {
         AnimatedContent(
             targetState = items[index],
-            transitionSpec = { fadeIn(tween(HeroFadeMillis)) togetherWith fadeOut(tween(HeroFadeMillis)) },
+            // The next backdrop fades in over the current one, which stays
+            // fully drawn underneath until it is covered, so the picture
+            // never dims mid-way.
+            transitionSpec = {
+                (fadeIn(tween(HeroFadeMillis, easing = HeroEasing)) togetherWith
+                    fadeOut(tween(200, delayMillis = HeroFadeMillis)))
+                    .apply { targetContentZIndex = 1f }
+            },
             contentKey = { it.contentId },
             label = "hero",
         ) { item ->
@@ -177,7 +194,17 @@ internal fun TvContinueWatchingHero(
 
         AnimatedContent(
             targetState = items[index],
-            transitionSpec = { fadeIn(tween(HeroFadeMillis / 2, delayMillis = HeroFadeMillis / 3)) togetherWith fadeOut(tween(HeroFadeMillis / 3)) },
+            // The old text drifts up and away first; the new text rises into
+            // place over the second half of the crossfade.
+            transitionSpec = {
+                (
+                    fadeIn(tween(HeroFadeMillis / 2, delayMillis = HeroFadeMillis / 2, easing = HeroEasing)) +
+                        slideInVertically(tween(HeroFadeMillis / 2, delayMillis = HeroFadeMillis / 2, easing = HeroEasing)) { it / 10 }
+                    ) togetherWith (
+                    fadeOut(tween(HeroFadeMillis * 2 / 5, easing = HeroEasing)) +
+                        slideOutVertically(tween(HeroFadeMillis * 2 / 5, easing = HeroEasing)) { -it / 14 }
+                    ) using SizeTransform(clip = false)
+            },
             contentKey = { it.contentId },
             label = "hero-details",
             modifier = Modifier
@@ -269,8 +296,10 @@ private fun HeroBackdrop(item: SectionItem) {
     val artwork = rememberHeroArtwork(item)
     val zoom = remember(item.contentId) { Animatable(1f) }
     LaunchedEffect(item.contentId) {
-        zoom.animateTo(1.07f, tween(HeroDwellMillis + HeroFadeMillis * 2, easing = LinearEasing))
+        zoom.animateTo(HeroZoom, tween(HeroDwellMillis + HeroFadeMillis * 2, easing = LinearEasing))
     }
+    // Each item drifts one way or the other as it zooms.
+    val drift = if (item.contentId.hashCode() and 1 == 0) 1f else -1f
     if (artwork.backdrop != null) {
         ThumbhashImage(
             url = artwork.backdrop,
@@ -283,6 +312,7 @@ private fun HeroBackdrop(item: SectionItem) {
                 .graphicsLayer {
                     scaleX = zoom.value
                     scaleY = zoom.value
+                    translationX = (zoom.value - 1f) * size.width * 0.3f * drift
                 },
         )
     }

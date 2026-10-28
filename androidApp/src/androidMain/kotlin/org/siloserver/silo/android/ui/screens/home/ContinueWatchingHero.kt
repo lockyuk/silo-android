@@ -1,6 +1,7 @@
 package org.siloserver.silo.android.ui.screens.home
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -37,6 +38,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import org.koin.compose.koinInject
 import org.siloserver.silo.common.ui.components.ThumbhashImage
 import org.siloserver.silo.network.ApiResult
@@ -60,10 +64,16 @@ import org.siloserver.silo.model.section.SectionItem
 import kotlin.math.absoluteValue
 
 /** How long each item stays before the hero moves to the next. */
-private const val HeroDwellMillis = 7_000L
+private const val HeroDwellMillis = 8_000L
 
 /** How long the hero takes to glide to the next item. */
-private const val HeroTransitionMillis = 1_100
+private const val HeroTransitionMillis = 2_200
+
+/** Eases the crossfade in and out, so it starts and settles gently. */
+private val HeroEasing = CubicBezierEasing(0.45f, 0f, 0.25f, 1f)
+
+/** How far the slow zoom goes over an item's whole time on screen. */
+private const val HeroZoom = 1.1f
 
 /**
  * Continue Watching as a Netflix-style hero: one large backdrop at a time,
@@ -92,7 +102,7 @@ internal fun ContinueWatchingHero(
         dwell.animateTo(1f, tween(HeroDwellMillis.toInt(), easing = LinearEasing))
         delay(50)
         val next = (pagerState.settledPage + 1) % items.size
-        pagerState.animateScrollToPage(next, animationSpec = tween(HeroTransitionMillis))
+        pagerState.animateScrollToPage(next, animationSpec = tween(HeroTransitionMillis, easing = HeroEasing))
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
@@ -112,25 +122,34 @@ internal fun ContinueWatchingHero(
             val item = items[page]
             // 0 when this page is centred, 1 when it is a full page away.
             val offset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction).absoluteValue.coerceIn(0f, 1f)
+            val settled = pagerState.settledPage
+            val target = pagerState.targetPage
+            // The incoming page fades in over the outgoing one, which stays
+            // fully drawn underneath, so the picture never dims mid-way.
+            val imageAlpha = if (page == settled && target != settled) 1f else 1f - offset
             HeroPage(
                 item = item,
                 offset = offset,
+                imageAlpha = imageAlpha,
+                // The old text is gone by half-way and the new text appears
+                // over the second half, so the two never overlap.
+                textAlpha = (1f - 2f * offset).coerceIn(0f, 1f),
                 // Pages overlap during the crossfade; only the one in front
-                // takes taps, so a tap never opens the item fading in.
-                interactive = page == pagerState.currentPage,
-                // Only the page on screen drifts, so a page returns to its
-                // resting framing before it comes back.
-                zooming = page == pagerState.settledPage && !dragged,
+                // takes taps, so a tap never opens the item underneath.
+                interactive = page == target,
+                // The outgoing page keeps drifting while it is covered, and
+                // the incoming one starts as it appears.
+                zooming = (page == settled || page == target) && !dragged,
                 onOpen = { onOpen(item) },
                 onResume = { onResume(item) },
                 modifier = Modifier
-                    .zIndex(if (page == pagerState.currentPage) 1f else 0f)
+                    .zIndex(if (page == target) 1f else 0f)
                     .graphicsLayer {
-                    // Crossfade rather than slide: the outgoing page holds its
-                    // place and fades while the next fades in over it.
-                    translationX = size.width * (pagerState.currentPage - page + pagerState.currentPageOffsetFraction) * 0.85f
-                    alpha = 1f - offset
-                },
+                        // Crossfade rather than slide: the pages stack, with
+                        // a slight drift that follows a swipe.
+                        translationX = size.width * (pagerState.currentPage - page + pagerState.currentPageOffsetFraction) * 0.96f
+                        alpha = imageAlpha
+                    },
             )
         }
         if (items.size > 1) {
@@ -150,6 +169,8 @@ internal fun ContinueWatchingHero(
 private fun HeroPage(
     item: SectionItem,
     offset: Float,
+    imageAlpha: Float,
+    textAlpha: Float,
     interactive: Boolean,
     zooming: Boolean,
     onOpen: () -> Unit,
@@ -158,13 +179,18 @@ private fun HeroPage(
 ) {
     val artwork = rememberHeroArtwork(item)
     val zoom = remember(item.contentId) { Animatable(1f) }
+    val visible by rememberUpdatedState(imageAlpha > 0.001f)
     LaunchedEffect(zooming) {
         if (zooming) {
-            zoom.animateTo(1.08f, tween(HeroDwellMillis.toInt() + HeroTransitionMillis, easing = LinearEasing))
+            zoom.animateTo(HeroZoom, tween(HeroDwellMillis.toInt() + HeroTransitionMillis * 2, easing = LinearEasing))
         } else {
-            zoom.animateTo(1f, tween(600))
+            // Back to the resting framing only once nobody can see it.
+            snapshotFlow { visible }.first { !it }
+            zoom.snapTo(1f)
         }
     }
+    // Each item drifts one way or the other as it zooms.
+    val drift = if (item.contentId.hashCode() and 1 == 0) 1f else -1f
     Box(
         modifier = modifier
             .padding(horizontal = 16.dp)
@@ -192,9 +218,9 @@ private fun HeroPage(
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer {
-                            val scale = zoom.value + offset * 0.04f
-                            scaleX = scale
-                            scaleY = scale
+                            scaleX = zoom.value
+                            scaleY = zoom.value
+                            translationX = (zoom.value - 1f) * size.width * 0.3f * drift
                         },
                 )
             }
@@ -224,7 +250,10 @@ private fun HeroPage(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
-                    .graphicsLayer { translationY = offset * 40f },
+                    .graphicsLayer {
+                        alpha = textAlpha
+                        translationY = offset * 28.dp.toPx()
+                    },
             )
         }
     }
