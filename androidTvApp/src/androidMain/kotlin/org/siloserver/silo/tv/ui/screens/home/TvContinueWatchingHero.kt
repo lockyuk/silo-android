@@ -24,8 +24,9 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -50,6 +51,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -60,8 +62,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
@@ -72,6 +76,7 @@ import coil3.request.transformations
 import coil3.size.Size as CoilSize
 import coil3.transform.Transformation
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 import org.koin.compose.koinInject
 import org.siloserver.silo.common.cards.LocalEpisodeSpoilerPrefs
 import org.siloserver.silo.common.settings.titleLogoUrl
@@ -87,7 +92,6 @@ import org.siloserver.silo.tv.ui.components.TvMarqueeContent
 import org.siloserver.silo.tv.ui.components.TvMarqueeEnrichment
 import org.siloserver.silo.tv.ui.components.TvPrimaryPillButton
 import org.siloserver.silo.tv.ui.components.TvRootHeroBackdrop
-import org.siloserver.silo.tv.ui.components.TvSecondaryPillButton
 import org.siloserver.silo.tv.ui.components.rememberAmbientBackdropTintState
 import org.siloserver.silo.tv.ui.focus.TvContentInitialFocusMaxAttempts
 import org.siloserver.silo.tv.ui.focus.TvObservedFocusResult
@@ -111,25 +115,24 @@ private const val HeroCopyFadeMillis = 700
  * hero: over the corner-anchored backdrop and its sampled tint, the title's
  * clear logo sits just under the menu bar's Silo logo, followed by the
  * episode title, the dot-separated facts, the synopsis and the resume bar.
- * Resume and More Info sit at the bottom beside a row of dots, one per item
- * (up to ten). The current dot fills over six seconds;
- * when it is full the hero crossfades to the next item. The next row's
- * header peeks at the bottom. Left from Resume and Right from More Info step
- * through the items; Down leaves for the rows below.
+ * Play or Resume sits at the bottom between a left and a right arrow, beside
+ * a row of dots, one per item (up to ten). The current dot fills over six
+ * seconds; when it is full the hero crossfades to the next item. The next
+ * row's header peeks at the bottom. Left and Right on the button step through
+ * the items, flashing the arrow; Down leaves for the rows below.
  */
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 internal fun TvContinueWatchingHero(
     section: ResolvedSection,
     onResume: (SectionItem) -> Unit,
-    onDetails: (SectionItem) -> Unit,
     onDown: () -> Unit,
     onInitialContentFocus: () -> Unit,
     focusRequest: Int,
     detailReturnFocusRequest: Int,
     resumeFocusRequester: FocusRequester?,
     detailsFocusRequester: FocusRequester?,
-    /** The shell's first-row container requester; it lands on the buttons. */
+    /** The shell's first-row container requester; it lands on the button. */
     buttonsFocusRequester: FocusRequester?,
     modifier: Modifier = Modifier,
     /** The row under the hero, drawn as it is in the feed and cut off by the screen. */
@@ -143,10 +146,12 @@ internal fun TvContinueWatchingHero(
     var stepRevision by remember { mutableIntStateOf(0) }
     val dwell = remember { Animatable(0f) }
     val resume = resumeFocusRequester ?: remember { FocusRequester() }
-    val details = detailsFocusRequester ?: remember { FocusRequester() }
     var heroHasFocus by remember { mutableStateOf(false) }
+    // The arrow the last manual step went, so that arrow can flash.
+    var lastStep by remember { mutableIntStateOf(0) }
     val step = { delta: Int ->
         index = (index + delta + items.size) % items.size
+        lastStep = delta
         stepRevision++
     }
 
@@ -232,35 +237,31 @@ internal fun TvContinueWatchingHero(
                         .focusProperties { enter = { resume } }
                         .focusGroup(),
                 ) {
+                    if (items.size > 1) {
+                        HeroArrow(Icons.AutoMirrored.Filled.KeyboardArrowLeft, flash = lastStep < 0, revision = stepRevision)
+                    }
                     TvPrimaryPillButton(
                         stableHero = true,
                         icon = Icons.Filled.PlayArrow,
                         title = if ((item.positionSeconds ?: 0.0) > 0) "Resume" else "Play",
                         onClick = { onResume(item) },
                         focusRequester = resume,
-                        modifier = Modifier.onPreviewKeyEvent { event ->
-                            if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft && items.size > 1) {
-                                step(-1)
-                                true
-                            } else {
-                                false
-                            }
-                        },
+                        // The shell's detail-return requester lands here too,
+                        // now that the hero has no Details button.
+                        modifier = Modifier
+                            .then(if (detailsFocusRequester != null) Modifier.focusRequester(detailsFocusRequester) else Modifier)
+                            .onPreviewKeyEvent { event ->
+                                if (event.type != KeyEventType.KeyDown || items.size < 2) return@onPreviewKeyEvent false
+                                when (event.key) {
+                                    Key.DirectionLeft -> { step(-1); true }
+                                    Key.DirectionRight -> { step(1); true }
+                                    else -> false
+                                }
+                            },
                     )
-                    TvSecondaryPillButton(
-                        icon = Icons.Outlined.Info,
-                        title = "More Info",
-                        onClick = { onDetails(item) },
-                        focusRequester = details,
-                        modifier = Modifier.onPreviewKeyEvent { event ->
-                            if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight && items.size > 1) {
-                                step(1)
-                                true
-                            } else {
-                                false
-                            }
-                        },
-                    )
+                    if (items.size > 1) {
+                        HeroArrow(Icons.AutoMirrored.Filled.KeyboardArrowRight, flash = lastStep > 0, revision = stepRevision)
+                    }
                     if (items.size > 1) {
                         Spacer(Modifier.width(14.dp))
                         HeroIndicators(count = items.size, current = index, progress = { dwell.value })
@@ -299,12 +300,19 @@ private val HeroControlsGap = 10.dp
 
 private val HeroCopyWidth = 520.dp
 
-private val HeroLogoHeight = 93.dp
+private val HeroLogoHeight = 116.dp
+
+/**
+ * The area every logo is drawn at, so a wide wordmark and a stacked one read
+ * about the same size; [HeroLogoMaxWidth] and [HeroLogoHeight] cap the
+ * extremes.
+ */
+private const val HeroLogoArea = 116f * 300f
 
 /** From the menu bar to the top of the logo. */
 private val HeroLogoTopGap = 10.dp
 
-private val HeroLogoMaxWidth = 368.dp
+private val HeroLogoMaxWidth = 460.dp
 
 private val HeroShadow = Shadow(Color.Black.copy(alpha = 0.5f), Offset(0f, 2f), 12f)
 
@@ -381,6 +389,8 @@ private fun HeroDetails(content: TvMarqueeContent, isEpisode: Boolean, hidesSyno
 @Composable
 private fun HeroLogo(logoUrl: String?, title: String) {
     var logoLoaded by remember(logoUrl) { mutableStateOf(false) }
+    // Width over height of the trimmed logo, known once it decodes.
+    var aspect by remember(logoUrl) { mutableStateOf<Float?>(null) }
     Box(
         modifier = Modifier.height(HeroLogoHeight).fillMaxWidth(),
         contentAlignment = Alignment.TopStart,
@@ -411,13 +421,33 @@ private fun HeroLogo(logoUrl: String?, title: String) {
                 contentDescription = title,
                 contentScale = ContentScale.Fit,
                 alignment = Alignment.TopStart,
-                onSuccess = { logoLoaded = true },
+                onSuccess = { success ->
+                    val intrinsic = success.painter.intrinsicSize
+                    if (intrinsic.width > 0f && intrinsic.height > 0f) aspect = intrinsic.width / intrinsic.height
+                    logoLoaded = true
+                },
                 // Sized to the logo's own shape: drawn in a wider box, a
                 // narrow logo was centred in it instead of starting at the left.
-                modifier = Modifier.sizeIn(maxWidth = HeroLogoMaxWidth, maxHeight = HeroLogoHeight),
+                modifier = aspect?.let { Modifier.size(heroLogoSize(it)) }
+                    ?: Modifier.sizeIn(maxWidth = HeroLogoMaxWidth, maxHeight = HeroLogoHeight),
             )
         }
     }
+}
+
+/** The logo's size at [HeroLogoArea] for its [aspect], inside the caps. */
+private fun heroLogoSize(aspect: Float): DpSize {
+    var width = sqrt(HeroLogoArea * aspect)
+    var height = width / aspect
+    if (height > HeroLogoHeight.value) {
+        height = HeroLogoHeight.value
+        width = height * aspect
+    }
+    if (width > HeroLogoMaxWidth.value) {
+        width = HeroLogoMaxWidth.value
+        height = width / aspect
+    }
+    return DpSize(width.dp, height.dp)
 }
 
 /**
@@ -554,6 +584,37 @@ private fun HeroProgress(item: SectionItem) {
         )
     }
 }
+
+/**
+ * A round arrow beside the hero's button. Only a cue: focus stays on the
+ * button, and Left or Right there steps the hero and flashes this arrow.
+ */
+@Composable
+private fun HeroArrow(icon: ImageVector, flash: Boolean, revision: Int) {
+    val glow = remember { Animatable(0f) }
+    LaunchedEffect(revision) {
+        if (!flash) return@LaunchedEffect
+        glow.snapTo(1f)
+        glow.animateTo(0f, tween(HeroArrowFlashMillis))
+    }
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(HeroControlsHeight)
+            .drawBehind {
+                drawCircle(Color.White.copy(alpha = 0.14f + 0.86f * glow.value))
+            },
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(28.dp),
+        )
+    }
+}
+
+private const val HeroArrowFlashMillis = 350
 
 /**
  * One dot per item, Netflix style; the current one is a short bar that fills

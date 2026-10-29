@@ -183,10 +183,6 @@ fun TvHomeScreen(
                     modifier = Modifier.fillMaxSize(),
                     section = heroSection,
                     onResume = { item -> onPlayItem(item.contentId, item.type, item.positionSeconds) },
-                    onDetails = { item ->
-                        val target = item.tvContinueWatchingDetailTarget()
-                        onItemDetailSelection(target.contentId, target.seasonNumber, target.episodeContentId)
-                    },
                     onDown = {
                         heroActive = false
                         rowsFocusRequest++
