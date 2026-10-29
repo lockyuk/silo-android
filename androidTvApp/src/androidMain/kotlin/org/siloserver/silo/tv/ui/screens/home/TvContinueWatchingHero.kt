@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -57,6 +56,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
@@ -70,6 +70,7 @@ import org.koin.compose.koinInject
 import org.siloserver.silo.common.cards.LocalEpisodeSpoilerPrefs
 import org.siloserver.silo.common.settings.titleLogoUrl
 import org.siloserver.silo.common.ui.components.ThumbhashImage
+import org.siloserver.silo.model.catalog.OverlaySummary
 import org.siloserver.silo.model.section.ResolvedSection
 import org.siloserver.silo.model.section.SectionItem
 import org.siloserver.silo.model.settings.EpisodeSpoilerPrefs
@@ -304,20 +305,33 @@ private val HeroShadow = Shadow(Color.Black.copy(alpha = 0.5f), Offset(0f, 2f), 
 
 /**
  * The web hero's copy with the clear logo in place of its eyebrow and title:
- * logo, episode title, facts, synopsis and the resume bar.
+ * the logo at the top, under the menu bar, and the episode title, facts,
+ * synopsis and resume bar at the bottom, over the buttons.
  */
 @Composable
 private fun HeroCopy(content: TvMarqueeContent) {
     val item = content.source
     val isEpisode = item.type.equals("episode", ignoreCase = true)
     val hidesSynopsis = isEpisode && LocalEpisodeSpoilerPrefs.current.hidesOverview(EpisodeSpoilers.isUnwatched(item))
-    Column(modifier = Modifier.widthIn(max = HeroCopyWidth)) {
-        HeroLogo(
-            logoUrl = titleLogoUrl(content.logoUrl),
-            title = if (isEpisode) item.seriesTitle?.takeIf { it.isNotBlank() } ?: content.title else item.title,
-        )
+    Box(Modifier.fillMaxSize()) {
+        Box(Modifier.align(Alignment.TopStart).widthIn(max = HeroCopyWidth)) {
+            HeroLogo(
+                logoUrl = titleLogoUrl(content.logoUrl),
+                title = if (isEpisode) item.seriesTitle?.takeIf { it.isNotBlank() } ?: content.title else item.title,
+            )
+        }
+        Column(Modifier.align(Alignment.BottomStart).widthIn(max = HeroCopyWidth)) {
+            HeroDetails(content, isEpisode, hidesSynopsis)
+        }
+    }
+}
+
+/** The episode title, facts, synopsis and resume bar, sitting just above the buttons. */
+@Composable
+private fun HeroDetails(content: TvMarqueeContent, isEpisode: Boolean, hidesSynopsis: Boolean) {
+    val item = content.source
+    Column {
         if (isEpisode && item.title.isNotBlank()) {
-            Spacer(Modifier.height(10.dp))
             Text(
                 item.title,
                 color = Color.White,
@@ -330,7 +344,7 @@ private fun HeroCopy(content: TvMarqueeContent) {
         }
         val facts = heroFacts(item)
         if (facts.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
+            if (isEpisode && item.title.isNotBlank()) Spacer(Modifier.height(8.dp))
             Text(
                 facts.joinToString("  ·  "),
                 color = Color.White.copy(alpha = 0.85f),
@@ -388,15 +402,18 @@ private fun HeroLogo(logoUrl: String?, title: String) {
                 transparent = true,
                 crossfadeMillis = 0,
                 onSuccess = { logoLoaded = true },
-                modifier = Modifier.fillMaxHeight().widthIn(max = HeroLogoMaxWidth),
+                // Sized to the logo's own shape: drawn in a wider box, a
+                // narrow logo was centred in it instead of starting at the left.
+                modifier = Modifier.sizeIn(maxWidth = HeroLogoMaxWidth, maxHeight = HeroLogoHeight),
             )
         }
     }
 }
 
 /**
- * The web hero's facts: `S4 · E2 · 52 min · TV-MA` for an episode, and year,
- * runtime, rating, two genres and certificate for a movie.
+ * The web hero's facts with the picture quality in place of the age rating:
+ * `S4 · E2 · 52 min · 4K · Dolby Vision` for an episode, and year, runtime,
+ * rating, two genres and quality for a movie.
  */
 private fun heroFacts(item: SectionItem): List<String> {
     val facts = mutableListOf<String>()
@@ -411,13 +428,13 @@ private fun heroFacts(item: SectionItem): List<String> {
             else -> "${minutes / 60}h ${minutes % 60}m"
         }
     }
-    val certificate = item.contentRating?.trim()?.uppercase()?.takeIf { it.isNotEmpty() }
+    val quality = heroQuality(item.overlaySummary)
     if (item.type.equals("episode", ignoreCase = true)) {
         val season = item.seasonNumber
         val episode = item.episodeNumber
         if (season != null && episode != null && season >= 0 && episode >= 0) facts += "S$season · E$episode"
         runtime?.let { facts += it }
-        certificate?.let { facts += it }
+        facts += quality
         return facts
     }
     if (item.year > 0) facts += item.year.toString()
@@ -429,8 +446,29 @@ private fun heroFacts(item: SectionItem): List<String> {
         tmdb != null -> facts += "TMDB ${"%.1f".format(tmdb)}"
     }
     item.genres.map { it.trim() }.filter { it.isNotEmpty() }.distinct().take(2).forEach { facts += it }
-    certificate?.let { facts += it }
+    facts += quality
     return facts
+}
+
+/** The file's resolution and dynamic range: `4K`, `1080p`, `Dolby Vision`, `HDR10`. */
+private fun heroQuality(summary: OverlaySummary?): List<String> {
+    if (summary == null) return emptyList()
+    val quality = mutableListOf<String>()
+    summary.resolution?.trim()?.takeIf { it.isNotEmpty() }?.let { resolution ->
+        quality += when (resolution.lowercase()) {
+            "2160p", "4k", "uhd" -> "4K"
+            "4320p", "8k" -> "8K"
+            else -> resolution.lowercase()
+        }
+    }
+    summary.hdr?.trim()?.takeIf { it.isNotEmpty() }?.let { hdr ->
+        quality += if (hdr.contains("dv", ignoreCase = true) || hdr.contains("dolby", ignoreCase = true)) {
+            "Dolby Vision"
+        } else {
+            hdr.uppercase()
+        }
+    }
+    return quality
 }
 
 /** The red resume bar and the time left, under the synopsis. */
