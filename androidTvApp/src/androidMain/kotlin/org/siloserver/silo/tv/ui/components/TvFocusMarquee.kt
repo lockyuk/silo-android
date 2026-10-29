@@ -71,6 +71,8 @@ fun TvFocusMarquee(
     topPadding: androidx.compose.ui.unit.Dp = 0.dp,
     bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
     animateTransition: Boolean = true,
+    /** The copy crossfade; Home's Continue Watching hero runs slower. */
+    crossfadeMillis: Int = TvMarqueeCrossfadeMs,
     /** An extra line under the block for pages that preview more than catalog
      *  items (the Requests page's status and stage track). */
     footer: (@Composable (TvMarqueeContent) -> Unit)? = null,
@@ -98,7 +100,7 @@ fun TvFocusMarquee(
             Crossfade(
                 targetState = content,
                 animationSpec = tween(
-                    if (snapInitialContent) 0 else TvMarqueeCrossfadeMs,
+                    if (snapInitialContent) 0 else crossfadeMillis,
                     easing = TvMarqueeEasing,
                 ),
                 label = "tvFocusMarquee",

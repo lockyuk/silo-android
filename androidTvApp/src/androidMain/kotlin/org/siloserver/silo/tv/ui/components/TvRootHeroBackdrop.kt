@@ -52,6 +52,8 @@ fun TvRootHeroBackdrop(
     modifier: Modifier = Modifier,
     emptyWashColor: Color? = null,
     animateTransition: Boolean = true,
+    /** The art and tint crossfade; Home's Continue Watching hero runs slower. */
+    crossfadeMillis: Int = TvMarqueeCrossfadeMs,
 ) {
     val spoilerPrefs = LocalEpisodeSpoilerPrefs.current
     val tintState = LocalAmbientBackdropTint.current
@@ -79,7 +81,7 @@ fun TvRootHeroBackdrop(
     val animatedTint = animateColorAsState(
         targetValue = targetAccent,
         animationSpec = tween(
-            durationMillis = if (snapInitialTint) 0 else TvMarqueeCrossfadeMs,
+            durationMillis = if (snapInitialTint) 0 else crossfadeMillis,
             easing = TvMarqueeEasing,
         ),
         label = "tvRootHeroBackdropTint",
@@ -141,7 +143,7 @@ fun TvRootHeroBackdrop(
             Crossfade(
                 targetState = content,
                 animationSpec = tween(
-                    if (snapInitialArtwork) 0 else TvMarqueeCrossfadeMs,
+                    if (snapInitialArtwork) 0 else crossfadeMillis,
                     easing = TvMarqueeEasing,
                 ),
                 label = "tvRootHeroBackdropArt",

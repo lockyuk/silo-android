@@ -51,6 +51,9 @@ import org.siloserver.silo.tv.ui.components.TvLoadingScreen
 import org.siloserver.silo.tv.ui.components.TvMediaCardActions
 import org.siloserver.silo.tv.ui.components.TvSkylineDetailPrefetchTarget
 import org.siloserver.silo.tv.ui.components.TvSkylineSectionFeed
+import org.siloserver.silo.tv.ui.components.TvMediaRow
+import org.siloserver.silo.tv.ui.components.TvSkylineItemSpacing
+import org.siloserver.silo.tv.ui.components.TvSkylineRowCardVerticalPadding
 import org.siloserver.silo.tv.ui.components.isTvContinueWatchingRow
 import org.siloserver.silo.tv.ui.components.isTvProgressRow
 import org.siloserver.silo.tv.ui.focus.TvContentInitialFocusMaxAttempts
@@ -58,6 +61,9 @@ import org.siloserver.silo.tv.ui.focus.TvObservedFocusResult
 import org.siloserver.silo.tv.ui.focus.claimFocusOrReport
 import org.siloserver.silo.tv.ui.focus.requestFocusUntilObserved
 import org.siloserver.silo.tv.ui.theme.RowDimens
+import org.siloserver.silo.tv.ui.theme.Spacing
+import org.siloserver.silo.tv.ui.theme.TvSkyline
+import org.siloserver.silo.common.cards.LocalCardPresentation
 import org.siloserver.silo.viewmodel.HomeDismissal
 import org.siloserver.silo.viewmodel.HomeViewModel
 
@@ -170,12 +176,11 @@ fun TvHomeScreen(
             // registration keeps one wrapper for its whole life.
             val upWrappers = remember { java.util.IdentityHashMap<(Boolean) -> Boolean, (Boolean) -> Boolean>() }
             if (heroSection != null && heroActive) {
-                // The hero leaves room at the bottom for the first line of the
-                // next row, as the phone does, so Home shows there is more below.
+                // The hero leaves room at the bottom for the top of the next
+                // row, drawn as the feed draws it, so Home shows there is more below.
                 val nextSection = visibleSections.firstOrNull { it !== heroSection && it.items.isNotEmpty() }
-                Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
                 TvContinueWatchingHero(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    modifier = Modifier.fillMaxSize(),
                     section = heroSection,
                     onResume = { item -> onPlayItem(item.contentId, item.type, item.positionSeconds) },
                     onDetails = { item ->
@@ -192,9 +197,8 @@ fun TvHomeScreen(
                     resumeFocusRequester = firstRowFocusRequester,
                     detailsFocusRequester = detailReturnCardFocusRequester,
                     buttonsFocusRequester = firstRowContainerFocusRequester,
+                    nextRowPeek = nextSection?.let { section -> { TvNextRowPeek(section) } },
                 )
-                if (nextSection != null) TvNextRowPeek(nextSection)
-                }
             } else {
                 TvHomeContent(
                     // The hero is Continue Watching, so the rows below leave it out.
@@ -450,48 +454,25 @@ private fun ResolvedSection.isForYouRow(): Boolean {
 /** Re-read requests closer together than this are one return to Home. */
 private const val ReturnRefreshWindowMillis = 2_000L
 
-/** How much of the next row shows under the hero: its title and the top of its cards. */
-private val NextRowPeekHeight = 112.dp
-
 /**
- * The first line of the row after the hero: its title and the tops of its
- * first posters, cut off by the screen's edge. It only shows what is below;
- * Down from the hero moves into the rows themselves.
+ * The row after the hero, laid out exactly as the Skyline feed lays out its
+ * rows; the hero cuts it off below its header and the tops of its cards.
  */
 @Composable
 private fun TvNextRowPeek(section: ResolvedSection) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(NextRowPeekHeight)
-            .clipToBounds()
-            .padding(start = 58.dp, top = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Text(
-            text = section.title,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Color.White.copy(alpha = 0.9f),
-            maxLines = 1,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            section.items.take(12).forEach { item ->
-                Box(
-                    modifier = Modifier
-                        .size(width = RowDimens.DensePosterWidth, height = RowDimens.DensePosterHeight)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color.White.copy(alpha = 0.08f)),
-                ) {
-                    ThumbhashImage(
-                        url = item.posterUrl ?: item.backdropUrl,
-                        thumbhash = item.posterThumbhash ?: item.backdropThumbhash,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-            }
-        }
-    }
+    val presentation = LocalCardPresentation.current
+    TvMediaRow(
+        title = section.title,
+        items = section.items,
+        onItemClick = {},
+        icon = if (section.isTvProgressRow()) Icons.Filled.PlayCircle else null,
+        showProgress = section.isTvProgressRow(),
+        style = section.tvHomeRowStyle(),
+        startPadding = TvSkyline.safeAreaX,
+        endPadding = Spacing.safeArea,
+        itemSpacing = TvSkylineItemSpacing,
+        rowTopPadding = TvSkylineRowCardVerticalPadding,
+        rowBottomPadding = TvSkylineRowCardVerticalPadding,
+        posterWidth = RowDimens.DensePosterWidth * presentation.posterSize.posterScale,
+    )
 }
