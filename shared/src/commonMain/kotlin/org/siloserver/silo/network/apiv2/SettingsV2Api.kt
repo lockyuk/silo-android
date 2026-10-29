@@ -4,7 +4,12 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.*
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.*
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 import org.siloserver.silo.model.settings.*
 import org.siloserver.silo.network.*
 import org.siloserver.silo.network.api.OverlayConfigResponse
@@ -66,10 +71,29 @@ class SettingsV2Api(
             EffectiveSettingValuesResponse(rows, requireNotNull(body["revision"]).jsonPrimitive.int)
         }
 
-    suspend fun capabilities(): ApiResult<SettingsContractCapabilities> =
-        exchange<SettingsContractCapabilities, SettingsContractCapabilities>(block = { owner ->
+    /**
+     * The server's settings capabilities. They describe the server, not the
+     * profile, and several stores ask for them at once on launch, so a
+     * success is kept per server for [CapabilitiesTtl] and concurrent
+     * callers share one request.
+     */
+    suspend fun capabilities(): ApiResult<SettingsContractCapabilities> = capabilitiesLock.withLock {
+        val server = tokens.snapshotCurrentScope()?.let { "${it.serverId}|${it.serverUrl}" }
+        cachedCapabilities?.takeIf { it.server == server && it.at.elapsedNow() < CapabilitiesTtl }
+            ?.let { return@withLock ApiResult.Success(it.value) }
+        val result = exchange<SettingsContractCapabilities, SettingsContractCapabilities>(block = { owner ->
             client.get("/api/v2/settings/contract/capabilities") { authScope(owner); requireSiloAuth() }
         }) { capabilities, _ -> capabilities }
+        if (result is ApiResult.Success && server != null) {
+            cachedCapabilities = CachedCapabilities(server, result.data, TimeSource.Monotonic.markNow())
+        }
+        result
+    }
+
+    private class CachedCapabilities(val server: String, val value: SettingsContractCapabilities, val at: TimeMark)
+
+    private val capabilitiesLock = Mutex()
+    private var cachedCapabilities: CachedCapabilities? = null
 
     /** The keys the server's settings manifest defines: `definitions[].key` of `GET /settings/contract`. */
     suspend fun contractKeys(): ApiResult<Set<String>> =
@@ -243,3 +267,6 @@ class SettingsV2Api(
 
     private fun libraryID(value: JsonElement): Int = checkedPositiveId(stringID(value))
 }
+
+/** How long [SettingsV2Api.capabilities] reuses a server's answer. */
+private val CapabilitiesTtl = 10.minutes

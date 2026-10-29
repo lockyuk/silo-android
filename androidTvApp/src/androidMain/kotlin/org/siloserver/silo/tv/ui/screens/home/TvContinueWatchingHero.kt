@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.screens.home
 
+import android.graphics.Bitmap
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -15,9 +16,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Info
@@ -34,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
@@ -41,6 +47,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.input.key.Key
@@ -53,23 +60,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import coil3.compose.AsyncImage
 import coil3.imageLoader
 import coil3.request.ImageRequest
+import coil3.request.crossfade
+import coil3.request.transformations
+import coil3.size.Size as CoilSize
+import coil3.transform.Transformation
 import kotlin.math.roundToInt
 import org.koin.compose.koinInject
 import org.siloserver.silo.common.cards.LocalEpisodeSpoilerPrefs
 import org.siloserver.silo.common.settings.titleLogoUrl
-import org.siloserver.silo.common.ui.components.ThumbhashImage
 import org.siloserver.silo.model.catalog.OverlaySummary
 import org.siloserver.silo.model.section.ResolvedSection
 import org.siloserver.silo.model.section.SectionItem
@@ -294,12 +299,12 @@ private val HeroControlsGap = 10.dp
 
 private val HeroCopyWidth = 520.dp
 
-private val HeroLogoHeight = 116.dp
+private val HeroLogoHeight = 93.dp
 
 /** From the menu bar to the top of the logo. */
 private val HeroLogoTopGap = 10.dp
 
-private val HeroLogoMaxWidth = 460.dp
+private val HeroLogoMaxWidth = 368.dp
 
 private val HeroShadow = Shadow(Color.Black.copy(alpha = 0.5f), Offset(0f, 2f), 12f)
 
@@ -393,14 +398,19 @@ private fun HeroLogo(logoUrl: String?, title: String) {
             )
         }
         if (!logoUrl.isNullOrBlank()) {
-            ThumbhashImage(
-                url = logoUrl,
-                thumbhash = null,
+            val context = LocalContext.current
+            val request = remember(logoUrl) {
+                ImageRequest.Builder(context)
+                    .data(logoUrl)
+                    .transformations(TrimTransparentEdges)
+                    .crossfade(false)
+                    .build()
+            }
+            AsyncImage(
+                model = request,
                 contentDescription = title,
                 contentScale = ContentScale.Fit,
                 alignment = Alignment.TopStart,
-                transparent = true,
-                crossfadeMillis = 0,
                 onSuccess = { logoLoaded = true },
                 // Sized to the logo's own shape: drawn in a wider box, a
                 // narrow logo was centred in it instead of starting at the left.
@@ -409,6 +419,48 @@ private fun HeroLogo(logoUrl: String?, title: String) {
         }
     }
 }
+
+/**
+ * Crops a logo to its visible pixels. Many clear logos carry a wide
+ * transparent border (Top Boy's starts 132 of 500 pixels in), which left them
+ * floating right of the Silo logo above; trimmed, every logo starts on the
+ * same edge. Coil runs this once per decode, off the main thread, and caches
+ * the result.
+ */
+private object TrimTransparentEdges : Transformation() {
+    override val cacheKey = "trim-transparent-edges"
+
+    override suspend fun transform(input: Bitmap, size: CoilSize): Bitmap {
+        val width = input.width
+        val height = input.height
+        val row = IntArray(width)
+        var left = width
+        var right = -1
+        var top = -1
+        var bottom = -1
+        for (y in 0 until height) {
+            input.getPixels(row, 0, width, 0, y, width, 1)
+            var first = -1
+            var last = -1
+            for (x in 0 until width) {
+                if ((row[x] ushr 24) > TrimAlphaFloor) {
+                    if (first < 0) first = x
+                    last = x
+                }
+            }
+            if (first < 0) continue
+            if (top < 0) top = y
+            bottom = y
+            if (first < left) left = first
+            if (last > right) right = last
+        }
+        if (top < 0 || (left == 0 && top == 0 && right == width - 1 && bottom == height - 1)) return input
+        return Bitmap.createBitmap(input, left, top, right - left + 1, bottom - top + 1)
+    }
+}
+
+/** Alpha at or under this counts as empty: soft shadows and compression haze. */
+private const val TrimAlphaFloor = 16
 
 /**
  * The web hero's facts with the picture quality in place of the age rating:
@@ -563,7 +615,7 @@ private class HeroContents(
             var content = base(item)
             val isEpisode = item.type.equals("episode", ignoreCase = true)
             val showId = if (isEpisode) item.seriesId?.takeIf { it.isNotBlank() } else item.contentId
-            val show = showId?.let { (catalog.warmItemDetail(it) as? ApiResult.Success)?.data }
+            val show = showId?.let { (catalog.getItemDetailForPrefetch(it) as? ApiResult.Success)?.data }
             if (show != null) {
                 val keepStill = isEpisode && item.backdropIsEpisodeStill == true && content.backdropUrl != null
                 val backdrop = show.backdropUrl?.takeIf { it.isNotBlank() }
@@ -574,7 +626,7 @@ private class HeroContents(
                     backdropIsEpisodeStill = if (keepStill || backdrop == null) content.backdropIsEpisodeStill else false,
                 )
             }
-            val own = if (isEpisode) (catalog.warmItemDetail(item.contentId) as? ApiResult.Success)?.data else show
+            val own = if (isEpisode) (catalog.getItemDetailForPrefetch(item.contentId) as? ApiResult.Success)?.data else show
             own?.let { content = content.copy(detailLine = TvMarqueeEnrichment.from(it).detailLine) }
             content.heroBackdropUrl?.let { url ->
                 context.imageLoader.enqueue(ImageRequest.Builder(context).data(url).build())

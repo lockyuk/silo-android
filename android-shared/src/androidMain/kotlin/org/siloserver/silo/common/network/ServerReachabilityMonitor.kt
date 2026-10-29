@@ -112,7 +112,10 @@ class ServerReachabilityMonitor(
     }
 
     companion object {
-        const val REACHABLE_PROBE_INTERVAL_MS: Long = 20_000L
+        // The events socket already notices a dropped server, so while the
+        // server answers a slow probe is enough; it was 20s, three requests a
+        // minute for the whole time the app was open.
+        const val REACHABLE_PROBE_INTERVAL_MS: Long = 120_000L
         const val UNREACHABLE_PROBE_INTERVAL_MS: Long = 8_000L
     }
 }

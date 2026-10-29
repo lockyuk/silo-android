@@ -26,7 +26,8 @@ class ServerReachabilityMonitorTest {
         monitor.startForeground(); runCurrent()
         assertEquals(ServerReachabilityStatus.Reachable, monitor.state.value.status)
         assertEquals(1, calls)
-        advanceTimeBy(19_999); runCurrent(); assertEquals(1, calls)
+        val interval = ServerReachabilityMonitor.REACHABLE_PROBE_INTERVAL_MS
+        advanceTimeBy(interval - 1); runCurrent(); assertEquals(1, calls)
         advanceTimeBy(1); runCurrent(); assertEquals(2, calls)
     }
     @Test fun failuresUseFastCadenceAndOnlySameServerReconnects() = runTest {
