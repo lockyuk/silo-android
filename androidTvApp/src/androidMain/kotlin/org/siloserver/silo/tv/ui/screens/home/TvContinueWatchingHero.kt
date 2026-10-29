@@ -43,10 +43,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -54,21 +51,21 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.imageLoader
 import coil3.request.ImageRequest
-import kotlin.math.PI
 import kotlin.math.roundToInt
-import kotlin.math.sin
 import org.koin.compose.koinInject
 import org.siloserver.silo.common.cards.LocalEpisodeSpoilerPrefs
 import org.siloserver.silo.common.settings.titleLogoUrl
@@ -91,6 +88,9 @@ import org.siloserver.silo.tv.ui.focus.TvObservedFocusResult
 import org.siloserver.silo.tv.ui.focus.requestFocusUntilObserved
 import org.siloserver.silo.tv.ui.theme.TvSkyline
 
+/** The most items the hero rotates through. */
+private const val HeroMaxItems = 10
+
 /** How long each item stays before the hero moves to the next. */
 private const val HeroDwellMillis = 6_000
 
@@ -102,14 +102,14 @@ private const val HeroCopyFadeMillis = 700
 
 /**
  * Continue Watching as Home's opening hero, laid out like the web client's
- * hero: over the corner-anchored backdrop and its sampled tint sit the
- * "Continue Watching — 2 of 7" eyebrow, the title's clear logo, the episode
- * title, the dot-separated facts, the synopsis and the resume bar, then
- * Resume and More Info. At the right of the buttons a squiggly line, drawn as
- * Android's media player draws track progress, fills over six seconds; when
- * it is full the hero crossfades to the next item. The next row's header
- * peeks at the bottom. Left from Resume and Right from More Info step through
- * the items; Down leaves for the rows below.
+ * hero: over the corner-anchored backdrop and its sampled tint, the title's
+ * clear logo sits just under the menu bar's Silo logo, followed by the
+ * episode title, the dot-separated facts, the synopsis and the resume bar.
+ * Resume and More Info sit at the bottom beside a row of dots, one per item
+ * (up to ten). The current dot fills over six seconds;
+ * when it is full the hero crossfades to the next item. The next row's
+ * header peeks at the bottom. Left from Resume and Right from More Info step
+ * through the items; Down leaves for the rows below.
  */
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
@@ -129,7 +129,7 @@ internal fun TvContinueWatchingHero(
     /** The row under the hero, drawn as it is in the feed and cut off by the screen. */
     nextRowPeek: (@Composable () -> Unit)? = null,
 ) {
-    val items = section.items
+    val items = section.items.take(HeroMaxItems)
     if (items.isEmpty()) return
     var index by rememberSaveable(section.id) { mutableIntStateOf(0) }
     if (index >= items.size) index = 0
@@ -168,8 +168,6 @@ internal fun TvContinueWatchingHero(
     contents.Resolve(item)
     contents.Resolve(items[(index + 1) % items.size])
     val content = contents[item]
-    // The wave drifts with the timer, so neither bar runs a clock of its own.
-    val wavePhase = { dwell.value * HeroWaveTurnsPerItem }
 
     val tintState = rememberAmbientBackdropTintState()
     LaunchedEffect(content.contentId, content.heroBackdropUrl) {
@@ -202,22 +200,17 @@ internal fun TvContinueWatchingHero(
                 label = "tvContinueWatchingHeroCopy",
                 modifier = Modifier
                     .fillMaxSize()
-                    // Below the menu bar, as on the other pages; the block
-                    // grows upward from the buttons.
+                    // The logo sits just under the Silo logo in the menu
+                    // bar and the copy runs down from it toward the buttons.
                     .padding(
                         start = TvSkyline.safeAreaX,
-                        top = TvSkyline.barTopInset + TvSkyline.barHeight,
+                        top = TvSkyline.barTopInset + TvSkyline.barHeight + HeroLogoTopGap,
                         bottom = NextRowPeekHeight + HeroControlsHeight + HeroControlsGap * 2,
                     )
                     .clipToBounds(),
             ) { shown ->
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomStart) {
-                    HeroCopy(
-                        content = contents[shown],
-                        position = items.indexOf(shown) + 1,
-                        count = items.size,
-                        wavePhase = wavePhase,
-                    )
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopStart) {
+                    HeroCopy(content = contents[shown])
                 }
             }
 
@@ -263,14 +256,8 @@ internal fun TvContinueWatchingHero(
                         },
                     )
                     if (items.size > 1) {
-                        Spacer(Modifier.weight(1f))
-                        HeroSlideCounter(position = index + 1, count = items.size)
-                        SquigglyProgress(
-                            progress = { dwell.value },
-                            phase = wavePhase,
-                            color = Color.White.copy(alpha = 0.9f),
-                            modifier = Modifier.width(150.dp),
-                        )
+                        Spacer(Modifier.width(14.dp))
+                        HeroIndicators(count = items.size, current = index, progress = { dwell.value })
                     }
                 }
                 Spacer(Modifier.height(HeroControlsGap))
@@ -306,28 +293,25 @@ private val HeroControlsGap = 10.dp
 
 private val HeroCopyWidth = 520.dp
 
-private val HeroLogoHeight = 92.dp
+private val HeroLogoHeight = 116.dp
 
-private val HeroLogoMaxWidth = 420.dp
+/** From the menu bar to the top of the logo. */
+private val HeroLogoTopGap = 10.dp
 
-/** Whole waves the squiggle travels while one item is shown. */
-private const val HeroWaveTurnsPerItem = 6f
+private val HeroLogoMaxWidth = 460.dp
 
 private val HeroShadow = Shadow(Color.Black.copy(alpha = 0.5f), Offset(0f, 2f), 12f)
 
 /**
- * The web hero's copy with the eyebrow reading Continue Watching and the
- * clear logo in place of the title: eyebrow, logo, episode title, facts,
- * synopsis and the resume bar.
+ * The web hero's copy with the clear logo in place of its eyebrow and title:
+ * logo, episode title, facts, synopsis and the resume bar.
  */
 @Composable
-private fun HeroCopy(content: TvMarqueeContent, position: Int, count: Int, wavePhase: () -> Float) {
+private fun HeroCopy(content: TvMarqueeContent) {
     val item = content.source
     val isEpisode = item.type.equals("episode", ignoreCase = true)
     val hidesSynopsis = isEpisode && LocalEpisodeSpoilerPrefs.current.hidesOverview(EpisodeSpoilers.isUnwatched(item))
     Column(modifier = Modifier.widthIn(max = HeroCopyWidth)) {
-        HeroEyebrow(position = position, count = count)
-        Spacer(Modifier.height(12.dp))
         HeroLogo(
             logoUrl = titleLogoUrl(content.logoUrl),
             title = if (isEpisode) item.seriesTitle?.takeIf { it.isNotBlank() } ?: content.title else item.title,
@@ -370,30 +354,8 @@ private fun HeroCopy(content: TvMarqueeContent, position: Int, count: Int, waveP
                 style = TextStyle(shadow = HeroShadow),
             )
         }
-        HeroProgress(item, wavePhase)
+        HeroProgress(item)
     }
-}
-
-/** The web's "Featured — No. 02" eyebrow, naming the row and the item's place in it. */
-@Composable
-private fun HeroEyebrow(position: Int, count: Int) {
-    Text(
-        buildAnnotatedString {
-            withStyle(SpanStyle(color = Color.White)) { append("CONTINUE WATCHING") }
-            if (count > 1) {
-                withStyle(SpanStyle(color = Color.White.copy(alpha = 0.4f))) { append("   —   ") }
-                withStyle(SpanStyle(color = Color.White)) { append("$position") }
-                append(" of ")
-                withStyle(SpanStyle(color = Color.White)) { append("$count") }
-            }
-        },
-        color = Color.White.copy(alpha = 0.7f),
-        fontSize = 12.sp,
-        fontWeight = FontWeight.SemiBold,
-        letterSpacing = 2.4.sp,
-        maxLines = 1,
-        style = TextStyle(shadow = HeroShadow),
-    )
 }
 
 /** The clear logo; the title in text until it decodes, or when there is none. */
@@ -402,7 +364,7 @@ private fun HeroLogo(logoUrl: String?, title: String) {
     var logoLoaded by remember(logoUrl) { mutableStateOf(false) }
     Box(
         modifier = Modifier.height(HeroLogoHeight).fillMaxWidth(),
-        contentAlignment = Alignment.BottomStart,
+        contentAlignment = Alignment.TopStart,
     ) {
         if (logoUrl.isNullOrBlank() || !logoLoaded) {
             Text(
@@ -422,7 +384,7 @@ private fun HeroLogo(logoUrl: String?, title: String) {
                 thumbhash = null,
                 contentDescription = title,
                 contentScale = ContentScale.Fit,
-                alignment = Alignment.BottomStart,
+                alignment = Alignment.TopStart,
                 transparent = true,
                 crossfadeMillis = 0,
                 onSuccess = { logoLoaded = true },
@@ -471,39 +433,29 @@ private fun heroFacts(item: SectionItem): List<String> {
     return facts
 }
 
-/** The slide counter beside the timer, `2 of 7`, as the web shows `02 / 07`. */
+/** The red resume bar and the time left, under the synopsis. */
 @Composable
-private fun HeroSlideCounter(position: Int, count: Int) {
-    Text(
-        buildAnnotatedString {
-            withStyle(SpanStyle(color = Color.White)) { append("$position") }
-            append(" of ")
-            append("$count")
-        },
-        color = Color.White.copy(alpha = 0.68f),
-        fontSize = 13.sp,
-        fontWeight = FontWeight.Medium,
-        letterSpacing = 1.2.sp,
-        maxLines = 1,
-        style = TextStyle(shadow = HeroShadow),
-    )
-}
-
-/** The resume bar, squiggly like the timer, and the time left. */
-@Composable
-private fun HeroProgress(item: SectionItem, wavePhase: () -> Float) {
+private fun HeroProgress(item: SectionItem) {
     val position = item.positionSeconds ?: return
     val duration = item.durationSeconds?.takeIf { it > 0 } ?: return
     val fraction = (position / duration).toFloat().coerceIn(0f, 1f)
     val remaining = ((duration - position) / 60).toInt().coerceAtLeast(1)
     Spacer(Modifier.height(12.dp))
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        SquigglyProgress(
-            progress = { fraction },
-            phase = wavePhase,
-            color = HeroResumeColor,
-            modifier = Modifier.width(240.dp),
-        )
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Box(
+            modifier = Modifier
+                .width(220.dp)
+                .height(4.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(Color.White.copy(alpha = 0.28f)),
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth(fraction)
+                    .height(4.dp)
+                    .background(Color(0xFFE50914)),
+            )
+        }
         Text(
             if (remaining >= 60) "${remaining / 60}h ${remaining % 60}m left" else "${remaining}m left",
             fontSize = 13.sp,
@@ -513,58 +465,37 @@ private fun HeroProgress(item: SectionItem, wavePhase: () -> Float) {
     }
 }
 
-private val HeroResumeColor = Color(0xFFE50914)
-
 /**
- * A progress line in the style of Android's media player (Google Play
- * Music's successor): the played part is a sine wave in [color] that tapers
- * flat into a round head, the rest a faint straight track. [progress] and
- * [phase] are read while drawing, so a moving bar redraws without
- * recomposing.
+ * One dot per item, Netflix style; the current one is a short bar that fills
+ * as the timer runs.
  */
 @Composable
-private fun SquigglyProgress(
-    progress: () -> Float,
-    phase: () -> Float,
-    color: Color,
-    modifier: Modifier = Modifier,
-) {
-    val wave = remember { Path() }
-    Box(
-        modifier
-            .height(12.dp)
-            .drawBehind {
-                val stroke = 2.5.dp.toPx()
-                val amplitude = 2.6.dp.toPx()
-                val wavelength = 16.dp.toPx()
-                val cy = size.height / 2
-                val head = size.width * progress().coerceIn(0f, 1f)
-                drawLine(
-                    color = Color.White.copy(alpha = 0.22f),
-                    start = Offset(head, cy),
-                    end = Offset(size.width, cy),
-                    strokeWidth = stroke,
-                    cap = StrokeCap.Round,
+private fun HeroIndicators(count: Int, current: Int, progress: () -> Float, modifier: Modifier = Modifier) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        repeat(count) { i ->
+            if (i == current) {
+                Box(
+                    Modifier
+                        .width(22.dp)
+                        .height(6.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.3f))
+                        // Drawn from the timer each frame without recomposing
+                        // the hero: only this bar changes as it runs.
+                        .drawBehind {
+                            drawRect(Color.White, size = Size(size.width * (0.15f + 0.85f * progress()), size.height))
+                        },
                 )
-                if (head <= 0f) return@drawBehind
-                val shift = phase() * 2f * PI.toFloat()
-                // The wave flattens over its last half wavelength, so it meets
-                // the head and the flat track without a kink.
-                val taper = wavelength / 2
-                wave.reset()
-                var x = 0f
-                val stepPx = 2f
-                while (true) {
-                    val scale = ((head - x) / taper).coerceIn(0f, 1f)
-                    val y = cy + amplitude * scale * sin(2f * PI.toFloat() * x / wavelength - shift)
-                    if (x == 0f) wave.moveTo(x, y) else wave.lineTo(x, y)
-                    if (x >= head) break
-                    x = (x + stepPx).coerceAtMost(head)
-                }
-                drawPath(wave, color, style = Stroke(width = stroke, cap = StrokeCap.Round))
-                drawCircle(color, radius = 3.5.dp.toPx(), center = Offset(head, cy))
-            },
-    )
+            } else {
+                Box(
+                    Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.35f)),
+                )
+            }
+        }
+    }
 }
 
 /**
