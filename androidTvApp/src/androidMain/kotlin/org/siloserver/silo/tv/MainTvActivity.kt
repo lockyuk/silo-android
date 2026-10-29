@@ -35,6 +35,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import org.siloserver.silo.common.diagnostics.DiagnosticsLifecycleLogger
 import org.siloserver.silo.common.network.ServerReachabilityMonitor
+import org.siloserver.silo.common.player.MediaCodecCapabilitiesProbe
 import org.siloserver.silo.common.settings.PlayerSettingsStore
 import org.siloserver.silo.common.settings.ServerDrivenConfigRefresher
 import org.siloserver.silo.common.settings.TitleArtStore
@@ -65,6 +66,7 @@ import org.siloserver.silo.tv.ui.navigation.TvRoute
 import org.siloserver.silo.tv.ui.screens.player.TvPlayerRemoteKeyBridge
 import org.siloserver.silo.tv.ui.theme.SiloTvTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -447,6 +449,13 @@ class MainTvActivity : ComponentActivity() {
             return
         }
         if (startRoute != TvRoute.Main.route) return
+        // The first playback otherwise enumerates every codec before it can
+        // ask the server for a plan. The probe is cached for the process, so
+        // run it once Home has had a few seconds to draw.
+        lifecycleScope.launch(Dispatchers.Default) {
+            delay(CodecProbeWarmupDelayMs)
+            runCatching { MediaCodecCapabilitiesProbe.probe() }
+        }
         lifecycleScope.launch(Dispatchers.IO) {
             warmAuthenticatedStartup(
                 context = applicationContext,
@@ -513,3 +522,6 @@ class MainTvActivity : ComponentActivity() {
             !tokenManager.getProfileId().isNullOrBlank()
     }
 }
+
+/** How long after launch the codec probe is warmed, so Home draws first. */
+private const val CodecProbeWarmupDelayMs = 3_000L
