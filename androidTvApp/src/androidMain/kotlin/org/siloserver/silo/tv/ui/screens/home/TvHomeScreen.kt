@@ -42,6 +42,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import org.siloserver.silo.common.ui.components.PrefetchSectionArtwork
 import org.siloserver.silo.common.ui.components.ThumbhashImage
 import org.siloserver.silo.model.section.ResolvedSection
 import org.siloserver.silo.model.section.SectionItem
@@ -119,6 +120,13 @@ fun TvHomeScreen(
     LaunchedEffect(homeSectionPreferences) {
         homeSectionPreferences.refresh()
     }
+    // Rows' first cards download into the disk cache in the background, so
+    // scrolling and focus moves draw from disk instead of the network.
+    PrefetchSectionArtwork(
+        remember(visibleSections, heroSection) {
+            (listOfNotNull(heroSection) + visibleSections.filterNot { it.id == heroSection?.id }).map { it.items }
+        },
+    )
 
     // TV has no pull-to-refresh, so ON_RESUME is the only manual freshness
     // path — refresh quietly whenever the user returns to Home (e.g. after
