@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -16,11 +17,15 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.siloserver.silo.model.section.ResolvedSection
 import org.siloserver.silo.network.TokenManager
+import org.siloserver.silo.tv.ui.components.isTvContinueWatchingRow
 
 /** Device-local Home row order and visibility for one server/profile. */
 data class TvHomeSectionLayout(
     val orderedSectionIds: List<String> = emptyList(),
     val hiddenSectionIds: Set<String> = emptySet(),
+    /** The row shown as Home's hero; null means Continue Watching. */
+    val heroSectionId: String? = null,
+    val heroDisabled: Boolean = false,
 )
 
 data class TvHomeSectionPreferenceState(
@@ -107,6 +112,21 @@ class TvHomeSectionPreferences(
         }
     }
 
+    /** Show [sectionId] as the hero, Continue Watching for null, or no hero when [disabled]. */
+    suspend fun setHero(sectionId: String?, disabled: Boolean = false) {
+        val authority = activeAuthority() ?: return
+        mutex.withLock {
+            val current = currentLayout(authority)
+            val updated = current.copy(
+                heroSectionId = sectionId.takeUnless { disabled },
+                heroDisabled = disabled,
+            )
+            if (updated == current) return
+            persist(authority, updated)
+            publish(authority.identity, updated)
+        }
+    }
+
     private suspend fun activeAuthority(): Authority? {
         val scope = tokenManager.snapshotCurrentScope()
         val profileId = (if (scope != null) scope.profileId else tokenManager.getProfileId())
@@ -130,6 +150,8 @@ class TvHomeSectionPreferences(
         return TvHomeSectionLayout(
             orderedSectionIds = unique(decodeIds(preferences[orderKey(authority.serverId)])),
             hiddenSectionIds = preferences[hiddenKey(authority.serverId)].orEmpty(),
+            heroSectionId = preferences[heroKey(authority.serverId)]?.takeIf(String::isNotBlank),
+            heroDisabled = preferences[heroDisabledKey(authority.serverId)] ?: false,
         )
     }
 
@@ -137,6 +159,9 @@ class TvHomeSectionPreferences(
         storeFor(authority.profileId).edit { preferences ->
             preferences[orderKey(authority.serverId)] = encodeIds(layout.orderedSectionIds)
             preferences[hiddenKey(authority.serverId)] = layout.hiddenSectionIds
+            val heroSectionId = layout.heroSectionId
+            if (heroSectionId == null) preferences.remove(heroKey(authority.serverId)) else preferences[heroKey(authority.serverId)] = heroSectionId
+            preferences[heroDisabledKey(authority.serverId)] = layout.heroDisabled
         }
     }
 
@@ -186,6 +211,18 @@ class TvHomeSectionPreferences(
             }
         }
 
+        /**
+         * The row Home shows as its hero: the chosen row while it has items,
+         * else Continue Watching. A row can be the hero while hidden as a row.
+         */
+        fun hero(sections: List<ResolvedSection>, layout: TvHomeSectionLayout): ResolvedSection? {
+            if (layout.heroDisabled) return null
+            val populated = arrange(sections, layout, includingHidden = true)
+            val continueWatching = populated.firstOrNull { it.isTvContinueWatchingRow() }
+            val chosen = layout.heroSectionId ?: return continueWatching
+            return populated.firstOrNull { it.id == chosen } ?: continueWatching
+        }
+
         internal fun retainedOrder(
             sectionIds: List<String>,
             rememberedSectionIds: List<String>,
@@ -200,6 +237,12 @@ class TvHomeSectionPreferences(
 
         private fun hiddenKey(serverId: String) =
             stringSetPreferencesKey("home_section_hidden_${serverHash(serverId)}")
+
+        private fun heroKey(serverId: String) =
+            stringPreferencesKey("home_hero_section_${serverHash(serverId)}")
+
+        private fun heroDisabledKey(serverId: String) =
+            booleanPreferencesKey("home_hero_disabled_${serverHash(serverId)}")
 
         /** Length-prefixing keeps arbitrary server section ids reversible. */
         private fun encodeIds(ids: List<String>): String =

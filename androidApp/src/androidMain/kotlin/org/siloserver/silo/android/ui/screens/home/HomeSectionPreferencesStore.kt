@@ -22,6 +22,9 @@ class HomeSectionPreferencesStore(
     private data class StoredLayout(
         val orderedSectionIds: List<String> = emptyList(),
         val hiddenSectionIds: Set<String> = emptySet(),
+        /** The row shown as the hero; null means Continue Watching. */
+        val heroSectionId: String? = null,
+        val heroDisabled: Boolean = false,
     )
 
     private val preferences = context.getSharedPreferences("home_section_preferences", Context.MODE_PRIVATE)
@@ -53,6 +56,41 @@ class HomeSectionPreferencesStore(
             ),
             profileId,
         )
+    }
+
+    /** What Home shows as its hero, Continue Watching unless the profile chose otherwise. */
+    fun heroChoice(profileId: String? = null): HeroChoice {
+        val layout = load(profileId)
+        return when {
+            layout.heroDisabled -> HeroChoice.Off
+            layout.heroSectionId != null -> HeroChoice.Section(layout.heroSectionId)
+            else -> HeroChoice.ContinueWatching
+        }
+    }
+
+    fun setHeroChoice(choice: HeroChoice, profileId: String? = null) {
+        val current = load(profileId)
+        save(
+            current.copy(
+                heroSectionId = (choice as? HeroChoice.Section)?.sectionId,
+                heroDisabled = choice == HeroChoice.Off,
+            ),
+            profileId,
+        )
+    }
+
+    /**
+     * The row Home shows as its hero: the chosen row while it has items, else
+     * Continue Watching. A row can be the hero even while it is hidden as a row.
+     */
+    fun heroSection(sections: List<ResolvedSection>, profileId: String? = null): ResolvedSection? {
+        val populated = arrangedSections(sections, includingHidden = true, profileId = profileId)
+        val continueWatching = populated.firstOrNull { it.isContinueWatchingHeroRow() }
+        return when (val choice = heroChoice(profileId)) {
+            HeroChoice.Off -> null
+            HeroChoice.ContinueWatching -> continueWatching
+            is HeroChoice.Section -> populated.firstOrNull { it.id == choice.sectionId } ?: continueWatching
+        }
     }
 
     fun arrangedSections(
@@ -97,3 +135,12 @@ class HomeSectionPreferencesStore(
         _revision.value += 1
     }
 }
+
+sealed interface HeroChoice {
+    data object Off : HeroChoice
+    data object ContinueWatching : HeroChoice
+    data class Section(val sectionId: String) : HeroChoice
+}
+
+internal fun ResolvedSection.isContinueWatchingHeroRow(): Boolean =
+    sectionType == "continue_watching" || sectionType == "in_progress"

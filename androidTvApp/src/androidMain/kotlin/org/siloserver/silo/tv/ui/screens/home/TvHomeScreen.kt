@@ -109,8 +109,12 @@ fun TvHomeScreen(
             layout = homeSectionPreferenceState.layout,
         )
     }
+    // Continue Watching unless the profile chose another row, or none.
+    val heroSection = remember(normalizedSections, homeSectionPreferenceState.layout) {
+        TvHomeSectionPreferences.hero(normalizedSections, homeSectionPreferenceState.layout)
+    }
     val sectionsHiddenByPreference =
-        normalizedSections.isNotEmpty() && visibleSections.isEmpty()
+        normalizedSections.isNotEmpty() && visibleSections.isEmpty() && heroSection == null
 
     LaunchedEffect(homeSectionPreferences) {
         homeSectionPreferences.refresh()
@@ -157,7 +161,7 @@ fun TvHomeScreen(
             onRetry = viewModel::loadSections,
             modifier = Modifier.background(MaterialTheme.colorScheme.background),
         )
-        shouldShowHomeEmptyState(state.isLoading, state.error, visibleSections.size) ->
+        shouldShowHomeEmptyState(state.isLoading, state.error, visibleSections.size + (if (heroSection == null) 0 else 1)) ->
             TvHomeEmptyState(
                 onRefresh = viewModel::loadSections,
                 onOpenSettings = onOpenSettings,
@@ -167,9 +171,8 @@ fun TvHomeScreen(
                 onInitialContentFocus = onInitialContentFocus,
             )
         else -> key(homeSectionPreferenceState.layoutRevision) {
-            val heroSection = visibleSections.firstOrNull { it.isTvContinueWatchingRow() && it.items.isNotEmpty() }
-            // Home opens on the Continue Watching hero; Down leaves it for the
-            // rows and Up from the top row comes back.
+            // Home opens on the hero; Down leaves it for the rows and Up from
+            // the top row comes back.
             var heroActive by rememberSaveable { mutableStateOf(true) }
             var rowsFocusRequest by remember { mutableIntStateOf(0) }
             // The shell tells a feed's up-fallback apart by identity, so each
@@ -178,11 +181,19 @@ fun TvHomeScreen(
             if (heroSection != null && heroActive) {
                 // The hero leaves room at the bottom for the top of the next
                 // row, drawn as the feed draws it, so Home shows there is more below.
-                val nextSection = visibleSections.firstOrNull { it !== heroSection && it.items.isNotEmpty() }
+                val nextSection = visibleSections.firstOrNull { it.id != heroSection.id && it.items.isNotEmpty() }
                 TvContinueWatchingHero(
                     modifier = Modifier.fillMaxSize(),
                     section = heroSection,
-                    onResume = { item -> onPlayItem(item.contentId, item.type, item.positionSeconds) },
+                    onResume = { item ->
+                        if (item.isTvHeroPlayable()) {
+                            onPlayItem(item.contentId, item.type, item.positionSeconds)
+                        } else {
+                            // A show or a collection has nothing to play directly.
+                            val target = item.tvContinueWatchingDetailTarget()
+                            onItemDetailSelection(target.contentId, target.seasonNumber, target.episodeContentId)
+                        }
+                    },
                     onDown = {
                         heroActive = false
                         rowsFocusRequest++
@@ -197,8 +208,8 @@ fun TvHomeScreen(
                 )
             } else {
                 TvHomeContent(
-                    // The hero is Continue Watching, so the rows below leave it out.
-                    sections = if (heroSection != null) visibleSections - heroSection else visibleSections,
+                    // The rows below leave out the row the hero shows.
+                    sections = if (heroSection != null) visibleSections.filterNot { it.id == heroSection.id } else visibleSections,
                     sectionsFullyResolved = state.sectionsFullyResolved,
                     onItemClick = onItemClick,
                     onItemDetailSelection = onItemDetailSelection,

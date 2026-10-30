@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Visibility
@@ -59,7 +60,9 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.siloserver.silo.model.section.ResolvedSection
+import org.siloserver.silo.tv.data.preferences.TvHomeSectionLayout
 import org.siloserver.silo.tv.data.preferences.TvHomeSectionPreferences
+import org.siloserver.silo.tv.ui.components.isTvContinueWatchingRow
 import org.siloserver.silo.tv.ui.focus.TvContentInitialFocusMaxAttempts
 import org.siloserver.silo.tv.ui.focus.TvFrameRelocationMaxAttempts
 import org.siloserver.silo.tv.ui.focus.requestFocusUntilObserved
@@ -102,8 +105,19 @@ internal fun TvHomeSectionsEditor(
     var editorHasFocus by remember { mutableStateOf(false) }
     var focusedMoveControl by remember { mutableStateOf<Pair<String, Int>?>(null) }
     var isClosing by remember { mutableStateOf(false) }
+    var pickingHero by remember { mutableStateOf(false) }
+    var heroButtonFocused by remember { mutableStateOf(false) }
+    var focusedHeroOption by remember { mutableStateOf<String?>(null) }
+    val heroButtonFocusRequester = remember { FocusRequester() }
+    val selectedHeroOptionFocusRequester = remember { FocusRequester() }
+    val heroOptions = remember(arrangedSections) { heroOptionsFor(arrangedSections) }
+    val heroChoiceKey = heroChoiceKeyFor(preferenceState.layout)
 
     fun close() {
+        if (pickingHero) {
+            pickingHero = false
+            return
+        }
         if (isClosing) return
         isClosing = true
         onDismiss()
@@ -150,6 +164,28 @@ internal fun TvHomeSectionsEditor(
         // Settings entry can still arrive before that first load completes,
         // so explicitly retry only while there is nothing useful to edit.
         if (homeState.sections.isEmpty()) viewModel.loadSections()
+    }
+
+    // Opening the hero list lands on the current choice; picking one (or Back)
+    // returns to the Hero button.
+    var heroPickerOpened by remember { mutableStateOf(false) }
+    LaunchedEffect(pickingHero) {
+        if (pickingHero) {
+            heroPickerOpened = true
+            requestFocusUntilObserved(
+                maxAttempts = TvFrameRelocationMaxAttempts,
+                awaitAttempt = { withFrameNanos { } },
+                requestFocus = selectedHeroOptionFocusRequester::requestFocus,
+                isFocused = { focusedHeroOption == heroChoiceKey },
+            )
+        } else if (heroPickerOpened) {
+            requestFocusUntilObserved(
+                maxAttempts = TvFrameRelocationMaxAttempts,
+                awaitAttempt = { withFrameNanos { } },
+                requestFocus = heroButtonFocusRequester::requestFocus,
+                isFocused = { heroButtonFocused },
+            )
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -247,7 +283,86 @@ internal fun TvHomeSectionsEditor(
                     }
                 }
 
+                if (arrangedSections.isNotEmpty()) {
+                    HomeSectionsCard {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                Text(
+                                    text = "Hero",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontSize = 15.sp,
+                                        lineHeight = 18.sp,
+                                    ),
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color.White,
+                                )
+                                Text(
+                                    text = heroOptions.firstOrNull { it.key == heroChoiceKey }?.label
+                                        ?: "Continue Watching",
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontSize = 14.sp,
+                                        lineHeight = 17.sp,
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            HomeSectionsControlButton(
+                                label = if (pickingHero) "Cancel" else "Change",
+                                onClick = { pickingHero = !pickingHero },
+                                focusRequester = heroButtonFocusRequester,
+                                onFocusChanged = { heroButtonFocused = it },
+                            )
+                        }
+                    }
+                }
+
                 when {
+                    pickingHero && arrangedSections.isNotEmpty() -> {
+                        LazyColumn(
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(bottom = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(5.dp),
+                        ) {
+                            items(heroOptions, key = { it.key }) { option ->
+                                HeroOptionRow(
+                                    label = option.label,
+                                    selected = option.key == heroChoiceKey,
+                                    focusRequester = if (option.key == heroChoiceKey) selectedHeroOptionFocusRequester else null,
+                                    onFocusChanged = { focused ->
+                                        when {
+                                            focused -> focusedHeroOption = option.key
+                                            focusedHeroOption == option.key -> focusedHeroOption = null
+                                        }
+                                    },
+                                    onClick = {
+                                        scope.launch {
+                                            preferences.setHero(option.sectionId, disabled = option.disabled)
+                                            pickingHero = false
+                                        }
+                                    },
+                                )
+                            }
+                        }
+                        Text(
+                            text = "The hero is the large banner Home opens on. Its row is left out of the rows below.",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 14.sp,
+                                lineHeight = 18.sp,
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     arrangedSections.isEmpty() && homeState.isLoading -> {
                         HomeSectionsMessage("Loading Home sections…")
                     }
@@ -306,6 +421,87 @@ internal fun TvHomeSectionsEditor(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+private data class HeroOption(
+    val key: String,
+    val label: String,
+    val sectionId: String? = null,
+    val disabled: Boolean = false,
+)
+
+private const val HeroContinueWatchingKey = "\u0000continue-watching"
+private const val HeroOffKey = "\u0000off"
+
+/** Continue Watching (the default), every other row, then no hero at all. */
+private fun heroOptionsFor(sections: List<ResolvedSection>): List<HeroOption> = buildList {
+    add(HeroOption(key = HeroContinueWatchingKey, label = "Continue Watching"))
+    sections.filterNot { it.isTvContinueWatchingRow() }
+        .forEach { add(HeroOption(key = it.id, label = it.title, sectionId = it.id)) }
+    add(HeroOption(key = HeroOffKey, label = "None", disabled = true))
+}
+
+private fun heroChoiceKeyFor(layout: TvHomeSectionLayout): String = when {
+    layout.heroDisabled -> HeroOffKey
+    else -> layout.heroSectionId ?: HeroContinueWatchingKey
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun HeroOptionRow(
+    label: String,
+    selected: Boolean,
+    focusRequester: FocusRequester?,
+    onFocusChanged: (Boolean) -> Unit,
+    onClick: () -> Unit,
+) {
+    val shape = RoundedCornerShape(7.dp)
+    Surface(
+        onClick = onClick,
+        shape = ClickableSurfaceDefaults.shape(shape = shape),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color.White.copy(alpha = 0.07f),
+            contentColor = Color.White,
+            focusedContainerColor = FocusedContainer,
+            focusedContentColor = FocusedContent,
+            pressedContainerColor = FocusedContainer,
+            pressedContentColor = FocusedContent,
+        ),
+        border = ClickableSurfaceDefaults.border(
+            border = Border(BorderStroke(1.dp, Color.White.copy(alpha = 0.09f)), shape = shape),
+            focusedBorder = Border.None,
+            pressedBorder = Border.None,
+        ),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
+        modifier = (focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
+            .onFocusChanged { onFocusChanged(it.isFocused) }
+            .fillMaxWidth()
+            .height(44.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 14.sp, lineHeight = 17.sp),
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = "Current hero",
+                    modifier = Modifier.size(18.dp),
+                )
             }
         }
     }

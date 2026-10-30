@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -111,7 +112,8 @@ private const val HeroFadeMillis = 1_600
 private const val HeroCopyFadeMillis = 700
 
 /**
- * Continue Watching as Home's opening hero, laid out like the web client's
+ * Home's opening hero (Continue Watching unless the profile chose another
+ * row), laid out like the web client's
  * hero: over the corner-anchored backdrop and its sampled tint, the title's
  * clear logo sits just under the menu bar's Silo logo, followed by the
  * episode title, the dot-separated facts, the synopsis and the resume bar.
@@ -242,8 +244,12 @@ internal fun TvContinueWatchingHero(
                     }
                     TvPrimaryPillButton(
                         stableHero = true,
-                        icon = Icons.Filled.PlayArrow,
-                        title = if ((item.positionSeconds ?: 0.0) > 0) "Resume" else "Play",
+                        icon = if (item.isTvHeroPlayable()) Icons.Filled.PlayArrow else Icons.Outlined.Info,
+                        title = when {
+                            !item.isTvHeroPlayable() -> "More Info"
+                            (item.positionSeconds ?: 0.0) > 0 -> "Resume"
+                            else -> "Play"
+                        },
                         onClick = { onResume(item) },
                         focusRequester = resume,
                         // The shell's detail-return requester lands here too,
@@ -702,3 +708,9 @@ private fun rememberHeroContents(spoilers: EpisodeSpoilerPrefs): HeroContents {
     val catalog: CatalogRepository = koinInject()
     return remember(catalog, spoilers) { HeroContents(catalog, spoilers) }
 }
+
+/** Whether the hero's button can start this item, rather than open it. */
+internal fun SectionItem.isTvHeroPlayable(): Boolean =
+    positionSeconds != null || type.lowercase() in HeroPlayableTypes
+
+private val HeroPlayableTypes = setOf("movie", "episode", "video", "audiobook")

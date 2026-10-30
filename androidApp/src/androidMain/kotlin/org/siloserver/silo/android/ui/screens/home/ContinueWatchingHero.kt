@@ -336,15 +336,18 @@ private fun HeroDetails(
         }
         HeroProgress(item)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Button(
-                onClick = { if (interactive) onResume() },
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.weight(1f),
-            ) {
-                Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(22.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(if ((item.positionSeconds ?: 0.0) > 0) "Resume" else "Play", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            // A show or a collection has nothing to play directly; Details opens it.
+            if (item.isHeroPlayable()) {
+                Button(
+                    onClick = { if (interactive) onResume() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(if ((item.positionSeconds ?: 0.0) > 0) "Resume" else "Play", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                }
             }
             FilledTonalButton(
                 onClick = { if (interactive) onOpen() },
@@ -428,3 +431,9 @@ private fun HeroIndicators(count: Int, current: Int, progress: () -> Float, modi
         }
     }
 }
+
+/** Whether the hero's button can start this item, rather than open it. */
+internal fun SectionItem.isHeroPlayable(): Boolean =
+    positionSeconds != null || type.lowercase() in HeroPlayableTypes
+
+private val HeroPlayableTypes = setOf("movie", "episode", "video", "audiobook")

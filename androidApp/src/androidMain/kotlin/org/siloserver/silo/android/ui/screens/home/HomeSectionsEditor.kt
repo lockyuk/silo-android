@@ -1,6 +1,7 @@
 package org.siloserver.silo.android.ui.screens.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,13 +19,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -152,6 +156,14 @@ private fun HomeSectionReorderList(
         userScrollEnabled = draggingId == null,
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
+        item(key = "hero") {
+            HeroChoiceRow(
+                sections = rows,
+                preferences = preferences,
+                profileId = profileId,
+                preferenceRevision = preferenceRevision,
+            )
+        }
         item(key = "instructions") {
             Text(
                 text = "Open eye: shown on Home. Closed eye: hidden. Drag the handle to reorder. Changes save automatically for this profile on this device.",
@@ -221,7 +233,7 @@ private fun HomeSectionReorderList(
                                     if (fromIndex < 0 || fromInfo == null) return@detectDragGestures
                                     val draggedCenter = fromInfo.offset + dragOffset + fromInfo.size / 2f
                                     val targetInfo = listState.layoutInfo.visibleItemsInfo.firstOrNull { info ->
-                                        info.key != "instructions" && draggedCenter.toInt() in info.offset..(info.offset + info.size)
+                                        info.key != "instructions" && info.key != "hero" && draggedCenter.toInt() in info.offset..(info.offset + info.size)
                                     } ?: return@detectDragGestures
                                     val targetId = targetInfo.key as? String ?: return@detectDragGestures
                                     val toIndex = rows.indexOfFirst { it.id == targetId }
@@ -244,5 +256,66 @@ private fun HomeSectionReorderList(
             }
         }
         item(key = "bottom") { Spacer(Modifier.size(24.dp)) }
+    }
+}
+
+/** Picks the row shown as Home's hero: Continue Watching, another row, or none. */
+@Composable
+private fun HeroChoiceRow(
+    sections: List<ResolvedSection>,
+    preferences: HomeSectionPreferencesStore,
+    profileId: String?,
+    preferenceRevision: Long,
+) {
+    val choice = remember(profileId, preferenceRevision) { preferences.heroChoice(profileId) }
+    val options = buildList {
+        add(HeroChoice.ContinueWatching to "Continue Watching")
+        sections.filterNot { it.isContinueWatchingHeroRow() }
+            .forEach { add(HeroChoice.Section(it.id) to it.title) }
+        add(HeroChoice.Off to "None")
+    }
+    val currentLabel = options.firstOrNull { it.first == choice }?.second ?: "Continue Watching"
+    var picking by remember { mutableStateOf(false) }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { picking = true }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Text(text = "Hero", style = MaterialTheme.typography.bodyLarge)
+        Text(
+            text = "$currentLabel · the large banner at the top of Home",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    if (picking) {
+        AlertDialog(
+            onDismissRequest = { picking = false },
+            title = { Text("Hero") },
+            text = {
+                LazyColumn {
+                    items(options, key = { it.first.toString() }) { (option, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    preferences.setHeroChoice(option, profileId)
+                                    picking = false
+                                }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = option == choice, onClick = null)
+                            Spacer(Modifier.size(12.dp))
+                            Text(text = label, style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { picking = false }) { Text("Cancel") }
+            },
+        )
     }
 }

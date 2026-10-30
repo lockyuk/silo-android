@@ -156,15 +156,25 @@ fun HomeScreen(
     val sections = state.sections
     val profileScopeId = activeEntry?.profileId ?: activeProfile?.id
     val populatedServerSections = remember(sections) { sections.filter { it.items.isNotEmpty() } }
-    // No hero billboard on phone (matches iOS): a `featured` section is just
-    // another row, rendered in the order the server configured it.
-    val regularSections = remember(
+    // The hero (Continue Watching unless the profile chose another row, or
+    // none) leads Home; the other rows follow in the profile's order.
+    val heroSection = remember(
         sections,
         preferenceRevision,
         activeServerId,
         profileScopeId,
     ) {
-        sectionPreferences.arrangedSections(sections, profileId = profileScopeId)
+        sectionPreferences.heroSection(sections, profileId = profileScopeId)
+    }
+    val regularSections = remember(
+        sections,
+        heroSection,
+        preferenceRevision,
+        activeServerId,
+        profileScopeId,
+    ) {
+        val rows = sectionPreferences.arrangedSections(sections, profileId = profileScopeId)
+        if (heroSection == null) rows else listOf(heroSection) + rows.filterNot { it.id == heroSection.id }
     }
     PrefetchSectionArtwork(remember(regularSections) { regularSections.map { it.items } })
     val context = LocalContext.current
@@ -461,7 +471,7 @@ fun HomeScreen(
                                         onPlayClick(item.contentId, item.positionSeconds)
                                     }
                                 }
-                            if (opensUnifiedSeriesDetail) {
+                            if (section.id == heroSection?.id) {
                                 ContinueWatchingHero(
                                     section = section,
                                     onOpen = { openItem(it.contentId) },
