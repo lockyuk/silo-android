@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.ButtonDefaults
@@ -138,6 +139,15 @@ fun SortFilterControlsRow(
         Spacer(modifier = Modifier.weight(1f))
         trailing()
     }
+}
+
+/**
+ * Switches a library's grid between its titles and its collections; it sits at
+ * the trailing end of the Sort/Filter row in both, lit while collections show.
+ */
+@Composable
+fun CollectionsControlPill(active: Boolean, onClick: () -> Unit) {
+    ControlPill(icon = Icons.Filled.Collections, label = "Collections", active = active, onClick = onClick)
 }
 
 /** Same capsule as the For You saved-list pills, brightened when active. */

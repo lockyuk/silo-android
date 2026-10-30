@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -92,6 +93,7 @@ import org.siloserver.silo.android.ui.components.MediaGridDefaults
 import org.siloserver.silo.android.ui.components.MediaRowsSkeleton
 import org.siloserver.silo.android.ui.components.PosterGridSkeleton
 import org.siloserver.silo.android.ui.components.TabTopBarActions
+import org.siloserver.silo.android.ui.components.CollectionsControlPill
 import org.siloserver.silo.android.ui.components.SortFilterControlsRow
 import org.siloserver.silo.android.ui.components.SortMenuOption
 import org.siloserver.silo.android.ui.components.topBarGlass
@@ -596,7 +598,11 @@ class LibrariesViewModel(
     private fun loadCurrentTab(libraryId: Int, force: Boolean) {
         when (_uiState.value.selectedTab) {
             LibrariesSubtab.Recommended -> loadRecommended(libraryId, force)
-            LibrariesSubtab.Browse -> loadCatalog(libraryId, reset = true, force = force)
+            LibrariesSubtab.Browse -> {
+                loadCatalog(libraryId, reset = true, force = force)
+                // Browse offers its Collections button only when there are some.
+                loadCollections(libraryId, force = false)
+            }
             LibrariesSubtab.Collections -> loadCollections(libraryId, force)
         }
     }
@@ -1132,12 +1138,15 @@ fun LibrariesScreen(
                             onDensityChanged = viewModel::selectViewDensity,
                             onApplyFilter = viewModel::applyFilterState,
                             onSetPreserve = viewModel::setPreserveFilters,
+                            onCollectionsClick = { viewModel.selectTab(LibrariesSubtab.Collections) }
+                                .takeIf { state.collections.isNotEmpty() },
                         )
                     }
                     else -> {
                         CollectionsTabContent(
                             state = state,
                             topInset = topInset,
+                            onBackToTitles = { viewModel.selectTab(LibrariesSubtab.Browse) },
                             onCollectionClick = { collection ->
                                 state.selectedLibraryId?.let { libraryId ->
                                     onCollectionClick(collection, libraryId, state.mediaScope)
@@ -1284,6 +1293,8 @@ private fun BrowseTabContent(
     onDensityChanged: (CatalogViewDensity) -> Unit,
     onApplyFilter: (CatalogFilterState) -> Unit,
     onSetPreserve: (Boolean) -> Unit,
+    /** Shows the library's collections instead; null when it has none. */
+    onCollectionsClick: (() -> Unit)? = null,
 ) {
     var showFilterSheet by remember { mutableStateOf(false) }
     val isCustomised = state.browseSort != LibraryBrowseSort.RecentlyAdded ||
@@ -1308,6 +1319,9 @@ private fun BrowseTabContent(
                     onSortChanged(LibraryBrowseSort.RecentlyAdded)
                     onApplyFilter(state.filterState.resetFilters())
                     onNamePrefixChanged(null)
+                },
+                trailing = {
+                    if (onCollectionsClick != null) CollectionsControlPill(active = false, onClick = onCollectionsClick)
                 },
             )
             if (state.filterState.hasActiveFilters) {
@@ -1451,7 +1465,17 @@ private fun CollectionsTabContent(
     topInset: Dp,
     onCollectionClick: (LibraryCollection) -> Unit,
     onRetry: () -> Unit,
+    /** The lit Collections button, where Browse has it, goes back to the titles. */
+    onBackToTitles: () -> Unit,
 ) {
+    val controlsHeader: @Composable () -> Unit = {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            CollectionsControlPill(active = true, onClick = onBackToTitles)
+        }
+    }
     when {
         state.isLoadingCollections && state.collections.isEmpty() -> {
             PosterGridSkeleton(
@@ -1467,12 +1491,15 @@ private fun CollectionsTabContent(
             )
         }
         state.collections.isEmpty() -> {
-            EmptyStateView(
-                title = "No collections found",
-                subtitle = "This library does not have any collections yet",
-                icon = Icons.Default.VideoLibrary,
-                modifier = Modifier.fillMaxSize().padding(top = topInset),
-            )
+            Column(modifier = Modifier.fillMaxSize().padding(top = topInset)) {
+                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) { controlsHeader() }
+                EmptyStateView(
+                    title = "No collections found",
+                    subtitle = "This library does not have any collections yet",
+                    icon = Icons.Default.VideoLibrary,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
         else -> {
             // iOS `LibraryCollectionsView`: adaptive poster grid with shared
@@ -1492,10 +1519,12 @@ private fun CollectionsTabContent(
                 contentPadding = PaddingValues(
                     start = 16.dp,
                     end = 16.dp,
-                    top = topInset + 16.dp,
+                    // Matches the title grid, so the control row stays put.
+                    top = topInset + 8.dp,
                     bottom = 24.dp + LocalBottomChromeInset.current,
                 ),
             ) {
+                item(key = "grid-header", span = { GridItemSpan(maxLineSpan) }) { controlsHeader() }
                 items(
                     items = state.collections,
                     key = { it.id },
@@ -1660,7 +1689,6 @@ private fun LibrariesFloatingChrome(
             selectedTab = selectedTab,
             onRecommendedClick = { onTabSelected(LibrariesSubtab.Recommended) },
             onBrowseClick = { onTabSelected(LibrariesSubtab.Browse) },
-            onCollectionsClick = { onTabSelected(LibrariesSubtab.Collections) },
             onShuffleClick = onShuffleClick,
             shuffleEnabled = shuffleEnabled,
             modifier = Modifier.padding(horizontal = 16.dp),
@@ -1772,7 +1800,6 @@ private fun LibrarySubtabRow(
     selectedTab: LibrariesSubtab,
     onRecommendedClick: () -> Unit,
     onBrowseClick: () -> Unit,
-    onCollectionsClick: () -> Unit,
     onShuffleClick: (() -> Unit)? = null,
     shuffleEnabled: Boolean = true,
     modifier: Modifier = Modifier,
@@ -1786,15 +1813,12 @@ private fun LibrarySubtabRow(
             selected = selectedTab == LibrariesSubtab.Recommended,
             onClick = onRecommendedClick,
         )
+        // Collections lives on the Library grid's Sort/Filter row, so the
+        // Library tab stays lit while it shows.
         LibrarySubtabChip(
             label = "Library",
-            selected = selectedTab == LibrariesSubtab.Browse,
+            selected = selectedTab == LibrariesSubtab.Browse || selectedTab == LibrariesSubtab.Collections,
             onClick = onBrowseClick,
-        )
-        LibrarySubtabChip(
-            label = "Collections",
-            selected = selectedTab == LibrariesSubtab.Collections,
-            onClick = onCollectionsClick,
         )
         if (onShuffleClick != null) {
             // Starts a shuffle of the whole library; drawn as a chip so it
