@@ -183,6 +183,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -856,6 +857,8 @@ class TvPlayerViewModel(
         // A transient network blip retries the same route this many times before
         // demoting to a server transcode (resets once playback progresses).
         private const val MAX_TRANSIENT_NETWORK_RETRIES = 1
+        // How long output route callbacks must stay quiet before the route is judged.
+        private const val OUTPUT_ROUTE_SETTLE_MS = 750L
         // How long an outage's check that the server answers again may take.
         private const val SERVER_CHECK_TIMEOUT_MS = 10_000L
         // Error screens say what happened in plain words; the request URL and
@@ -2022,14 +2025,28 @@ class TvPlayerViewModel(
             }
         }
         viewModelScope.launch {
-            capabilityDetector.outputRouteGeneration.drop(1).collect {
+            capabilityDetector.outputRouteGeneration.drop(1).collectLatest {
+                // The TV switching refresh rate as playback starts re-handshakes
+                // HDMI: a burst of display and audio callbacks, and new audio
+                // device ids for the same sink. Judge the route once it settles,
+                // and replan only when the server would plan it differently;
+                // otherwise the player restarts the stream for nothing.
+                delay(OUTPUT_ROUTE_SETTLE_MS)
                 val state = _uiState.value
                 if (state.sessionId != null && state.playbackPlan != null) {
-                    playbackMutationFence.beginReplan()
-                    subtitleTransactions.updatePlaybackContext(subtitlePlaybackContext(state))
-                    subtitleTransactions.updateOutputRouteGeneration(
-                        capabilityDetector.outputRouteGeneration.value,
+                    val context = subtitlePlaybackContext(state)
+                    val generation = capabilityDetector.outputRouteGeneration.value
+                    val samePlan = playbackSessionManager.activeVideoPlansSameRouteAs(
+                        context.clientPlaybackContext.output,
                     )
+                    if (samePlan && subtitleTransactions.adoptOutputRouteGeneration(generation)) {
+                        subtitleTransactions.updatePlaybackContext(context)
+                        Log.i(TAG, "Output route $generation plans as before; not replanning")
+                        return@collectLatest
+                    }
+                    playbackMutationFence.beginReplan()
+                    subtitleTransactions.updatePlaybackContext(context)
+                    subtitleTransactions.updateOutputRouteGeneration(generation)
                 }
             }
         }

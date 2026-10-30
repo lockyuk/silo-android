@@ -1939,6 +1939,28 @@ class TvSubtitleTransactionAdapterTest {
     }
 
     @Test
+    fun `adopting an unchanged route commits its generation without staging`() = runTest {
+        val harness = harness(backgroundScope)
+
+        assertTrue(harness.adapter.adoptOutputRouteGeneration(7))
+        runCurrent()
+
+        assertTrue(harness.port.requests.isEmpty())
+        assertEquals(7L, harness.adapter.snapshot.committedOutputRouteGeneration)
+    }
+
+    @Test
+    fun `adopting a route while a selection is staged leaves it to the replan`() = runTest {
+        val harness = harness(backgroundScope)
+
+        harness.adapter.select(sidecar(4))
+        runCurrent()
+
+        assertFalse(harness.adapter.adoptOutputRouteGeneration(7))
+        assertEquals(0L, harness.adapter.snapshot.committedOutputRouteGeneration)
+    }
+
+    @Test
     fun `failed route subtitle replan retains committed playback`() = runTest {
         val harness = harness(backgroundScope)
 

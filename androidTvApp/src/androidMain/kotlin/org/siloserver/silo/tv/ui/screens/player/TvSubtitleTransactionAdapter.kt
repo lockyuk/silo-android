@@ -781,6 +781,25 @@ internal class TvSubtitleTransactionAdapter(
         mutate(SelectSubtitle(identity), explicit = true)
     }
 
+    /**
+     * Takes [generation] as committed without a replan, for a route change that
+     * plans exactly as before. Returns false, changing nothing, while any
+     * transaction is outstanding (its commit would restore the generation it
+     * staged); the caller then replans as usual.
+     */
+    fun adoptOutputRouteGeneration(generation: Long): Boolean {
+        if (
+            commitInFlight ||
+            transition.pending != null ||
+            desiredOutputRouteGeneration != committedOutputRouteGeneration
+        ) {
+            return false
+        }
+        committedOutputRouteGeneration = generation
+        desiredOutputRouteGeneration = generation
+        return true
+    }
+
     fun invalidate() {
         val unpublished = pendingLocalSelection
             ?.takeIf { it.committedPlayback != null }

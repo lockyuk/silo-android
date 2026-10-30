@@ -954,6 +954,13 @@ open class PlaybackSessionManager(
 
     internal fun activeSessionIdForTest(): String? = activeVideoAttempt.get()?.sessionId
 
+    /**
+     * Whether [output] would plan the same route as the active video attempt.
+     * False with no attempt active.
+     */
+    fun activeVideoPlansSameRouteAs(output: PlaybackOutputContext): Boolean =
+        activeVideoAttempt.get()?.context?.output?.hasSamePlanningRouteAs(output) == true
+
     /** The quality pair the active video attempt plays at, or null with none active. */
     fun activeVideoQualityPair(): PlaybackQualityPair? = activeVideoAttempt.get()?.let {
         PlaybackQualityPair(it.qualityPreference, it.bandwidthCapKbps)
