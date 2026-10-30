@@ -36,6 +36,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -145,6 +146,28 @@ fun TvLibraryDetailScreen(
     }
     OnViewerAccessChanged(koinInject<AccessChangeSignals>(), viewModel.accessChanges) { viewModel.refreshAfterAccessChange() }
 
+    // The Collections button moves between two grids when pressed, so focus
+    // is put back on it in the grid that replaces the one it was in.
+    val collectionsPillFocus = remember { FocusRequester() }
+    var collectionsPillFocused by remember { mutableStateOf(false) }
+    var collectionsToggles by remember { mutableIntStateOf(0) }
+    val onBrowseCollections = {
+        collectionsToggles++
+        viewModel.onBrowseCollectionsToggled()
+    }
+    LaunchedEffect(collectionsToggles) {
+        if (collectionsToggles == 0) return@LaunchedEffect
+        requestFocusUntilObserved(
+            maxAttempts = TvContentInitialFocusMaxAttempts,
+            awaitAttempt = { withFrameNanos { } },
+            requestFocus = collectionsPillFocus::requestFocus,
+            isFocused = { collectionsPillFocused },
+        )
+    }
+    if (state.selectedTab == TvLibraryTab.Browse) {
+        LaunchedEffect(Unit) { viewModel.ensureCollectionsLoaded() }
+    }
+
     // Apply the committed cascade section on entry / whenever the commit
     // changes it. Keyed on sectionRequestNonce (bumped on every commit) AND the
     // section value, so a non-commit recomposition leaves manual in-screen tab
@@ -171,8 +194,31 @@ fun TvLibraryDetailScreen(
                 onContentUpFallbackChanged = onContentUpFallbackChanged,
             )
             // Browse is the tvOS `TVLibraryGridView` embed: Sort/Filter
-            // control row over the grid, with the A–Z rail always on.
-            TvLibraryTab.Browse -> LibraryTab(
+            // control row over the grid, with the A–Z rail always on. Its
+            // Collections button swaps the titles for the library's
+            // collections, under the same control row.
+            TvLibraryTab.Browse -> if (state.browseShowsCollections) {
+                CollectionsTab(
+                    state = state,
+                    onCollectionClick = onCollectionClick,
+                    onRetry = viewModel::retryCollections,
+                    onInitialContentFocus = onInitialContentFocus,
+                    header = {
+                        TvBrowseControlRow(
+                            sortLabel = "",
+                            sortDirection = "",
+                            filterCount = 0,
+                            onSort = {},
+                            onFilter = {},
+                            onShuffle = onShuffleLibrary,
+                            onCollections = onBrowseCollections,
+                            collectionsActive = true,
+                            collectionsFocusRequester = collectionsPillFocus,
+                            onCollectionsFocusChanged = { collectionsPillFocused = it },
+                        )
+                    },
+                )
+            } else LibraryTab(
                 state = state,
                 onItemClick = onItemClick,
                 onNamePrefixChanged = viewModel::onNamePrefixChanged,
@@ -187,6 +233,9 @@ fun TvLibraryDetailScreen(
                 onPreserveFiltersChanged = viewModel::onPreserveFiltersChanged,
                 onContentUpFallbackChanged = onContentUpFallbackChanged,
                 onShuffle = onShuffleLibrary,
+                onCollections = onBrowseCollections.takeIf { state.collections.isNotEmpty() },
+                collectionsFocusRequester = collectionsPillFocus,
+                onCollectionsFocusChanged = { collectionsPillFocused = it },
             )
             TvLibraryTab.Genres -> LibraryTab(
                 state = state,
@@ -375,6 +424,9 @@ private fun LibraryTab(
     onContentUpFallbackChanged: ((((Boolean) -> Boolean)?) -> Unit)? = null,
     onClearAudiobookGroup: (() -> Unit)? = null,
     onShuffle: (() -> Unit)? = null,
+    onCollections: (() -> Unit)? = null,
+    collectionsFocusRequester: FocusRequester? = null,
+    onCollectionsFocusChanged: (Boolean) -> Unit = {},
 ) {
     val restoredGridItemFocusRequester = remember { FocusRequester() }
     val gridState = rememberLazyGridState()
@@ -458,6 +510,9 @@ private fun LibraryTab(
                 onOpenFilterPanel = { openPanel = TvBrowsePanel.Filter },
                 onClearFilters = { onFacetSelectionApplied(TvCatalogFacetSelection()) },
                 onShuffle = onShuffle,
+                onCollections = onCollections,
+                collectionsFocusRequester = collectionsFocusRequester,
+                onCollectionsFocusChanged = onCollectionsFocusChanged,
             )
         }
         // The A–Z jump rail only makes sense for title-sorted browsing (the
@@ -519,6 +574,9 @@ private fun LibraryGrid(
     onOpenFilterPanel: () -> Unit = {},
     onClearFilters: () -> Unit = {},
     onShuffle: (() -> Unit)? = null,
+    onCollections: (() -> Unit)? = null,
+    collectionsFocusRequester: FocusRequester? = null,
+    onCollectionsFocusChanged: (Boolean) -> Unit = {},
 ) {
     var attachedRestoreItemId by remember { mutableStateOf<String?>(null) }
     val nearEnd by remember(
@@ -614,6 +672,9 @@ private fun LibraryGrid(
                         onClearFilters = onClearFilters,
                         modifier = Modifier.onFocusChanged { controlsFocused = it.hasFocus },
                         onShuffle = onShuffle,
+                        onCollections = onCollections,
+                        collectionsFocusRequester = collectionsFocusRequester,
+                        onCollectionsFocusChanged = onCollectionsFocusChanged,
                     )
                 }
             }
@@ -990,6 +1051,8 @@ private fun CollectionsTab(
     onCollectionClick: (String, String, Boolean) -> Unit,
     onRetry: () -> Unit,
     onInitialContentFocus: () -> Unit,
+    /** Browse's control row, drawn above the collections when they stand in for its titles. */
+    header: (@Composable () -> Unit)? = null,
 ) {
     val entryFocusRequester = remember { FocusRequester() }
     var collectionGridHasFocus by remember { mutableStateOf(false) }
@@ -1052,8 +1115,9 @@ private fun CollectionsTab(
         initialFocusRequested = true
     }
 
+    val topInset = if (header != null) LibraryBrowseContentTopInset else TvTopMenuLayout.contentTopInset
     CompositionLocalProvider(
-        LocalBringIntoViewSpec provides rememberTvGridBringIntoViewSpec(TvTopMenuLayout.contentTopInset),
+        LocalBringIntoViewSpec provides rememberTvGridBringIntoViewSpec(topInset),
     ) {
         LazyVerticalGrid(
             state = gridState,
@@ -1077,11 +1141,14 @@ private fun CollectionsTab(
             verticalArrangement = Arrangement.spacedBy(LibraryGridRowSpacing),
             contentPadding = PaddingValues(
                 start = Spacing.safeArea,
-                top = TvTopMenuLayout.contentTopInset,
+                top = topInset,
                 end = Spacing.safeArea,
                 bottom = Spacing.xxxl,
             ),
         ) {
+            if (header != null) {
+                item(span = { GridItemSpan(maxLineSpan) }, key = "browse-controls") { header() }
+            }
             when {
                 state.collectionsLoading && state.collections.isEmpty() -> {
                     item(span = { GridItemSpan(maxLineSpan) }, key = "loading") {

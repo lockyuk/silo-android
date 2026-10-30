@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Refresh
@@ -111,6 +112,15 @@ fun TvBrowseControlRow(
     sortPillFocusRequester: FocusRequester? = null,
     /** Starts a shuffle of what the grid browses; null where nothing can shuffle. */
     onShuffle: (() -> Unit)? = null,
+    /** Switches the grid to the library's collections and back; null hides the button. */
+    onCollections: (() -> Unit)? = null,
+    /**
+     * The grid shows collections: Sort and Filter, which only apply to
+     * titles, step aside and the Collections button reads as on.
+     */
+    collectionsActive: Boolean = false,
+    collectionsFocusRequester: FocusRequester? = null,
+    onCollectionsFocusChanged: (Boolean) -> Unit = {},
 ) {
     // Clearing removes the Clear pill from composition; focus must hop to the
     // Filter pill first or it would snap away to the nearest surviving scope.
@@ -121,7 +131,7 @@ fun TvBrowseControlRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BrowseControlPill(
+        if (!collectionsActive) BrowseControlPill(
             onClick = onSort,
             modifier = if (sortPillFocusRequester != null) {
                 Modifier.focusRequester(sortPillFocusRequester)
@@ -155,7 +165,7 @@ fun TvBrowseControlRow(
             )
         }
 
-        BrowseControlPill(
+        if (!collectionsActive) BrowseControlPill(
             onClick = onFilter,
             active = filterCount > 0,
             modifier = Modifier.focusRequester(filterPillFocusRequester),
@@ -191,7 +201,7 @@ fun TvBrowseControlRow(
             }
         }
 
-        if (filterCount > 0) {
+        if (filterCount > 0 && !collectionsActive) {
             BrowseControlPill(
                 onClick = {
                     // Clearing filters removes this pill from composition, so
@@ -221,6 +231,33 @@ fun TvBrowseControlRow(
         }
 
         if (onShuffle != null) TvShufflePill(onClick = onShuffle)
+        if (onCollections != null) {
+            BrowseControlPill(
+                onClick = onCollections,
+                active = collectionsActive,
+                modifier = (
+                    if (collectionsFocusRequester != null) {
+                        Modifier.focusRequester(collectionsFocusRequester)
+                    } else {
+                        Modifier
+                    }
+                    ).onFocusChanged { onCollectionsFocusChanged(it.isFocused) },
+            ) { foreground ->
+                Icon(
+                    imageVector = Icons.Filled.Collections,
+                    contentDescription = null,
+                    tint = foreground,
+                    modifier = Modifier.size(16.dp),
+                )
+                Text(
+                    text = "Collections",
+                    style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, lineHeight = 18.sp),
+                    color = foreground,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                )
+            }
+        }
     }
 }
 

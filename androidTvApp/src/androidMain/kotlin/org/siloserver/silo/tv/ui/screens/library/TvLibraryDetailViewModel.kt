@@ -200,6 +200,8 @@ class TvLibraryDetailViewModel(
         val collectionSections: List<TvCollectionSection> = emptyList(),
         val collectionsLoading: Boolean = false,
         val collectionsError: String? = null,
+        /** Browse shows the library's collections instead of its titles. */
+        val browseShowsCollections: Boolean = false,
         /** "Preserve sort & filters" for this library's Browse grid (default ON). */
         val preserveFilters: Boolean = true,
     )
@@ -419,6 +421,20 @@ class TvLibraryDetailViewModel(
 
     fun retryCollections() {
         loadCollections()
+    }
+
+    /**
+     * Reads the library's collections once for Browse, which offers its
+     * Collections button only when there are some.
+     */
+    fun ensureCollectionsLoaded() {
+        if (!loadedCollections) loadCollections()
+    }
+
+    /** Switches Browse between the library's titles and its collections. */
+    fun onBrowseCollectionsToggled() {
+        _uiState.update { it.copy(browseShowsCollections = !it.browseShowsCollections) }
+        ensureCollectionsLoaded()
     }
 
     fun retryAudiobookGroups() {
