@@ -48,9 +48,6 @@ internal object TvDetailMetadata {
         }
     }
 
-    fun ratingChip(detail: ItemDetail): String? =
-        detail.contentRating?.trim()?.takeIf { it.isNotEmpty() }
-
     fun seriesEpisodeSourceTokens(episode: EpisodeListItem): List<String> = listOfNotNull(
         if (episode.seasonNumber == 0) "Specials" else "Season ${episode.seasonNumber}",
         "Episode ${episode.episodeNumber}".takeIf { episode.episodeNumber > 0 },

@@ -929,7 +929,7 @@ private fun TvDetailContent(
                             backdropUrl = heroArtwork.url,
                             backdropThumbhash = heroArtwork.thumbhash,
                             sourceTokens = heroSourceTokens,
-                            ratingChip = TvDetailMetadata.ratingChip(detail),
+                            ratingChip = null,
                             overview = heroOverview,
                             tagline = detail.tagline.takeIf { activeSeriesEpisode == null },
                             factsLine = heroFactsLine,

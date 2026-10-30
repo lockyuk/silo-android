@@ -209,7 +209,6 @@ internal fun TvWatchPartyPicker(
                     facts = listOfNotNull(
                         item.year.takeIf { it > 0 }?.toString(),
                         item.runtime?.takeIf { it > 0 }?.let(::tvWatchPartyRuntime),
-                        item.contentRating?.takeIf { it.isNotBlank() },
                         item.genres.firstOrNull(),
                     ),
                 )

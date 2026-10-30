@@ -259,7 +259,7 @@ private fun RequestDetailContent(
                 backdropUrl = backdropUrl,
                 backdropThumbhash = null,
                 sourceTokens = detail.genres.take(3),
-                ratingChip = detail.contentRating.takeIf { it.isNotBlank() },
+                ratingChip = null,
                 overview = detail.overview.takeIf { it.isNotBlank() },
                 tagline = detail.tagline.takeIf { it.isNotBlank() },
                 factsLine = detail.factTokens(),

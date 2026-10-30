@@ -155,11 +155,8 @@ data class TvMarqueeContent(
                 item.genres.firstOrNull { it.isNotBlank() }?.let { meta += TvHeroFactToken.TextToken(it) }
             }
 
-            val badges = item.contentRating
-                ?.takeIf { it.isNotBlank() }
-                ?.uppercase(Locale.US)
-                ?.let(::listOf)
-                .orEmpty()
+            // Age ratings (TV-MA, PG-13) are not shown on this build.
+            val badges = emptyList<String>()
 
             val hidesBackdrop = spoilers.hidesImage(unwatchedEpisode, item.backdropIsEpisodeStill)
             val hidesPoster = spoilers.hidesImage(unwatchedEpisode, item.posterIsEpisodeStill)

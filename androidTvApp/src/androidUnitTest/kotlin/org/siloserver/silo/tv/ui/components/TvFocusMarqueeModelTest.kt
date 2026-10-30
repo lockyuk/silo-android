@@ -160,7 +160,8 @@ class TvFocusMarqueeModelTest {
             rowTitle = "Popular",
         )
 
-        assertEquals(listOf("PG-13"), content.badges)
+        // Age ratings are not shown.
+        assertEquals(emptyList(), content.badges)
         assertEquals(
             listOf("2016", "1h 56m", "IMDb 7.9", "Science Fiction"),
             content.metaText(),
@@ -194,7 +195,7 @@ class TvFocusMarqueeModelTest {
         )
 
         assertEquals("The Last of Us", content.title)
-        assertEquals(listOf("TV-MA"), content.badges)
+        assertEquals(emptyList(), content.badges)
         assertEquals(
             listOf(TvHeroFactToken.TextToken("S01E03"), TvHeroFactToken.TextToken("Long, Long Time", truncates = true)),
             content.metaParts,
