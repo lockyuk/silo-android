@@ -1,8 +1,17 @@
 package org.siloserver.silo.tv.ui.screens.home
 
 import android.graphics.Bitmap
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.delay
+import org.siloserver.silo.tv.ui.components.TvHeroArtFrame
+import org.siloserver.silo.tv.ui.components.TvMarqueeEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -108,8 +117,17 @@ private const val HeroDwellMillis = 6_000
 /** The artwork and tint crossfade between two items. */
 private const val HeroFadeMillis = 1_600
 
-/** The title block's crossfade, quicker than the art so the copy never doubles up for long. */
-private const val HeroCopyFadeMillis = 700
+/**
+ * The title block fades through rather than crossfading, so two logos and two
+ * synopses never sit on top of each other: the old copy fades out, then the
+ * new copy fades in, rising slightly, while the art underneath is mid-fade.
+ */
+private const val HeroCopyFadeOutMillis = 360
+private const val HeroCopyFadeInMillis = 640
+private const val HeroCopyRise = 10
+
+/** How long a logo may take to decode before the title shows in text instead. */
+private const val HeroLogoTextFallbackMillis = 900L
 
 /**
  * Home's opening hero (Continue Watching unless the profile chose another
@@ -205,11 +223,19 @@ internal fun TvContinueWatchingHero(
             TvRootHeroBackdrop(
                 content = content,
                 crossfadeMillis = HeroFadeMillis,
+                artFrame = HeroArtFrame,
                 modifier = Modifier.fillMaxSize(),
             )
-            Crossfade(
+            val copyRisePx = with(androidx.compose.ui.platform.LocalDensity.current) { HeroCopyRise.dp.roundToPx() }
+            AnimatedContent(
                 targetState = item,
-                animationSpec = tween(HeroCopyFadeMillis),
+                transitionSpec = {
+                    (
+                        fadeIn(tween(HeroCopyFadeInMillis, delayMillis = HeroCopyFadeOutMillis, easing = TvMarqueeEasing)) +
+                            slideInVertically(tween(HeroCopyFadeInMillis, delayMillis = HeroCopyFadeOutMillis, easing = TvMarqueeEasing)) { copyRisePx }
+                        ) togetherWith fadeOut(tween(HeroCopyFadeOutMillis, easing = TvMarqueeEasing)) using SizeTransform(clip = false)
+                },
+                contentKey = { it.contentId },
                 label = "tvContinueWatchingHeroCopy",
                 modifier = Modifier
                     .fillMaxSize()
@@ -297,6 +323,18 @@ internal fun TvContinueWatchingHero(
     }
 }
 
+/**
+ * The hero's art reaches down behind the buttons and dots and further left
+ * than the feed's: full strength to about three quarters of the way down,
+ * fading out across the next row's peek.
+ */
+private val HeroArtFrame = TvHeroArtFrame(
+    widthFraction = 0.90f,
+    heightFraction = 0.92f,
+    horizontalOpaqueFrom = 0.45f,
+    verticalOpaqueUntil = 0.80f,
+)
+
 /** Tall enough for the next row's header and the top third of its cards. */
 private val NextRowPeekHeight = 112.dp
 
@@ -306,19 +344,20 @@ private val HeroControlsGap = 10.dp
 
 private val HeroCopyWidth = 520.dp
 
-private val HeroLogoHeight = 116.dp
+private val HeroLogoHeight = 70.dp
 
 /**
  * The area every logo is drawn at, so a wide wordmark and a stacked one read
  * about the same size; [HeroLogoMaxWidth] and [HeroLogoHeight] cap the
- * extremes.
+ * extremes. The caps sit close to the area's own shape, so most logos land
+ * between 140 and 250 dp wide and 50 and 70 dp tall.
  */
-private const val HeroLogoArea = 116f * 300f
+private const val HeroLogoArea = 70f * 179f
 
 /** From the menu bar to the top of the logo. */
 private val HeroLogoTopGap = 10.dp
 
-private val HeroLogoMaxWidth = 460.dp
+private val HeroLogoMaxWidth = 250.dp
 
 private val HeroShadow = Shadow(Color.Black.copy(alpha = 0.5f), Offset(0f, 2f), 12f)
 
@@ -391,22 +430,33 @@ private fun HeroDetails(content: TvMarqueeContent, isEpisode: Boolean, hidesSyno
     }
 }
 
-/** The clear logo; the title in text until it decodes, or when there is none. */
+/**
+ * The clear logo, shown only once it has decoded and been sized, so it never
+ * jumps from a guessed size to its own. The title shows in text when there is
+ * no logo, when it fails, or when it is still decoding after
+ * [HeroLogoTextFallbackMillis]; a cached logo is ready long before that.
+ */
 @Composable
 private fun HeroLogo(logoUrl: String?, title: String) {
     var logoLoaded by remember(logoUrl) { mutableStateOf(false) }
+    var logoFailed by remember(logoUrl) { mutableStateOf(false) }
+    var slow by remember(logoUrl) { mutableStateOf(false) }
+    LaunchedEffect(logoUrl) {
+        delay(HeroLogoTextFallbackMillis)
+        slow = true
+    }
     // Width over height of the trimmed logo, known once it decodes.
     var aspect by remember(logoUrl) { mutableStateOf<Float?>(null) }
     Box(
         modifier = Modifier.height(HeroLogoHeight).fillMaxWidth(),
         contentAlignment = Alignment.TopStart,
     ) {
-        if (logoUrl.isNullOrBlank() || !logoLoaded) {
+        if (logoUrl.isNullOrBlank() || logoFailed || (slow && !logoLoaded)) {
             Text(
                 title,
                 color = Color.White,
-                fontSize = 40.sp,
-                lineHeight = 44.sp,
+                fontSize = 28.sp,
+                lineHeight = 32.sp,
                 fontWeight = FontWeight.Black,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -429,13 +479,18 @@ private fun HeroLogo(logoUrl: String?, title: String) {
                 alignment = Alignment.TopStart,
                 onSuccess = { success ->
                     val intrinsic = success.painter.intrinsicSize
-                    if (intrinsic.width > 0f && intrinsic.height > 0f) aspect = intrinsic.width / intrinsic.height
+                    aspect = if (intrinsic.width > 0f && intrinsic.height > 0f) intrinsic.width / intrinsic.height else 3f
                     logoLoaded = true
                 },
+                onError = { logoFailed = true },
                 // Sized to the logo's own shape: drawn in a wider box, a
                 // narrow logo was centred in it instead of starting at the left.
-                modifier = aspect?.let { Modifier.size(heroLogoSize(it)) }
-                    ?: Modifier.sizeIn(maxWidth = HeroLogoMaxWidth, maxHeight = HeroLogoHeight),
+                // Hidden until then, and while the text title stands in.
+                modifier = (
+                    aspect?.let { Modifier.size(heroLogoSize(it)) }
+                        ?: Modifier.sizeIn(maxWidth = HeroLogoMaxWidth, maxHeight = HeroLogoHeight)
+                    )
+                    .graphicsLayer { alpha = if (aspect != null && !(slow && !logoLoaded)) 1f else 0f },
             )
         }
     }
@@ -696,6 +751,10 @@ private class HeroContents(
             val own = if (isEpisode) (catalog.getItemDetailForPrefetch(item.contentId) as? ApiResult.Success)?.data else show
             own?.let { content = content.copy(detailLine = TvMarqueeEnrichment.from(it).detailLine) }
             content.heroBackdropUrl?.let { url ->
+                context.imageLoader.enqueue(ImageRequest.Builder(context).data(url).build())
+            }
+            // Fetched to disk ahead too, so the logo decodes in time for the copy's fade-in.
+            content.logoUrl?.takeIf { it.isNotBlank() }?.let { url ->
                 context.imageLoader.enqueue(ImageRequest.Builder(context).data(url).build())
             }
             resolved[item.contentId] = content

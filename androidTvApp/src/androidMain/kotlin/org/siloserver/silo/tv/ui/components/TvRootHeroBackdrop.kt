@@ -62,6 +62,8 @@ fun TvRootHeroBackdrop(
     animateTransition: Boolean = true,
     /** The art and tint crossfade; Home's Continue Watching hero runs slower. */
     crossfadeMillis: Int = TvMarqueeCrossfadeMs,
+    /** Where the art block reaches and fades; Home's hero takes a bigger one. */
+    artFrame: TvHeroArtFrame = TvHeroArtFrame.Default,
 ) {
     val spoilerPrefs = LocalEpisodeSpoilerPrefs.current
     val tintState = LocalAmbientBackdropTint.current
@@ -170,6 +172,7 @@ fun TvRootHeroBackdrop(
                     CornerAnchoredArt(
                         url = art.heroBackdropUrl,
                         thumbhash = art.heroBackdropThumbhash,
+                        frame = artFrame,
                         onSettled = onSettled,
                     )
                 } else {
@@ -181,6 +184,7 @@ fun TvRootHeroBackdrop(
             CornerAnchoredArt(
                 url = content.heroBackdropUrl,
                 thumbhash = content.heroBackdropThumbhash,
+                frame = artFrame,
             )
         }
 
@@ -198,11 +202,12 @@ fun TvRootHeroBackdrop(
 private fun CornerAnchoredArt(
     url: String?,
     thumbhash: String?,
+    frame: TvHeroArtFrame = TvHeroArtFrame.Default,
     onSettled: (() -> Unit)? = null,
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val artWidth = maxWidth * ArtWidthFraction
-        val artHeight = maxHeight * ArtHeightFraction
+        val artWidth = maxWidth * frame.widthFraction
+        val artHeight = maxHeight * frame.heightFraction
 
         Box(
             modifier = Modifier
@@ -221,7 +226,7 @@ private fun CornerAnchoredArt(
                         val horizontalMask = Brush.horizontalGradient(
                             colorStops = arrayOf(
                                 0.0f to Color.Transparent,
-                                0.68f to Color.Black,
+                                frame.horizontalOpaqueFrom to Color.Black,
                                 1.0f to Color.Black,
                             ),
                             endX = size.width,
@@ -230,7 +235,7 @@ private fun CornerAnchoredArt(
                         val verticalMask = Brush.verticalGradient(
                             colorStops = arrayOf(
                                 0.0f to Color.Black,
-                                0.58f to Color.Black,
+                                frame.verticalOpaqueUntil to Color.Black,
                                 1.0f to Color.Transparent,
                             ),
                             endY = size.height,
@@ -347,8 +352,25 @@ private fun LoadGatedArtCrossfade(
 /** How long new art may take to decode before it fades in anyway. */
 private const val ArtSettleTimeoutMillis = 1_000L
 
-private const val ArtWidthFraction = 0.64f
-private const val ArtHeightFraction = 0.70f
+/**
+ * The corner art block: its share of the screen, where the left-edge fade
+ * turns opaque and where the bottom fade begins, each as a share of the block.
+ */
+data class TvHeroArtFrame(
+    val widthFraction: Float,
+    val heightFraction: Float,
+    val horizontalOpaqueFrom: Float,
+    val verticalOpaqueUntil: Float,
+) {
+    companion object {
+        val Default = TvHeroArtFrame(
+            widthFraction = 0.64f,
+            heightFraction = 0.70f,
+            horizontalOpaqueFrom = 0.68f,
+            verticalOpaqueUntil = 0.58f,
+        )
+    }
+}
 private const val TintOnlyDitherAlpha = 0.28f
 private const val EmptyWashDitherAlpha = 0.34f
 
