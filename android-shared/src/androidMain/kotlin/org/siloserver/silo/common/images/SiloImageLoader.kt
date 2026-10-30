@@ -7,6 +7,8 @@ import coil3.decode.DataSource
 import coil3.decode.Decoder
 import coil3.disk.DiskCache
 import coil3.fetch.Fetcher
+import coil3.intercept.Interceptor
+import coil3.request.ImageResult
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.ErrorResult
 import coil3.request.ImageRequest
@@ -25,14 +27,16 @@ import java.io.File
  * (each Application's `SingletonImageLoader.Factory` delegates here so the
  * two can't drift):
  *
- * - A generous on-disk artwork cache so posters/backdrops survive between
- *   sessions (Coil's default disk cap is small — 2% of free space, capped at
- *   250MB).
+ * - A generous (2GB) on-disk artwork cache so posters/backdrops survive
+ *   between sessions (Coil's default disk cap is small — 2% of free space,
+ *   capped at 250MB).
  * - An explicitly registered OkHttp fetcher on [SiloOkHttp.imageClient] so
  *   artwork shares the API clients' warm connection pool instead of a
  *   service-loader-built default client.
  * - Concurrent requests for the same URL share one download
  *   ([SharedDownloadFetcherFactory]).
+ * - Signed artwork is cached under its URL without the signature
+ *   ([StableArtworkCacheKeys]), so the cache outlives the daily re-signing.
  * - Memory cache stays at Coil's heap-proportional default.
  *
  * API decoding resolves artwork against its supplying response origin before
@@ -45,15 +49,44 @@ fun buildSiloImageLoader(context: PlatformContext, cacheDir: File): ImageLoader 
         .crossfade(true)
         .eventListenerFactory { DiagnosticsImageEventListener() }
         .components {
+            add(StableArtworkCacheKeys)
             add(SharedDownloadFetcherFactory(OkHttpNetworkFetcherFactory(callFactory = { SiloOkHttp.imageClient })))
         }
         .diskCache {
             DiskCache.Builder()
                 .directory(cacheDir.resolve("image_cache").toOkioPath())
-                .maxSizeBytes(512L * 1024 * 1024)
+                .maxSizeBytes(2048L * 1024 * 1024)
                 .build()
         }
         .build()
+
+/**
+ * Silo re-signs artwork URLs every day (`exp` and `sig` change), so caching
+ * by the full URL threw the disk cache away daily. The path already names the
+ * picture's content (`w500.<sha256>.webp`), so the URL without those two
+ * parameters is a stable disk cache key. Requests that set their own key keep
+ * it.
+ */
+internal object StableArtworkCacheKeys : Interceptor {
+    override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
+        val request = chain.request
+        if (request.diskCacheKey != null) return chain.proceed()
+        val key = stableArtworkKey(request.data.toString()) ?: return chain.proceed()
+        return chain.withRequest(request.newBuilder().diskCacheKey(key).build()).proceed()
+    }
+}
+
+/** [url] without its artwork signature, or null when it carries none. */
+internal fun stableArtworkKey(url: String): String? {
+    val query = url.indexOf('?').takeIf { it >= 0 } ?: return null
+    if (!url.regionMatches(0, "http", 0, 4) || !url.contains("/artwork/")) return null
+    val kept = url.substring(query + 1).split('&').filterNot { param ->
+        param.startsWith("sig=") || param.startsWith("exp=")
+    }
+    if (kept.size == url.substring(query + 1).split('&').size) return null
+    val base = url.substring(0, query)
+    return if (kept.isEmpty()) base else base + "?" + kept.joinToString("&")
+}
 
 private class DiagnosticsImageEventListener : EventListener() {
     private var stage = DiagnosticsImageStage.UNKNOWN

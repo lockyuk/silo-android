@@ -93,8 +93,23 @@ class ArtworkPrefetcherTest {
         assertEquals(2, server.requestCount)
     }
 
+    @Test
+    fun reSignedArtworkLoadsFromDisk() = runBlocking<Unit> {
+        server.enqueue(png())
+        val today = server.url("/api/v2/artwork/poster/w500.abc.webp?exp=1&sig=a").toString()
+        val tomorrow = server.url("/api/v2/artwork/poster/w500.abc.webp?exp=2&sig=b").toString()
+
+        assertIs<SuccessResult>(loader.execute(ImageRequest.Builder(context).data(today).size(2).build()))
+        loader.memoryCache!!.clear()
+        val next = loader.execute(ImageRequest.Builder(context).data(tomorrow).size(2).build())
+
+        assertIs<SuccessResult>(next)
+        assertEquals(DataSource.DISK, next.dataSource)
+        assertEquals(1, server.requestCount)
+    }
+
     private fun ImageLoader.isOnDisk(url: String): Boolean =
-        diskCache!!.openSnapshot(url)?.also { it.close() } != null
+        diskCache!!.openSnapshot(stableArtworkKey(url) ?: url)?.also { it.close() } != null
 
     private fun png(): MockResponse {
         val png = ByteArrayOutputStream().apply {

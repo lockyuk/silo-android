@@ -1,8 +1,8 @@
 package org.siloserver.silo.tv.ui.components
 
 import android.graphics.Bitmap
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -32,6 +35,11 @@ import androidx.tv.material3.MaterialTheme
 import org.siloserver.silo.common.cards.LocalEpisodeSpoilerPrefs
 import org.siloserver.silo.common.ui.components.ThumbhashImage
 import org.siloserver.silo.model.section.SectionItem
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Page-level Skyline backdrop for tvOS-style root screens. Faithful Android
@@ -140,14 +148,15 @@ fun TvRootHeroBackdrop(
         }
 
         if (animateTransition) {
-            Crossfade(
-                targetState = content,
-                animationSpec = tween(
-                    if (snapInitialArtwork) 0 else crossfadeMillis,
-                    easing = TvMarqueeEasing,
-                ),
-                label = "tvRootHeroBackdropArt",
-            ) { value ->
+            // The new art fades in once it has decoded, over the old art held
+            // at full strength; a plain Crossfade dimmed both halfway and
+            // faded in an empty layer when the picture was still loading,
+            // so the art then popped in.
+            LoadGatedArtCrossfade(
+                target = content,
+                targetKey = content?.let { it.id to it.heroBackdropUrl },
+                durationMillis = if (snapInitialArtwork) 0 else crossfadeMillis,
+            ) { value, onSettled ->
                 val art = when {
                     value == null -> null
                     // Protection turning on for the item still shown hides
@@ -161,8 +170,10 @@ fun TvRootHeroBackdrop(
                     CornerAnchoredArt(
                         url = art.heroBackdropUrl,
                         thumbhash = art.heroBackdropThumbhash,
+                        onSettled = onSettled,
                     )
                 } else {
+                    LaunchedEffect(Unit) { onSettled() }
                     Box(modifier = Modifier.fillMaxSize())
                 }
             }
@@ -187,6 +198,7 @@ fun TvRootHeroBackdrop(
 private fun CornerAnchoredArt(
     url: String?,
     thumbhash: String?,
+    onSettled: (() -> Unit)? = null,
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val artWidth = maxWidth * ArtWidthFraction
@@ -240,6 +252,8 @@ private fun CornerAnchoredArt(
                     // shared art + copy crossfade. A second Coil fade would
                     // make the image visibly lag behind the text.
                     crossfadeMillis = 0,
+                    onSuccess = onSettled,
+                    onError = onSettled,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -265,6 +279,73 @@ fun TvRootHeroBackdrop(
     }
     TvRootHeroBackdrop(content = content, modifier = modifier)
 }
+
+/** One picture in [LoadGatedArtCrossfade]: shown once [alpha] rises. */
+private class ArtLayer(val key: Any?, val value: TvMarqueeContent?, initialAlpha: Float) {
+    val alpha = Animatable(initialAlpha)
+    val settled = CompletableDeferred<Unit>()
+    var job: Job? = null
+}
+
+/**
+ * Crossfades backdrop art without dimming or pop-in. Each new picture waits
+ * until it has decoded (or [ArtSettleTimeoutMillis] passes), then fades in
+ * over the pictures under it, which stay at full strength until it is fully
+ * in and then fade out. Pictures passed over before they were ready are
+ * dropped unseen, so fast D-pad moves never stack fades.
+ */
+@Composable
+private fun LoadGatedArtCrossfade(
+    target: TvMarqueeContent?,
+    targetKey: Any?,
+    durationMillis: Int,
+    layer: @Composable (value: TvMarqueeContent?, onSettled: () -> Unit) -> Unit,
+) {
+    val layers = remember { mutableStateListOf<ArtLayer>() }
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(targetKey) {
+        if (layers.lastOrNull()?.key == targetKey) return@LaunchedEffect
+        // Waiting pictures never showed; drop them rather than fade them in late.
+        layers.filter { it !== layers.first() && it.alpha.value == 0f }.forEach { unseen ->
+            unseen.job?.cancel()
+            layers.remove(unseen)
+        }
+        val instant = durationMillis == 0 || layers.isEmpty()
+        val incoming = ArtLayer(targetKey, target, if (instant) 1f else 0f)
+        layers.add(incoming)
+        incoming.job = scope.launch {
+            if (!instant) {
+                withTimeoutOrNull(ArtSettleTimeoutMillis) { incoming.settled.await() }
+                incoming.alpha.animateTo(1f, tween(durationMillis, easing = TvMarqueeEasing))
+            }
+            val covered = layers.takeWhile { it !== incoming }
+            covered.forEach { it.job?.cancel() }
+            covered.map { old ->
+                launch { old.alpha.animateTo(0f, tween(durationMillis / 2, easing = TvMarqueeEasing)) }
+            }.joinAll()
+            layers.removeAll(covered)
+        }
+    }
+    Box(modifier = Modifier.fillMaxSize()) {
+        layers.forEach { artLayer ->
+            key(artLayer) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        // Read in the draw phase, so a fade never recomposes the art.
+                        .graphicsLayer { alpha = artLayer.alpha.value },
+                ) {
+                    layer(if (artLayer.key == targetKey) target else artLayer.value) {
+                        artLayer.settled.complete(Unit)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** How long new art may take to decode before it fades in anyway. */
+private const val ArtSettleTimeoutMillis = 1_000L
 
 private const val ArtWidthFraction = 0.64f
 private const val ArtHeightFraction = 0.70f

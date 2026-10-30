@@ -1,6 +1,12 @@
 package org.siloserver.silo.tv.ui.components
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -47,6 +53,7 @@ import org.siloserver.silo.model.catalog.hasMachineTranslatedOverview
 import org.siloserver.silo.tv.ui.theme.SiloOnSurface
 import org.siloserver.silo.tv.ui.theme.SiloSecondaryText
 import org.siloserver.silo.common.cards.LocalEpisodeSpoilerPrefs
+import kotlinx.coroutines.delay
 
 /**
  * Passive Skyline billboard, anchored bottom-left, that previews whichever row
@@ -97,16 +104,23 @@ fun TvFocusMarquee(
             if (content != null) hasDisplayedContent = true
         }
         if (animateTransition) {
-            Crossfade(
+            // Fade-through: the old copy leaves quickly and the new copy
+            // rises in as it goes, so two titles never sit half-faded on top
+            // of each other.
+            val fadeMillis = if (snapInitialContent) 0 else crossfadeMillis
+            AnimatedContent(
                 targetState = content,
-                animationSpec = tween(
-                    if (snapInitialContent) 0 else crossfadeMillis,
-                    easing = TvMarqueeEasing,
-                ),
+                contentKey = { it?.id },
+                transitionSpec = {
+                    fadeIn(tween(fadeMillis * 4 / 5, delayMillis = fadeMillis / 5, easing = TvMarqueeEasing))
+                        .togetherWith(fadeOut(tween(fadeMillis * 2 / 5, easing = TvMarqueeEasing)))
+                        // Keep the transition viewport fixed: animating the
+                        // measured size between differently tall blocks moves
+                        // bottom-anchored copy while it fades.
+                        .using(SizeTransform(clip = false) { _, _ -> snap() })
+                },
+                contentAlignment = Alignment.BottomStart,
                 label = "tvFocusMarquee",
-                // Keep the transition viewport fixed. A wrapping Crossfade
-                // animates its own measured size between differently tall hero
-                // blocks, which moves bottom-anchored copy while it fades.
                 modifier = Modifier.fillMaxSize(),
             ) { value ->
                 Box(
@@ -154,11 +168,27 @@ private fun TvMarqueeBlock(
     var titleLineCount by remember(content.id) { mutableStateOf(1) }
     // "Show title art" off: the marquee always names the title in text.
     val logoUrl = titleLogoUrl(content.logoUrl)
-    var logoLoaded by remember(logoUrl) { mutableStateOf(false) }
+    // A logo shown recently is drawn at once. A new one gets a moment to
+    // decode before the text title stands in, so browsing doesn't flash the
+    // text and then swap it for the art.
+    val logoKnown = logoUrl != null && MarqueeLogoMemory.contains(logoUrl)
+    var logoLoaded by remember(logoUrl) { mutableStateOf(logoKnown) }
+    var showTextTitle by remember(logoUrl) { mutableStateOf(false) }
+    LaunchedEffect(logoUrl) {
+        if (!logoLoaded) {
+            delay(MarqueeLogoWaitMillis)
+            if (!logoLoaded) showTextTitle = true
+        }
+    }
     val logoAlpha by animateFloatAsState(
         targetValue = if (logoLoaded) 1f else 0f,
-        animationSpec = tween(TvMarqueeCrossfadeMs, easing = TvMarqueeEasing),
+        animationSpec = if (logoKnown) snap() else tween(TvMarqueeCrossfadeMs, easing = TvMarqueeEasing),
         label = "marqueeLogoAlpha",
+    )
+    val textTitleAlpha by animateFloatAsState(
+        targetValue = if (showTextTitle && !logoLoaded) 1f else 0f,
+        animationSpec = tween(TvMarqueeCrossfadeMs, easing = TvMarqueeEasing),
+        label = "marqueeTextTitleAlpha",
     )
     // 6dp rows and an 84dp logo slot: the marquee viewport (screen minus the
     // top-bar zone minus the row band) fits five text rows only if the block
@@ -167,9 +197,9 @@ private fun TvMarqueeBlock(
         modifier = Modifier.widthIn(max = MarqueeContentWidth),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        // Keep the semantic text title visible until transparent logo artwork
-        // has actually decoded. A bad/slow URL therefore never creates a blank
-        // title slot; successful artwork fades over the fixed-height fallback.
+        // The text title stands in for transparent logo artwork that is slow
+        // or fails, so the slot is blank for at most [MarqueeLogoWaitMillis];
+        // late artwork still fades over the fixed-height fallback.
         if (!logoUrl.isNullOrBlank()) {
             Box(
                 modifier = Modifier
@@ -177,7 +207,7 @@ private fun TvMarqueeBlock(
                     .fillMaxWidth(),
                 contentAlignment = Alignment.CenterStart,
             ) {
-                if (!logoLoaded || logoAlpha < 1f) {
+                if (textTitleAlpha > 0f || !logoLoaded) {
                     Text(
                         text = content.title,
                         color = Color.White,
@@ -187,7 +217,7 @@ private fun TvMarqueeBlock(
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         onTextLayout = { titleLineCount = it.lineCount },
-                        modifier = Modifier.alpha(1f - logoAlpha),
+                        modifier = Modifier.alpha(textTitleAlpha),
                     )
                 }
                 ThumbhashImage(
@@ -201,7 +231,11 @@ private fun TvMarqueeBlock(
                     alignment = Alignment.CenterStart,
                     transparent = true,
                     crossfadeMillis = 0,
-                    onSuccess = { logoLoaded = true },
+                    onSuccess = {
+                        MarqueeLogoMemory.add(logoUrl)
+                        logoLoaded = true
+                    },
+                    onError = { showTextTitle = true },
                     modifier = Modifier
                         .fillMaxHeight()
                         .widthIn(max = MarqueeLogoMaxWidth)
@@ -372,6 +406,26 @@ private fun MarqueeBadge(label: String) {
 private val MarqueeContentWidth = 440.dp
 private val MarqueeSynopsisMaxWidth = 390.dp
 private val MarqueeLogoMaxWidth = 440.dp
+
+/** How long a logo not shown before may take before the text title shows. */
+private const val MarqueeLogoWaitMillis = 700L
+
+/**
+ * Logos the marquee has drawn recently, most recent last. Sized to what the
+ * image memory cache keeps, so a remembered logo is drawn from memory.
+ */
+private object MarqueeLogoMemory {
+    private const val Capacity = 150
+    private val urls = object : LinkedHashMap<String, Unit>(Capacity, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Unit>?) = size > Capacity
+    }
+
+    @Synchronized fun contains(url: String): Boolean = urls.containsKey(url)
+
+    @Synchronized fun add(url: String) {
+        urls[url] = Unit
+    }
+}
 private val MarqueeLogoMaxHeight = 84.dp
 private val MarqueeDetailLineHeight = 20.dp
 private val MarqueeTitleSize = 44.sp

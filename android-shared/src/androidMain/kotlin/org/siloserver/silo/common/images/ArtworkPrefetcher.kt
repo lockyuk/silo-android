@@ -23,6 +23,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -42,10 +43,13 @@ private const val PrefetchParallelism = 2
  *   so the visible cards load first, and fetches two at a time.
  * - Downloads only: nothing is decoded and nothing goes into the memory
  *   cache, so it costs no main-thread time, bitmap memory or GC.
- * - Waits while the player is moving media ([mediaActive]), so it never takes
- *   bandwidth from a stream that is starting or buffering.
+ * - Waits while playback is short of media ([mediaActive]: starting,
+ *   buffering or low on buffer), so it only uses bandwidth the stream has
+ *   to spare.
  * - Each URL is fetched once per run of the app; a new list replaces the
  *   unfinished rest of the old one.
+ * - Home's artwork ([prefetch]) goes first; the whole library's
+ *   ([prefetchBacklog]) follows once it is done.
  *
  * The cards then find the file on disk and only decode at their own size.
  */
@@ -62,11 +66,12 @@ class ArtworkPrefetcher(
     }.asCoroutineDispatcher()
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val wanted = MutableStateFlow<List<String>>(emptyList())
+    private val backlog = MutableStateFlow<List<String>>(emptyList())
     private val fetched: MutableSet<String> = Collections.synchronizedSet(HashSet())
 
     init {
         scope.launch {
-            wanted.collectLatest { urls ->
+            combine(wanted, backlog) { first, rest -> (first + rest).distinct() }.collectLatest { urls ->
                 val todo = urls.filterNot { it in fetched }
                 if (todo.isEmpty()) return@collectLatest
                 delay(PrefetchDelayMillis)
@@ -88,6 +93,11 @@ class ArtworkPrefetcher(
     /** Asks for these URLs, most wanted first, in place of any earlier list. */
     fun prefetch(urls: List<String>) {
         wanted.value = urls.filter { it.isNotBlank() }.distinct()
+    }
+
+    /** Asks for these URLs after [prefetch]'s, in place of any earlier backlog. */
+    fun prefetchBacklog(urls: List<String>) {
+        backlog.value = urls.filter { it.isNotBlank() }.distinct()
     }
 
     private suspend fun download(url: String): Boolean {

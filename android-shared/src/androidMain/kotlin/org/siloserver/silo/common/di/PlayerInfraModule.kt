@@ -3,6 +3,7 @@
 package org.siloserver.silo.common.di
 
 import org.siloserver.silo.common.images.ArtworkPrefetcher
+import org.siloserver.silo.common.images.LibraryArtworkPrefetch
 import org.siloserver.silo.common.network.ServerReachabilityMonitor
 import org.siloserver.silo.common.pip.SiloPictureInPictureCoordinator
 import org.siloserver.silo.common.player.ActivePlayerHolder
@@ -111,15 +112,16 @@ val playerInfraModule = module {
         )
     }
     single<PlaybackBandwidthEstimates> { get<BandwidthProbeScheduler>() }
-    // Whether the player is moving media: the bandwidth probe and the artwork
-    // prefetch both hold off while it is.
+    // Whether the player is moving media: the bandwidth probe holds off while
+    // it is; the artwork prefetch only while playback is short of media.
     single {
         PlayerMediaActivity(
             holder = get(),
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
         )
     }
-    single { ArtworkPrefetcher(androidContext(), get<PlayerMediaActivity>().active) }
+    single { ArtworkPrefetcher(androidContext(), get<PlayerMediaActivity>().shortOfMedia) }
+    single { LibraryArtworkPrefetch(get(), get()) }
     // The video player and its session manager, the same on phone and TV: the
     // subtitle manager each app registers carries the form factor's policy.
     single {
