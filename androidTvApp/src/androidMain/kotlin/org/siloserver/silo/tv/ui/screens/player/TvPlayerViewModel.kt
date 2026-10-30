@@ -877,6 +877,9 @@ class TvPlayerViewModel(
         // Auto-play countdown shown on the Up-Next overlay before the next
         // episode starts (mirrors tvOS CountdownRing default).
         const val NEXT_UP_COUNTDOWN_SECONDS = 10
+        // How long the Up Next On Deck read waits after a load publishes,
+        // unless Up Next shows first.
+        private const val ON_DECK_READ_DELAY_MS = 20_000L
         // A room player sample older than this cannot vouch for buffered media.
         private const val ROOM_SAMPLE_MAX_AGE_MS = 1_000L
         // How long a coordinated source fallback may take before the original
@@ -5028,6 +5031,12 @@ class TvPlayerViewModel(
         // item without reloading, and the row doesn't depend on it.
         fun stillCurrent() = run == onDeckGeneration && _uiState.value.contentId == forContentId
         viewModelScope.launch {
+            // The row shows only in Up Next, and it is a full Home read (over
+            // 500 KB). Read at once, it competed with the stream's start on a
+            // Fire Stick, the decode and its GC holding back the first frame
+            // by ~0.7 s. Wait for Up Next or for the start to be long over.
+            withTimeoutOrNull(ON_DECK_READ_DELAY_MS) { _uiState.first { it.showNextUp } }
+            if (!stillCurrent()) return@launch
             val owner = repository.captureHomeAuthority() ?: return@launch
             repository.loadScopedHomeSections(owner, ::stillCurrent) { sections ->
                 val pool = sections.toTvOnDeckItems(forContentId, currentSeriesId)
