@@ -1188,6 +1188,14 @@ class TvPlayerViewModel(
          * to `playerFactory.buildMediaItem`. Mirrors phone player parity.
          */
         val artworkUrl: String? = null,
+        /**
+         * Clear logo of the series (for an episode) or the movie, drawn top-left
+         * on the idle controls overlay. Read from the cached item detail after
+         * the mount publishes; null until then or when the title has none.
+         */
+        val logoUrl: String? = null,
+        /** The item [logoUrl] belongs to: the series id for an episode, else the content id. */
+        val logoSourceId: String? = null,
         val sessionId: String? = null,
         val playMethod: PlayMethod? = null,
         val playbackPlan: PlaybackExecutionPlan? = null,
@@ -2800,6 +2808,9 @@ class TvPlayerViewModel(
                                 year = result.year,
                                 contentType = result.contentType,
                                 artworkUrl = result.artworkUrl,
+                                // The next episode of the same series keeps its logo.
+                                logoUrl = it.logoUrl.takeIf { _ -> it.logoSourceId == (result.seriesId ?: contentId) },
+                                logoSourceId = it.logoSourceId.takeIf { id -> id == (result.seriesId ?: contentId) },
                                 sessionId = result.sessionId,
                                 playMethod = result.playMethod,
                                 playbackPlan = result.playbackPlan,
@@ -2896,6 +2907,7 @@ class TvPlayerViewModel(
                             stopStaleSession = unpublishedReadySession::rollbackIfOwned,
                         )
                         if (!published) return@launch
+                        loadTitleLogo(contentId, result.seriesId)
                         val publishedSessionId = allocatedSessionId
                         val jointlyConfirmed = withContext(NonCancellable) {
                             sessionLifecycle.settlePendingPublicationIfCurrent(
@@ -5012,6 +5024,26 @@ class TvPlayerViewModel(
      * immediate next via [nextEpisodeAfter].
      */
     private var onDeckGeneration = 0L
+
+    /**
+     * Reads the clear logo for the idle overlay: the series' for an episode,
+     * else the item's own. The detail is usually cached already (Home and the
+     * detail page read it), so this rarely touches the network, and it runs
+     * after the mount publishes so it never delays the first frame.
+     */
+    private fun loadTitleLogo(contentId: String, seriesId: String?) {
+        val sourceId = seriesId?.takeIf { it.isNotBlank() } ?: contentId
+        if (_uiState.value.logoSourceId == sourceId) return
+        viewModelScope.launch {
+            val logo = (catalogRepository.getItemDetailForPrefetch(sourceId) as? ApiResult.Success)
+                ?.data
+                ?.logoUrl
+                ?.takeIf { it.isNotBlank() }
+            _uiState.update {
+                if (it.contentId != contentId) it else it.copy(logoUrl = logo, logoSourceId = sourceId)
+            }
+        }
+    }
 
     /**
      * Populates the Up Next overlay's On Deck row (tvOS

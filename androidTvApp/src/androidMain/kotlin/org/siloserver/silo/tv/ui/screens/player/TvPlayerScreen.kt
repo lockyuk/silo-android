@@ -24,6 +24,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -57,6 +58,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import org.siloserver.silo.common.settings.titleLogoUrl
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -2366,6 +2371,7 @@ fun TvPlayerScreen(
                     TvPlayerIdleOverlay(
                         title = state.title,
                         eyebrow = tvPlayerEyebrow(state),
+                        logoUrl = titleLogoUrl(state.logoUrl),
                         subtitlesValue = subtitlePresentation.rows
                             .firstOrNull { row -> row.checked }
                             ?.let { row -> tvSubtitleRowParts(row.label).title }
@@ -3032,6 +3038,8 @@ private fun TvPlayerIdleOverlay(
     title: String,
     // "MOVIE · 2026" or "SEVERANCE · S2:E4" above the title.
     eyebrow: String?,
+    // The series' (or movie's) clear logo, top-left; null draws nothing.
+    logoUrl: String?,
     // What the Subtitles button says when focused ("English", "Off").
     subtitlesValue: String?,
     positionSec: Double,
@@ -3171,6 +3179,10 @@ private fun TvPlayerIdleOverlay(
                 ),
         )
 
+        if (logoUrl != null) {
+            TvPlayerOverlayLogo(logoUrl = logoUrl, contentDescription = title)
+        }
+
         // Bottom-up: 26dp inset, 44dp transport, 16dp, scrubber (28dp bar
         // + 8dp + clock row), 16dp, then the eyebrow and title. The skip
         // indicator and the subtitle lift below are placed from these numbers.
@@ -3277,6 +3289,42 @@ private fun TvPlayerIdleOverlay(
         }
 
     }
+}
+
+private val OverlayLogoMaxWidth = 216.dp
+private val OverlayLogoMaxHeight = 60.dp
+
+/**
+ * The clear logo in the idle overlay's top-left corner, straight over the
+ * picture with no scrim. Sized to the logo's own shape once decoded, so a
+ * narrow logo starts at the inset rather than centring in the box.
+ */
+@Composable
+private fun BoxScope.TvPlayerOverlayLogo(logoUrl: String, contentDescription: String) {
+    var aspect by remember(logoUrl) { mutableStateOf<Float?>(null) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val request = remember(logoUrl) {
+        ImageRequest.Builder(context).data(logoUrl).crossfade(true).build()
+    }
+    AsyncImage(
+        model = request,
+        contentDescription = contentDescription,
+        contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+        alignment = Alignment.TopStart,
+        onSuccess = { success ->
+            val intrinsic = success.painter.intrinsicSize
+            aspect = if (intrinsic.width > 0f && intrinsic.height > 0f) intrinsic.width / intrinsic.height else 3f
+        },
+        modifier = Modifier
+            .align(Alignment.TopStart)
+            .padding(start = TvPlayerChrome.SideInset, top = 36.dp)
+            .then(
+                aspect?.let { a ->
+                    val width = minOf(OverlayLogoMaxWidth.value, OverlayLogoMaxHeight.value * a)
+                    Modifier.size(width.dp, (width / a).dp)
+                } ?: Modifier.size(OverlayLogoMaxWidth, OverlayLogoMaxHeight),
+            ),
+    )
 }
 
 /**
