@@ -47,6 +47,7 @@ class HomeScreenV2Test {
         object : HomeRealtimeClient { override fun connect() = kotlinx.coroutines.flow.emptyFlow<HomeRealtimeEvent>() },
         tokens, accessChanges,
     )
+    private val playbackStops = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     private fun scenario(startShown: Boolean = true, block: suspend TestScope.(HomeViewModel) -> Unit) = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler); Dispatchers.setMain(dispatcher)
         val client = HttpClient(MockEngine(MockEngineConfig().apply {
@@ -71,7 +72,7 @@ class HomeScreenV2Test {
         try {
             val repository = SectionRepository(SectionApi(client, home = HomeSectionsV2Api(client, tokens, ApiV2Gate.Unrestricted, decodeDispatcher = dispatcher)))
             val vm = HomeViewModel(repository, MediaActionsCoordinator(PersonalDataRepository(PersonalDataApi(client))), cache, local,
-                homeRealtime = realtime, catalogLanguage = language, startShown = startShown)
+                homeRealtime = realtime, catalogLanguage = language, startShown = startShown, playbackStops = playbackStops)
             store.put("home", vm); block(vm)
         } finally { store.clear(); client.close(); Dispatchers.resetMain() }
     }
@@ -207,5 +208,23 @@ class HomeScreenV2Test {
         assertEquals(1, listReads, "no second read beside the first load")
         listHook = {}; gate.complete(Unit); runCurrent()
         assertEquals(2, listReads)
+    }
+
+    @Test fun playbackStopReReadsHiddenHomeAtOnce() = scenario(startShown = false) { vm ->
+        runCurrent(); assertEquals(1, listReads)
+        title = "New"; playbackStops.emit(Unit); runCurrent()
+        assertEquals(2, listReads, "a stop re-reads Home even while the player covers it")
+        assertEquals("New", vm.uiState.value.sections.single().items.single().title)
+    }
+
+    @Test fun playbackStopSupersedesAReadThatStartedBeforeIt() = scenario { vm ->
+        runCurrent(); assertEquals(1, listReads)
+        val gate = CompletableDeferred<Unit>(); var delayed = true
+        listHook = { if (delayed) { delayed = false; gate.await() } }
+        vm.refreshFromRealtime(); runCurrent()
+        title = "Final position"; playbackStops.emit(Unit); runCurrent()
+        assertEquals(3, listReads, "the stop does not wait for the older read")
+        gate.complete(Unit); runCurrent()
+        assertEquals("Final position", vm.uiState.value.sections.single().items.single().title)
     }
 }

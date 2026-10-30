@@ -5,6 +5,10 @@ import org.siloserver.silo.model.playback.PlaybackReplanRequestV3
 import org.siloserver.silo.model.playback.PlaybackRouteEventV3
 import org.siloserver.silo.model.playback.PlaybackStartRequestV3
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import org.siloserver.silo.network.ApiResult
 import org.siloserver.silo.network.AuthScopeSnapshot
 
@@ -55,7 +59,16 @@ class PlaybackRepository(private val sequenced: SequencedPlayback) {
     ): ApiResult<Unit> =
         guarded { sequenced.progress(sessionId, position, isPaused) ?: unknownSession() }
 
+    private val _stops = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+    /**
+     * One signal per session the server confirmed stopped. The stop carries the
+     * final position, so Continue Watching is current from this moment on.
+     */
+    val stops: SharedFlow<Unit> = _stops.asSharedFlow()
+
     /** Stops an active playback session. */
     suspend fun stopPlayback(sessionId: String): ApiResult<Unit> =
         guarded { sequenced.stop(sessionId) ?: unknownSession() }
+            .also { if (it is ApiResult.Success) _stops.tryEmit(Unit) }
 }

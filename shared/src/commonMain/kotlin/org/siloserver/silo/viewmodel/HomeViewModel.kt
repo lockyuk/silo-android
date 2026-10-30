@@ -80,6 +80,12 @@ class HomeViewModel(
      * never reports and stays shown.
      */
     startShown: Boolean = true,
+    /**
+     * Playback sessions the server confirmed stopped. Each one re-reads Home at
+     * once, shown or not, so Continue Watching already has the final position
+     * when Home comes back after the player.
+     */
+    private val playbackStops: kotlinx.coroutines.flow.Flow<Unit>? = null,
 ) : ViewModel() {
 
     private var displayedOwner: AuthScopeSnapshot? = null
@@ -140,6 +146,36 @@ class HomeViewModel(
             viewModelScope.launch {
                 coordinator.refreshSignals.collect { refreshFromRealtime() }
             }
+        }
+        playbackStops?.let { stops ->
+            viewModelScope.launch {
+                stops.collect { refreshAfterPlayback() }
+            }
+        }
+    }
+
+    /**
+     * Re-reads Home after a playback stop. Unlike [refreshFromRealtime] it
+     * neither waits for Home to be shown nor for a read in flight: the player
+     * is gone, and a read that started before the stop may predate the final
+     * position. This one is newer, so it supersedes that read.
+     */
+    private fun refreshAfterPlayback() {
+        if (_uiState.value.isLoading) {
+            realtimeRefreshPending = true
+            return
+        }
+        realtimeRefreshJob?.cancel()
+        realtimeRefreshInFlight = true
+        realtimeRefreshPending = false
+        val run = ++realtimeRefreshRun
+        realtimeRefreshJob = viewModelScope.launch {
+            try {
+                fetchSections(HomeLoadTrigger.REALTIME)
+            } finally {
+                if (run == realtimeRefreshRun) realtimeRefreshInFlight = false
+            }
+            runPendingRealtimeRefresh()
         }
     }
 

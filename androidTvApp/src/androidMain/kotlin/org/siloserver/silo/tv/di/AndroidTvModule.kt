@@ -484,7 +484,7 @@ val androidTvModule = module {
 
     // Content ViewModels
     // Starts hidden: the screens that show its rows report when they are on screen.
-    viewModel { HomeViewModel(get(), get(), get(), get(), getOrNull(), get(), get(), catalogLanguage = get(), startShown = false) }
+    viewModel { HomeViewModel(get(), get(), get(), get(), getOrNull(), get(), get(), catalogLanguage = get(), startShown = false, playbackStops = get<org.siloserver.silo.repository.PlaybackRepository>().stops) }
     viewModel { org.siloserver.silo.tv.ui.screens.home.TvUpcomingViewModel(get()) }
     viewModel { RecommendationsViewModel(get(), catalogLanguage = get()) }
     // The Requests page loads its view models when it composes.

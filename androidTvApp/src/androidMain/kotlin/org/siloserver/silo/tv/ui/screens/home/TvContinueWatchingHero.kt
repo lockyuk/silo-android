@@ -578,7 +578,7 @@ private fun HeroProgress(item: SectionItem) {
         }
         Text(
             if (remaining >= 60) "${remaining / 60}h ${remaining % 60}m left" else "${remaining}m left",
-            fontSize = 13.sp,
+            fontSize = 14.sp,
             color = Color.White.copy(alpha = 0.8f),
             style = TextStyle(shadow = HeroShadow),
         )
