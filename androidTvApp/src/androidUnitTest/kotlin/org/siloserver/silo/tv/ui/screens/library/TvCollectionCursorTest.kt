@@ -26,6 +26,9 @@ class TvCollectionCursorTest {
         val client = HttpClient(MockEngine { request ->
             if (request.url.encodedPath.endsWith("/filters")) {
                 respond("""{"genres":[],"studios":[],"networks":[],"countries":[],"original_languages":[],"content_ratings":[],"authors":[],"narrators":[],"series":[]}""", headers = headersOf(HttpHeaders.ContentType, "application/json"))
+            } else if (request.url.encodedPath == "/api/v2/library/7/collections") {
+                // The page's synopsis and backdrop; this collection has neither.
+                respond("""{"library_id":"7","collections":[],"groups":[]}""", headers = headersOf(HttpHeaders.ContentType, "application/json"))
             } else {
                 assertEquals("/api/v2/catalog", request.url.encodedPath)
                 assertEquals("library_collection", request.url.parameters["source"])

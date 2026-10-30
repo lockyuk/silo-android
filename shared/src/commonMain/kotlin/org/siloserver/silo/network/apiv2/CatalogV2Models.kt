@@ -139,6 +139,9 @@ data class CuratedCollectionV2(
     @SerialName("item_count") val itemCount: Int,
     @SerialName("sort_order") val sortOrder: Int,
     @SerialName("group_id") val groupId: String? = null,
+    val description: String? = null,
+    @SerialName("backdrop_url") val backdropUrl: String? = null,
+    @SerialName("backdrop_thumbhash") val backdropThumbhash: String? = null,
 )
 
 @Serializable

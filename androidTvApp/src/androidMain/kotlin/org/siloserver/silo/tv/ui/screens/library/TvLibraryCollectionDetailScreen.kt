@@ -137,6 +137,28 @@ fun TvLibraryCollectionDetailScreen(
         // that is failing — Retry only repeats it (Codex).
         if (state.error != null) {
             TvErrorScreen(message = state.error!!, onRetry = viewModel::retry)
+        } else if (collectionSource == "library_collection" && state.items.isNotEmpty()) {
+            // Library collections (a film franchise, most often) get a title
+            // page of their own: backdrop, synopsis and the films in order.
+            TvCollectionShowcase(
+                title = viewModel.title.ifBlank { title },
+                state = state,
+                onItemClick = onItemClick,
+                onLoadMore = viewModel::loadMore,
+                firstItemFocusRequester = firstItemFocusRequester,
+                firstItemCardModifier = Modifier.onFocusChanged { firstCardHasFocus = it.isFocused },
+                controls = {
+                    TvBrowseControlRow(
+                        sortLabel = state.sortOption.label,
+                        sortDirection = state.sortOption.directionLabel(state.order),
+                        filterCount = state.facetSelection.activeFacetCount,
+                        onSort = { openPanel = TvCollectionPanel.Sort },
+                        onFilter = { openPanel = TvCollectionPanel.Filter },
+                        onClearFilters = viewModel::clearFilters,
+                        onShuffle = onShuffle,
+                    )
+                },
+            )
         } else TvCatalogGrid(
             items = state.items,
             isLoading = state.isLoading || state.isLoadingMore,

@@ -89,6 +89,10 @@ data class LibraryCollection(
     /** Creator profile id for user-collection-kind entries. Null for
      *  admin-curated library collections. */
     @SerialName("creator_profile_id") val creatorProfileId: String? = null,
+    /** The collection's own synopsis (a TMDB franchise's overview), when it has one. */
+    val description: String? = null,
+    @SerialName("backdrop_url") val backdropUrl: String? = null,
+    @SerialName("backdrop_thumbhash") val backdropThumbhash: String? = null,
 )
 
 /**

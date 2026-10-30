@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import org.siloserver.silo.model.catalog.BrowseItem
 import org.siloserver.silo.model.catalog.CatalogEffectiveSort
 import org.siloserver.silo.model.catalog.CatalogFiltersResponse
+import org.siloserver.silo.model.section.LibraryCollection
 import org.siloserver.silo.network.ApiResult
 import org.siloserver.silo.network.apiv2.CatalogContinuationV2
 import org.siloserver.silo.network.errorMessage
@@ -40,6 +41,8 @@ class TvLibraryCollectionDetailViewModel(
         val facetOptions: CatalogFiltersResponse? = null,
         /** What the server says it sorted by (see [CatalogEffectiveSort]). */
         val effectiveSort: CatalogEffectiveSort? = null,
+        /** The collection's own synopsis and backdrop, when the library lists them. */
+        val info: LibraryCollection? = null,
     ) {
         val sortOption: TvLibrarySortOption
             get() = TvLibrarySortOption.entries.firstOrNull { it.wireValue == sort }
@@ -57,6 +60,23 @@ class TvLibraryCollectionDetailViewModel(
     init {
         load()
         loadFacetOptions()
+        loadInfo()
+    }
+
+    /**
+     * The collection's description and backdrop come from the library's
+     * Collections tab; the items endpoint carries neither. Non-fatal: without
+     * them the page shows the films' own artwork.
+     */
+    private fun loadInfo() {
+        if (collectionSource != "library_collection") return
+        viewModelScope.launch {
+            val result = sectionRepository.getLibraryCollections(libraryId)
+            if (result is ApiResult.Success) {
+                val info = result.data.firstOrNull { it.id == collectionId } ?: return@launch
+                _uiState.update { it.copy(info = info) }
+            }
+        }
     }
 
     fun retry() {
