@@ -46,7 +46,9 @@ import org.siloserver.silo.repository.CatalogRepository
 import org.siloserver.silo.repository.ProfileRepository
 import org.siloserver.silo.repository.port.UserItemStatePort
 import org.siloserver.silo.tv.BuildConfig
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -82,6 +84,20 @@ class TvVideoPlaybackStarter(
             return valid
         }
         val ownershipEpoch = sessionLifecycle.acquireOwnershipEpoch()
+        // Neither needs the watch detail, so both run while it loads instead
+        // of one after another behind it. Failures surface where each is used.
+        val startScope = CoroutineScope(currentCoroutineContext())
+        val activeProfileRead = startScope.async { runCatching { profileRepository.getActiveProfile() } }
+        val capabilitiesRead = startScope.async {
+            runCatching {
+                request.settingsReady?.invoke()
+                val dolbyVision = playerSettingsStore.dolbyVisionPolicySnapshot()
+                val forceHdrPassthrough = playerSettingsStore.forceHdrPassthroughFlow.first()
+                val capabilities = request.recoveryStartParams?.capabilities
+                    ?: capabilityDetector.detect(dolbyVision = dolbyVision, forceHdrPassthrough = forceHdrPassthrough)
+                dolbyVision to capabilities
+            }
+        }
         var unpublishedSessionId: String? = null
         var lifecycleAdopted = false
         return try {
@@ -120,6 +136,7 @@ class TvVideoPlaybackStarter(
                 )
             }
 
+            request.settingsReady?.invoke()
             val serverUrl = playbackSessionManager.getServerUrl()
             // Never "original" for video: older servers read it as never convert.
             val preferredQuality = videoQualityPreference(
@@ -156,7 +173,7 @@ class TvVideoPlaybackStarter(
                 resolvedEpisodeSelection = resolvedEpisodeSelection,
                 requestedSubtitleTrackIndex = request.subtitleTrackIndex,
             )
-            val activeProfile = profileRepository.getActiveProfile()
+            val activeProfile = activeProfileRead.await().getOrThrow()
             val profileId = activeProfile?.id ?: profileRepository.getActiveProfileId()
                 ?: return failure(
                     request.contentId,
@@ -188,10 +205,7 @@ class TvVideoPlaybackStarter(
                     diagnosticsCode = PlaybackDiagnosticsCode.NOT_AUTHENTICATED,
                 )
 
-            val dolbyVision = playerSettingsStore.dolbyVisionPolicySnapshot()
-            val forceHdrPassthrough = playerSettingsStore.forceHdrPassthroughFlow.first()
-            val capabilities = request.recoveryStartParams?.capabilities
-                ?: capabilityDetector.detect(dolbyVision = dolbyVision, forceHdrPassthrough = forceHdrPassthrough)
+            val (dolbyVision, capabilities) = capabilitiesRead.await().getOrThrow()
             val playbackContext = request.recoveryStartParams?.clientPlaybackContext
                 ?: capabilityDetector.detectPlaybackContext(
                     formFactor = "tv",

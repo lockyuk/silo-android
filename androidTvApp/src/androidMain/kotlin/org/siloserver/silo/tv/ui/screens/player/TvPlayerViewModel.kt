@@ -171,6 +171,7 @@ import kotlin.math.ceil
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
@@ -2525,7 +2526,9 @@ class TvPlayerViewModel(
             var episodeSelectionHandoffLease: TvEpisodeSelectionHandoffLease? = null
             try {
                 if (!subtitleTransactions.invalidateAndAwaitSettlement()) return@launch
-                runCatching { playerSettingsStore.refreshFromServer() }
+                // Runs beside the start's catalog and profile reads; the
+                // starter waits for it before it reads any setting.
+                val settingsRefresh = async { runCatching { playerSettingsStore.refreshFromServer() } }
                 if (!loadOwners.owns(loadOwner)) return@launch
                 episodeSelectionHandoffLease = episodeSelectionHandoffSlot.leaseForStart(
                     ownerGeneration = loadOwner.generation,
@@ -2559,6 +2562,7 @@ class TvPlayerViewModel(
                         recoveryStartParams = recoveryStartParams,
                         room = requestRoom,
                         versionChosen = versionChosen,
+                        settingsReady = { settingsRefresh.await() },
                     )
                 // Adopted only when this load publishes: a superseded one must
                 // not replace the owner of the playback that is on screen.

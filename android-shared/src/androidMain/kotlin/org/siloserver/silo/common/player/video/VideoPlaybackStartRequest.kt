@@ -60,6 +60,12 @@ data class VideoPlaybackStartRequest(
      * laid over the target's effective tracks when it is the same series.
      */
     val carriedTrackChoices: org.siloserver.silo.model.playback.CarriedSeriesTrackChoices? = null,
+    /**
+     * Awaited before the starter reads any player setting. Lets the caller's
+     * server settings refresh run beside the start's catalog and profile reads
+     * instead of ahead of them. Null: the settings are already current.
+     */
+    val settingsReady: (suspend () -> Unit)? = null,
 ) {
     /**
      * `allow_alternate_versions` for this start. False pins the file: a Watch
