@@ -108,6 +108,24 @@ class ArtworkPrefetcherTest {
         assertEquals(1, server.requestCount)
     }
 
+    @Test
+    fun pictureCachedByAnOlderBuildIsCarriedOver() = runBlocking<Unit> {
+        server.enqueue(png())
+        val stale = server.url("/api/v2/artwork/logo/w500.abc.webp?exp=1&sig=old").toString()
+        // Older builds keyed the disk cache by the full signed URL.
+        assertIs<SuccessResult>(
+            loader.execute(ImageRequest.Builder(context).data(stale).diskCacheKey(stale).size(2).build()),
+        )
+        loader.memoryCache!!.clear()
+
+        // A saved page still hands out that URL after the server stopped accepting it.
+        val logo = loader.execute(ImageRequest.Builder(context).data(stale).size(2).build())
+
+        assertIs<SuccessResult>(logo)
+        assertEquals(DataSource.DISK, logo.dataSource)
+        assertEquals(1, server.requestCount)
+    }
+
     private fun ImageLoader.isOnDisk(url: String): Boolean =
         diskCache!!.openSnapshot(stableArtworkKey(url) ?: url)?.also { it.close() } != null
 

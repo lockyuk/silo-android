@@ -231,12 +231,16 @@ class CatalogRepository(
      * Cache-first detail for speculative UI enrichment. Unlike a detail screen,
      * prefetch must not re-download metadata that is already durable locally.
      * A warm-up still in flight is newer than that copy, so it joins one.
+     * A copy whose signed artwork links have expired is read again: the
+     * server refuses those links, so its logo and backdrop would not load.
      */
     suspend fun getItemDetailForPrefetch(contentId: String, libraryId: Int? = null): ApiResult<ItemDetail> {
         if (libraryId != null) return catalogApi.getItemDetail(contentId, libraryId, artwork.request(ArtworkSurface.DETAIL))
         inFlight(itemDetailInFlight, DetailRequestKey(identityTransitions.generation.value, currentLanguageRevision, contentId))
             ?.let { return it.await() }
-        getCachedItemDetail(contentId)?.let { return ApiResult.Success(it) }
+        getCachedItemDetail(contentId)
+            ?.takeUnless { cached -> listOf(cached.logoUrl, cached.backdropUrl, cached.posterUrl).any(::artworkLinkExpired) }
+            ?.let { return ApiResult.Success(it) }
         return getItemDetail(contentId)
     }
 

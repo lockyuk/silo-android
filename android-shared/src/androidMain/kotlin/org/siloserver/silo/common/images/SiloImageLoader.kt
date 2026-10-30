@@ -21,6 +21,9 @@ import org.siloserver.silo.common.diagnostics.DiagnosticsImageHealth
 import org.siloserver.silo.common.diagnostics.DiagnosticsImageSource
 import org.siloserver.silo.common.diagnostics.DiagnosticsImageStage
 import java.io.File
+import java.util.Collections
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * The one Coil image loader configuration for both the phone and TV apps
@@ -44,21 +47,21 @@ import java.io.File
  * keeps cache keys tied to that server when the active session changes.
  * The image client carries no Silo login or profile credentials.
  */
-fun buildSiloImageLoader(context: PlatformContext, cacheDir: File): ImageLoader =
-    ImageLoader.Builder(context)
+fun buildSiloImageLoader(context: PlatformContext, cacheDir: File): ImageLoader {
+    val diskCache = DiskCache.Builder()
+        .directory(cacheDir.resolve("image_cache").toOkioPath())
+        .maxSizeBytes(2048L * 1024 * 1024)
+        .build()
+    return ImageLoader.Builder(context)
         .crossfade(true)
         .eventListenerFactory { DiagnosticsImageEventListener() }
         .components {
-            add(StableArtworkCacheKeys)
+            add(StableArtworkCacheKeys(diskCache))
             add(SharedDownloadFetcherFactory(OkHttpNetworkFetcherFactory(callFactory = { SiloOkHttp.imageClient })))
         }
-        .diskCache {
-            DiskCache.Builder()
-                .directory(cacheDir.resolve("image_cache").toOkioPath())
-                .maxSizeBytes(2048L * 1024 * 1024)
-                .build()
-        }
+        .diskCache { diskCache }
         .build()
+}
 
 /**
  * Silo re-signs artwork URLs every day (`exp` and `sig` change), so caching
@@ -67,12 +70,41 @@ fun buildSiloImageLoader(context: PlatformContext, cacheDir: File): ImageLoader 
  * parameters is a stable disk cache key. Requests that set their own key keep
  * it.
  */
-internal object StableArtworkCacheKeys : Interceptor {
+internal class StableArtworkCacheKeys(private val cache: DiskCache) : Interceptor {
+    /** Keys already checked for an entry under the old full-URL key this run. */
+    private val carried: MutableSet<String> = Collections.synchronizedSet(HashSet())
+
     override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
         val request = chain.request
         if (request.diskCacheKey != null) return chain.proceed()
-        val key = stableArtworkKey(request.data.toString()) ?: return chain.proceed()
+        val url = request.data.toString()
+        val key = stableArtworkKey(url) ?: return chain.proceed()
+        if (carried.add(key)) withContext(Dispatchers.IO) { carryOver(from = url, to = key) }
         return chain.withRequest(request.newBuilder().diskCacheKey(key).build()).proceed()
+    }
+
+    /**
+     * Copies a picture cached under its full signed URL (how builds before
+     * stable keys stored it) to its stable key. Saved pages can still hold
+     * such a URL after it has expired, and the server refuses those, so the
+     * old copy is the only way to show them until the page is read again.
+     */
+    private fun carryOver(from: String, to: String) {
+        runCatching {
+            if (cache.openSnapshot(to)?.also { it.close() } != null) return
+            val old = cache.openSnapshot(from) ?: return
+            old.use { snapshot ->
+                val editor = cache.openEditor(to) ?: return
+                try {
+                    cache.fileSystem.copy(snapshot.metadata, editor.metadata)
+                    cache.fileSystem.copy(snapshot.data, editor.data)
+                    editor.commit()
+                } catch (failure: Exception) {
+                    editor.abort()
+                    throw failure
+                }
+            }
+        }
     }
 }
 
