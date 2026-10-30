@@ -123,6 +123,8 @@ fun TvSkylineSectionFeed(
      * another surface is discarded on the way back.
      */
     surfaceKey: String,
+    /** Where the backdrop art sits; Home fills the whole screen. */
+    artFrame: TvHeroArtFrame = TvHeroArtFrame.Default,
     modifier: Modifier = Modifier,
     /** Home-only foreground drop; backdrop and fixed top navigation do not move. */
     contentVerticalOffset: Dp = 0.dp,
@@ -899,6 +901,7 @@ fun TvSkylineSectionFeed(
             // but neither event replays/reflows the whole marquee.
             TvRootHeroBackdrop(
                 content = marquee.backdropContent,
+                artFrame = artFrame,
                 modifier = Modifier.fillMaxSize(),
             )
             TvFocusMarquee(

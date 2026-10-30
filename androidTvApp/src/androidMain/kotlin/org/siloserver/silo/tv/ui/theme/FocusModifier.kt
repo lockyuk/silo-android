@@ -100,6 +100,12 @@ data class SiloCardFocus(
     val glow: androidx.tv.material3.CardGlow,
 )
 
+/**
+ * A thin outline for cards that do not hold focus, or null for none. Home sets
+ * it so its cards read against the full-screen backdrop.
+ */
+val LocalCardRestingBorder = androidx.compose.runtime.staticCompositionLocalOf<androidx.compose.ui.graphics.Color?> { null }
+
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun siloCardDefaults(
@@ -108,6 +114,9 @@ fun siloCardDefaults(
 ): SiloCardFocus = SiloCardFocus(
     scale = CardDefaults.scale(focusedScale = focusedScale),
     border = CardDefaults.border(
+        border = LocalCardRestingBorder.current
+            ?.let { Border(border = BorderStroke(1.dp, it), shape = shape) }
+            ?: Border.None,
         focusedBorder = Border(
             border = BorderStroke(2.dp, AccentLavender),
             shape = shape,

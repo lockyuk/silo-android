@@ -10,6 +10,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.ui.graphics.graphicsLayer
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import org.siloserver.silo.tv.ui.components.TvHeroArtFrame
 import org.siloserver.silo.tv.ui.components.TvMarqueeEasing
 import androidx.compose.animation.core.LinearEasing
@@ -86,6 +87,12 @@ import coil3.request.transformations
 import coil3.size.Size as CoilSize
 import coil3.transform.Transformation
 import kotlin.math.roundToInt
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.Font
+import org.siloserver.silo.tv.R
 import kotlin.math.sqrt
 import org.koin.compose.koinInject
 import org.siloserver.silo.common.cards.LocalEpisodeSpoilerPrefs
@@ -115,15 +122,24 @@ private const val HeroMaxItems = 10
 private const val HeroDwellMillis = 6_000
 
 /** The artwork and tint crossfade between two items. */
-private const val HeroFadeMillis = 1_600
+private const val HeroFadeMillis = 2_000
 
 /**
  * The title block fades through rather than crossfading, so two logos and two
  * synopses never sit on top of each other: the old copy fades out, then the
- * new copy fades in, rising slightly, while the art underneath is mid-fade.
+ * new copy fades in, rising slightly. Both halves run inside the art's
+ * crossfade, so the copy settles just before the picture does.
  */
-private const val HeroCopyFadeOutMillis = 360
-private const val HeroCopyFadeInMillis = 640
+private const val HeroCopyFadeOutMillis = 700
+private const val HeroCopyFadeInMillis = 1_100
+
+/**
+ * How long the hero waits for the next picture to decode before it moves on
+ * anyway. The picture is fetched an item ahead, so this is normally instant;
+ * moving on before it is ready faded in the blurred placeholder, which then
+ * cut to the sharp picture.
+ */
+private const val HeroNextArtWaitMillis = 3_000L
 private const val HeroCopyRise = 10
 
 /** How long a logo may take to decode before the title shows in text instead. */
@@ -175,12 +191,6 @@ internal fun TvContinueWatchingHero(
         stepRevision++
     }
 
-    LaunchedEffect(index, stepRevision, items.size) {
-        dwell.snapTo(0f)
-        if (items.size < 2) return@LaunchedEffect
-        dwell.animateTo(1f, tween(HeroDwellMillis, easing = LinearEasing))
-        index = (index + 1) % items.size
-    }
     LaunchedEffect(focusRequest, detailReturnFocusRequest) {
         val landed = requestFocusUntilObserved(
             maxAttempts = TvContentInitialFocusMaxAttempts,
@@ -199,6 +209,22 @@ internal fun TvContinueWatchingHero(
     contents.Resolve(item)
     contents.Resolve(items[(index + 1) % items.size])
     val content = contents[item]
+
+    val context = LocalContext.current
+    LaunchedEffect(index, stepRevision, items.size) {
+        dwell.snapTo(0f)
+        if (items.size < 2) return@LaunchedEffect
+        dwell.animateTo(1f, tween(HeroDwellMillis, easing = LinearEasing))
+        // Start the crossfade only once the next picture is in memory, so the
+        // art and copy fade together from the first frame.
+        val next = (index + 1) % items.size
+        contents[items[next]].heroBackdropUrl?.let { url ->
+            withTimeoutOrNull(HeroNextArtWaitMillis) {
+                context.imageLoader.execute(ImageRequest.Builder(context).data(url).build())
+            }
+        }
+        index = next
+    }
 
     val tintState = rememberAmbientBackdropTintState()
     LaunchedEffect(content.contentId, content.heroBackdropUrl) {
@@ -323,17 +349,8 @@ internal fun TvContinueWatchingHero(
     }
 }
 
-/**
- * The hero's art reaches down behind the buttons and dots and further left
- * than the feed's: full strength to about three quarters of the way down,
- * fading out across the next row's peek.
- */
-private val HeroArtFrame = TvHeroArtFrame(
-    widthFraction = 0.90f,
-    heightFraction = 0.92f,
-    horizontalOpaqueFrom = 0.45f,
-    verticalOpaqueUntil = 0.80f,
-)
+/** The hero's art fills the screen, behind the copy, the buttons and the next row. */
+private val HeroArtFrame = TvHeroArtFrame.FullScreen
 
 /** Tall enough for the next row's header and the top third of its cards. */
 private val NextRowPeekHeight = 112.dp
@@ -355,9 +372,18 @@ private val HeroLogoHeight = 70.dp
 private const val HeroLogoArea = 70f * 179f
 
 /** From the menu bar to the top of the logo. */
-private val HeroLogoTopGap = 10.dp
+private val HeroLogoTopGap = 26.dp
 
 private val HeroLogoMaxWidth = 250.dp
+
+private val HeroAccent = Color(0xFFE50914)
+private val HeroGold = Color(0xFFF5C518)
+
+/** Outfit for the hero's display type, so it reads apart from the Inter used elsewhere. */
+private val HeroDisplayFamily = FontFamily(
+    Font(R.font.outfit_semibold, FontWeight.SemiBold),
+    Font(R.font.outfit_extrabold, FontWeight.ExtraBold),
+)
 
 private val HeroShadow = Shadow(Color.Black.copy(alpha = 0.5f), Offset(0f, 2f), 12f)
 
@@ -384,49 +410,128 @@ private fun HeroCopy(content: TvMarqueeContent) {
     }
 }
 
-/** The episode title, facts, synopsis and resume bar, sitting just above the buttons. */
+/**
+ * The episode title, facts, synopsis and resume bar, sitting just above the
+ * buttons, set like a film title card: a red-ticked, letter-spaced eyebrow,
+ * the title in Outfit, a meta line with outlined quality badges, and the
+ * synopsis hung off a thin rule.
+ */
 @Composable
 private fun HeroDetails(content: TvMarqueeContent, isEpisode: Boolean, hidesSynopsis: Boolean) {
     val item = content.source
     Column {
+        heroEyebrow(item)?.let { eyebrow ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier
+                        .width(3.dp)
+                        .height(15.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(HeroAccent),
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    eyebrow,
+                    color = Color.White.copy(alpha = 0.92f),
+                    fontFamily = HeroDisplayFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    letterSpacing = 2.6.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = TextStyle(shadow = HeroShadow),
+                )
+            }
+        }
         if (isEpisode && item.title.isNotBlank()) {
+            Spacer(Modifier.height(6.dp))
             Text(
                 item.title,
                 color = Color.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
+                fontFamily = HeroDisplayFamily,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 30.sp,
+                lineHeight = 34.sp,
+                letterSpacing = (-0.4).sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = TextStyle(shadow = HeroShadow),
             )
         }
-        val facts = heroFacts(item)
-        if (facts.isNotEmpty()) {
-            if (isEpisode && item.title.isNotBlank()) Spacer(Modifier.height(8.dp))
-            Text(
-                facts.joinToString("  ·  "),
-                color = Color.White.copy(alpha = 0.85f),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 0.3.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = TextStyle(shadow = HeroShadow),
-            )
+        val meta = heroMeta(item)
+        if (meta.text.isNotEmpty() || meta.badges.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                meta.text.forEach { fact ->
+                    Text(
+                        fact,
+                        color = Color.White.copy(alpha = 0.86f),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        style = TextStyle(shadow = HeroShadow),
+                    )
+                }
+                meta.rating?.let { rating ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("★", color = HeroGold, fontSize = 15.sp, style = TextStyle(shadow = HeroShadow))
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            rating,
+                            color = Color.White.copy(alpha = 0.86f),
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            style = TextStyle(shadow = HeroShadow),
+                        )
+                    }
+                }
+                meta.badges.forEach { badge -> HeroBadge(badge) }
+            }
         }
         content.synopsis?.takeIf { it.isNotBlank() && !hidesSynopsis }?.let { synopsis ->
-            Spacer(Modifier.height(10.dp))
-            Text(
-                synopsis,
-                color = Color.White.copy(alpha = 0.78f),
-                fontSize = 16.sp,
-                lineHeight = 22.sp,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-                style = TextStyle(shadow = HeroShadow),
-            )
+            Spacer(Modifier.height(14.dp))
+            Row(Modifier.height(IntrinsicSize.Min)) {
+                Box(
+                    Modifier
+                        .width(2.dp)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(1.dp))
+                        .background(Color.White.copy(alpha = 0.35f)),
+                )
+                Spacer(Modifier.width(14.dp))
+                Text(
+                    synopsis,
+                    color = Color.White.copy(alpha = 0.82f),
+                    fontSize = 16.sp,
+                    lineHeight = 24.sp,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    style = TextStyle(shadow = HeroShadow),
+                )
+            }
         }
         HeroProgress(item)
+    }
+}
+
+/** A quality tag (4K, Dolby Vision) drawn as a thin outlined badge. */
+@Composable
+private fun HeroBadge(label: String) {
+    Box(
+        Modifier
+            .border(1.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+            .background(Color.Black.copy(alpha = 0.18f), RoundedCornerShape(4.dp))
+            .padding(horizontal = 7.dp, vertical = 1.dp),
+    ) {
+        Text(
+            label,
+            color = Color.White.copy(alpha = 0.92f),
+            fontFamily = HeroDisplayFamily,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp,
+            letterSpacing = 0.8.sp,
+            maxLines = 1,
+        )
     }
 }
 
@@ -553,13 +658,28 @@ private object TrimTransparentEdges : Transformation() {
 /** Alpha at or under this counts as empty: soft shadows and compression haze. */
 private const val TrimAlphaFloor = 16
 
-/**
- * The web hero's facts with the picture quality in place of the age rating:
- * `S4 · E2 · 52 min · 4K · Dolby Vision` for an episode, and year, runtime,
- * rating, two genres and quality for a movie.
- */
-private fun heroFacts(item: SectionItem): List<String> {
-    val facts = mutableListOf<String>()
+/** Season and episode for an episode; year and genres for anything else. */
+private fun heroEyebrow(item: SectionItem): String? {
+    if (item.type.equals("episode", ignoreCase = true)) {
+        val season = item.seasonNumber
+        val episode = item.episodeNumber
+        return if (season != null && episode != null && season >= 0 && episode >= 0) {
+            "SEASON $season  ·  EPISODE $episode"
+        } else {
+            null
+        }
+    }
+    val parts = buildList {
+        if (item.year > 0) add(item.year.toString())
+        addAll(item.genres.map { it.trim() }.filter { it.isNotEmpty() }.distinct().take(2))
+    }
+    return parts.takeIf { it.isNotEmpty() }?.joinToString("  ·  ")?.uppercase()
+}
+
+/** The meta line: runtime as text, a starred rating for films, quality as badges. */
+private class HeroMeta(val text: List<String>, val rating: String?, val badges: List<String>)
+
+private fun heroMeta(item: SectionItem): HeroMeta {
     val runtimeSeconds = item.runtime?.takeIf { it > 0 }?.let { it * 60.0 }
         ?: item.durationSeconds?.takeIf { it > 0 }
     val runtime = runtimeSeconds?.let { seconds ->
@@ -571,26 +691,12 @@ private fun heroFacts(item: SectionItem): List<String> {
             else -> "${minutes / 60}h ${minutes % 60}m"
         }
     }
-    val quality = heroQuality(item.overlaySummary)
-    if (item.type.equals("episode", ignoreCase = true)) {
-        val season = item.seasonNumber
-        val episode = item.episodeNumber
-        if (season != null && episode != null && season >= 0 && episode >= 0) facts += "S$season · E$episode"
-        runtime?.let { facts += it }
-        facts += quality
-        return facts
+    val rating = if (item.type.equals("episode", ignoreCase = true)) {
+        null
+    } else {
+        (item.ratingImdb ?: item.ratingTmdb)?.takeIf { it > 0 && it <= 10 }?.let { "%.1f".format(it) }
     }
-    if (item.year > 0) facts += item.year.toString()
-    runtime?.let { facts += it }
-    val imdb = item.ratingImdb?.takeIf { it > 0 && it <= 10 }
-    val tmdb = item.ratingTmdb?.takeIf { it > 0 && it <= 10 }
-    when {
-        imdb != null -> facts += "IMDb ${"%.1f".format(imdb)}"
-        tmdb != null -> facts += "TMDB ${"%.1f".format(tmdb)}"
-    }
-    item.genres.map { it.trim() }.filter { it.isNotEmpty() }.distinct().take(2).forEach { facts += it }
-    facts += quality
-    return facts
+    return HeroMeta(listOfNotNull(runtime), rating, heroQuality(item.overlaySummary))
 }
 
 /** The file's resolution and dynamic range: `4K`, `1080p`, `Dolby Vision`, `HDR10`. */
@@ -621,26 +727,37 @@ private fun HeroProgress(item: SectionItem) {
     val duration = item.durationSeconds?.takeIf { it > 0 } ?: return
     val fraction = (position / duration).toFloat().coerceIn(0f, 1f)
     val remaining = ((duration - position) / 60).toInt().coerceAtLeast(1)
+    // In the device's 12- or 24-hour style; read when the item is shown.
+    val context = LocalContext.current
+    val endsAt = remember(item.contentId, remaining) {
+        android.text.format.DateFormat.getTimeFormat(context)
+            .format(java.util.Date(System.currentTimeMillis() + (duration - position).toLong() * 1000))
+    }
     Spacer(Modifier.height(12.dp))
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Box(
             modifier = Modifier
                 .width(220.dp)
-                .height(4.dp)
+                .height(3.dp)
                 .clip(RoundedCornerShape(2.dp))
                 .background(Color.White.copy(alpha = 0.28f)),
         ) {
             Box(
                 Modifier
                     .fillMaxWidth(fraction)
-                    .height(4.dp)
-                    .background(Color(0xFFE50914)),
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(HeroAccent),
             )
         }
         Text(
-            if (remaining >= 60) "${remaining / 60}h ${remaining % 60}m left" else "${remaining}m left",
+            (if (remaining >= 60) "${remaining / 60}h ${remaining % 60}m left" else "${remaining}m left") +
+                "  ·  ends " + endsAt,
             fontSize = 14.sp,
-            color = Color.White.copy(alpha = 0.8f),
+            fontFamily = HeroDisplayFamily,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 0.4.sp,
+            color = Color.White.copy(alpha = 0.85f),
             style = TextStyle(shadow = HeroShadow),
         )
     }

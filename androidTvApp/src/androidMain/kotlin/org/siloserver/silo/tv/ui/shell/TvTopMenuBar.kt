@@ -8,7 +8,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -18,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -46,7 +44,6 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.layout.onGloballyPositioned
 import kotlinx.coroutines.delay
 import androidx.compose.ui.text.font.FontWeight
@@ -62,7 +59,6 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import org.siloserver.silo.tv.ui.focus.claimFocusOrReport
 import org.siloserver.silo.common.ui.components.ThumbhashImage
-import org.siloserver.silo.tv.R
 import org.siloserver.silo.common.ui.components.ProfileAvatarRef
 import org.siloserver.silo.common.ui.components.profileAvatarDisplayText
 import org.siloserver.silo.common.ui.components.rememberProfileAvatarImage
@@ -517,15 +513,13 @@ fun TvTopMenuBar(
             },
         verticalAlignment = Alignment.Bottom,
     ) {
-        // Leading: the Silo brand lockup.
-        Box(
+        // Leading: an empty slot as wide as the trailing avatar, so the tab
+        // cluster stays screen-centered without a brand lockup.
+        Spacer(
             modifier = Modifier
                 .padding(start = TvSkyline.safeAreaX)
-                .height(TvSkyline.barHeight),
-            contentAlignment = Alignment.Center,
-        ) {
-            TvSiloWordmark()
-        }
+                .size(TvSkyline.barIconSize),
+        )
 
         Spacer(modifier = Modifier.weight(1f))
 
@@ -533,11 +527,22 @@ fun TvTopMenuBar(
         // tvOS parity (TVTopMenuBar.tabCluster): search sits just left of Home,
         // and an invisible same-size twin at the trailing end keeps the tab
         // group itself screen-centered.
+        // The search + tabs sit on one soft grey capsule so the bar reads over
+        // bright artwork; the invisible search twin stays outside it.
         Row(
-            modifier = Modifier.height(TvSkyline.barHeight),
+            modifier = Modifier.height(TvSkyline.barHeight + TvTopMenuClusterPadding * 2),
             horizontalArrangement = Arrangement.spacedBy(TvSkyline.tabSpacing),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+          Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(percent = 50))
+                .background(TvTopMenuClusterFill)
+                .border(1.dp, TvTopMenuClusterBorder, RoundedCornerShape(percent = 50))
+                .padding(horizontal = TvTopMenuClusterPadding + 2.dp, vertical = TvTopMenuClusterPadding),
+            horizontalArrangement = Arrangement.spacedBy(TvSkyline.tabSpacing),
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
             TvTopMenuIconButton(
                 icon = Icons.Outlined.Search,
                 contentDescription = "Search",
@@ -655,6 +660,8 @@ fun TvTopMenuBar(
                 }
             }
 
+          }
+
             // Invisible twin of the search button so the tab group stays
             // centered on screen with search sitting to its left.
             Spacer(modifier = Modifier.size(TvSkyline.barIconSize))
@@ -696,22 +703,10 @@ data class TvAccountState(
     val serverName: String = "",
 )
 
-/** The Silo brand lockup image, sized to the bar. */
-@Composable
-private fun TvSiloWordmark() {
-    Image(
-        painter = painterResource(id = R.drawable.silo_wordmark),
-        contentDescription = "Silo",
-        contentScale = ContentScale.Fit,
-        modifier = Modifier
-            .height(TvSiloWordmarkHeight)
-            .width(TvSiloWordmarkHeight * TvSiloWordmarkAspect),
-    )
-}
-
-/** Brand lockup height inside the 32dp bar; the PNG is 764×400. */
-private val TvSiloWordmarkHeight = 26.dp
-private const val TvSiloWordmarkAspect = 764f / 400f
+/** Grey capsule behind the search icon and tabs. */
+private val TvTopMenuClusterFill = Color(0xFF2A2A2E).copy(alpha = 0.72f)
+private val TvTopMenuClusterBorder = Color.White.copy(alpha = 0.10f)
+private val TvTopMenuClusterPadding = 4.dp
 
 /**
  * A center-cluster type tab with inverted-capsule chrome (§5.1):

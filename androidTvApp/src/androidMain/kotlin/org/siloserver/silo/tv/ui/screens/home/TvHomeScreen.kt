@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.screens.home
 
+import org.siloserver.silo.tv.ui.components.TvHeroArtFrame
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -178,7 +179,9 @@ fun TvHomeScreen(
                 focusRequest = focusRequest,
                 onInitialContentFocus = onInitialContentFocus,
             )
-        else -> key(homeSectionPreferenceState.layoutRevision) {
+        else -> androidx.compose.runtime.CompositionLocalProvider(
+            org.siloserver.silo.tv.ui.theme.LocalCardRestingBorder provides HomeCardRestingBorder,
+        ) { key(homeSectionPreferenceState.layoutRevision) {
             // Home opens on the hero; Down leaves it for the rows and Up from
             // the top row comes back.
             var heroActive by rememberSaveable { mutableStateOf(true) }
@@ -260,9 +263,12 @@ fun TvHomeScreen(
                     onRemoveFromHome = viewModel::dismissFromHome,
                 )
             }
-        }
+        } }
     }
 }
+
+/** The thin grey outline on Home's unfocused cards, like the menu capsule's edge. */
+private val HomeCardRestingBorder = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.14f)
 
 @Composable
 private fun TvHomeEmptyState(
@@ -353,6 +359,7 @@ private fun TvHomeContent(
     TvSkylineSectionFeed(
         onMarqueeTranslated = onMarqueeTranslated,
         surfaceKey = "home",
+        artFrame = TvHeroArtFrame.FullScreen,
         // tvOS Home drops the foreground marquee + row band by 56pt while
         // keeping the ambient art and top navigation fixed (28dp at TV scale).
         contentVerticalOffset = 28.dp,
