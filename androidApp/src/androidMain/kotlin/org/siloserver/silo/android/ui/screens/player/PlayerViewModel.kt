@@ -391,6 +391,8 @@ class PlayerViewModel(
         private const val POSITION_RECORD_INTERVAL_SEC = 10.0
         private const val MAX_TRANSIENT_NETWORK_RETRIES = 1
         // How long an outage's check that the server answers again may take.
+        // How long output route callbacks must stay quiet before the route is judged.
+        private const val OUTPUT_ROUTE_SETTLE_MS = 750L
         private const val SERVER_CHECK_TIMEOUT_MS = 10_000L
         private const val SEEK_SETTLE_DEADLINE_MS = 15_000L
         // How often a Restore quality checks whether the replan in flight has ended.
@@ -1412,9 +1414,26 @@ class PlayerViewModel(
             }
         }
         viewModelScope.launch {
-            capabilityDetector.outputRouteGeneration.drop(1).collect {
+            capabilityDetector.outputRouteGeneration.drop(1).collectLatest {
+                // Route callbacks come in bursts (a rotation, a Bluetooth or
+                // HDMI handshake), often for the same sink under new device
+                // ids. Judge the route once it settles, and replan only when
+                // the server would plan it differently; otherwise the stream
+                // restarts for nothing.
+                delay(OUTPUT_ROUTE_SETTLE_MS)
                 val state = _uiState.value
                 if (state.sessionId != null && state.playbackPlan != null) {
+                    val dolbyVision = playerSettingsStore.dolbyVisionPolicySnapshot()
+                    val output = capabilityDetector.detectPlaybackContext(
+                        formFactor = "mobile",
+                        appVersion = BuildConfig.VERSION_NAME,
+                        dolbyVision = dolbyVision,
+                        capabilities = capabilityDetector.detect(dolbyVision = dolbyVision),
+                    ).output
+                    if (playbackSessionManager.activeVideoPlansSameRouteAs(output)) {
+                        Log.i(TAG, "Output route plans as before; not replanning")
+                        return@collectLatest
+                    }
                     startProtocolV3Replan(
                         classification = "output_route_changed",
                         notice = "Audio or display output changed. Revalidating playback.",

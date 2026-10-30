@@ -68,6 +68,7 @@ import org.siloserver.silo.common.pip.SiloPictureInPictureSurface
 import org.siloserver.silo.common.settings.PlayerSettingsStore
 import org.siloserver.silo.common.settings.ServerDrivenConfigRefresher
 import org.siloserver.silo.common.startup.StartupArtworkPlan
+import org.siloserver.silo.common.player.MediaCodecCapabilitiesProbe
 import org.siloserver.silo.common.startup.warmAuthenticatedStartup
 import org.siloserver.silo.common.startup.warmProfileSelectionStartup
 import org.siloserver.silo.common.ui.components.StartupSplashVideo
@@ -80,6 +81,7 @@ import org.siloserver.silo.repository.ProfileRepository
 import org.siloserver.silo.repository.SectionRepository
 import org.siloserver.silo.repository.port.HomeCachePort
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -650,6 +652,13 @@ class MainActivity : ComponentActivity() {
             return
         }
         if (startRoute != Route.Home.route) return
+        // The first playback otherwise enumerates every codec before it can
+        // ask the server for a plan. The probe is cached for the process, so
+        // run it once Home has had a few seconds to draw.
+        lifecycleScope.launch(Dispatchers.Default) {
+            delay(CodecProbeWarmupDelayMs)
+            runCatching { MediaCodecCapabilitiesProbe.probe() }
+        }
         lifecycleScope.launch(Dispatchers.IO) {
             warmAuthenticatedStartup(
                 context = applicationContext,
@@ -683,3 +692,6 @@ class MainActivity : ComponentActivity() {
         return hasLocalDownloadsForScope(storage, serverId, profileId)
     }
 }
+
+/** How long after launch the codec probe is warmed, so Home draws first. */
+private const val CodecProbeWarmupDelayMs = 3_000L

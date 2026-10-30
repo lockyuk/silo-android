@@ -498,7 +498,7 @@ val androidModule = module {
             trickplayManifests = get(),
         )
     }
-    viewModel { HomeViewModel(get(), get(), get(), get(), getOrNull(), get(), get(), catalogLanguage = get()) }
+    viewModel { HomeViewModel(get(), get(), get(), get(), getOrNull(), get(), get(), catalogLanguage = get(), playbackStops = get<org.siloserver.silo.repository.PlaybackRepository>().stops) }
     viewModel { MainHeaderViewModel(get()) }
     viewModel {
         LibrariesViewModel(
