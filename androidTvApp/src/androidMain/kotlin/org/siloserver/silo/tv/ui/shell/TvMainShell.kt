@@ -1493,7 +1493,8 @@ fun TvMainShell(
                     )
                 }
                 shellComposable(TvMainRoute.History.route) {
-                    TvHistoryScreen(
+                    // A list of each watch, by period (7 days / 2 weeks / 1 month).
+                    org.siloserver.silo.tv.ui.screens.personal.TvWatchHistoryScreen(
                         onItemClick = openContentItemDetail,
                         onInitialContentFocus = { focusState.closeProfileMenuForContent() },
                     )

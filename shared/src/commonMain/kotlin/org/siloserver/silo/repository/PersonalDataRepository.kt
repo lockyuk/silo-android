@@ -148,6 +148,10 @@ open class PersonalDataRepository(
     suspend fun listHistory(continuation: HistoryContinuationV2? = null, limit: Int = 40): ApiResult<HistoryPageV2> =
         personalDataApi.listHistory(continuation, limit)
 
+    /** Each watch from the last [days] days, newest first. */
+    suspend fun listHistoryWatches(days: Int): ApiResult<List<org.siloserver.silo.network.apiv2.HistoryWatchRowV2>> =
+        personalDataApi.listHistoryWatches(days)
+
     // -- Progress --
 
     /** Legacy sessionless convenience path: admitted playback uses sequenced v2 progress. */

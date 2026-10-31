@@ -66,4 +66,7 @@ class PersonalDataApi(
 
     suspend fun listHistory(continuation: HistoryContinuationV2? = null, limit: Int = 40): ApiResult<HistoryPageV2> =
         historyV2.page(limit = limit, continuation = continuation)
+
+    suspend fun listHistoryWatches(days: Int): ApiResult<List<org.siloserver.silo.network.apiv2.HistoryWatchRowV2>> =
+        historyV2.watches(days)
 }

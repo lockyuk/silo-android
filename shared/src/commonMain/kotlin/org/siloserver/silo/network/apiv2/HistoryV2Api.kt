@@ -45,4 +45,33 @@ class HistoryV2Api(
     }
 
     private fun invalidCursor(message: String) = ApiResult.Error(0, "invalid_cursor", message)
+
+    /** Every watch from the last [days] days, newest first (fork endpoint). */
+    suspend fun watches(days: Int): ApiResult<List<HistoryWatchRowV2>> {
+        val scope = tokenManager?.snapshotCurrentScope()
+        return ownedV2Call<HistoryWatchesWireV2, List<HistoryWatchRowV2>>(gate, tokenManager, scope, OwnerPolicy.IDENTITY, null, { owner ->
+            client.get("/api/v2/history/watches") {
+                owner?.let { authScope(it) }
+                parameter("days", days.coerceIn(1, 90))
+            }
+        }) { it.items }
+    }
 }
+
+/** One watch in a watch list: the episode or film, its show, and when. */
+@kotlinx.serialization.Serializable
+data class HistoryWatchRowV2(
+    @kotlinx.serialization.SerialName("content_id") val contentId: String,
+    val type: String = "",
+    val title: String = "",
+    @kotlinx.serialization.SerialName("series_id") val seriesId: String? = null,
+    @kotlinx.serialization.SerialName("series_title") val seriesTitle: String? = null,
+    @kotlinx.serialization.SerialName("season_number") val seasonNumber: Int? = null,
+    @kotlinx.serialization.SerialName("episode_number") val episodeNumber: Int? = null,
+    @kotlinx.serialization.SerialName("poster_url") val posterUrl: String? = null,
+    @kotlinx.serialization.SerialName("watched_at") val watchedAt: String,
+    val completed: Boolean = false,
+)
+
+@kotlinx.serialization.Serializable
+internal data class HistoryWatchesWireV2(val items: List<HistoryWatchRowV2> = emptyList())
