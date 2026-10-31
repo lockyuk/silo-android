@@ -217,7 +217,7 @@ private fun LetterButton(
         !expanded -> Color.Transparent
         isAll && isFocused -> org.siloserver.silo.tv.ui.theme.FocusedContainer
         isAll && isSelected -> org.siloserver.silo.tv.ui.theme.ChromeSelectedFill
-        isAll -> Color.White.copy(alpha = 0.08f)
+        isAll -> org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.rest(Color.White.copy(alpha = 0.08f))
         chip -> org.siloserver.silo.tv.ui.theme.FocusedContainer
         else -> Color.Transparent
     }

@@ -54,7 +54,7 @@ fun TvFilterChip(
             border = Border(
                 border = BorderStroke(
                     width = if (selected) 0.dp else 1.dp,
-                    color = if (selected) Color.Transparent else Color.White.copy(alpha = 0.12f),
+                    color = if (selected) Color.Transparent else org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.restOutline(Color.White.copy(alpha = 0.12f)),
                 ),
                 shape = shape,
             ),

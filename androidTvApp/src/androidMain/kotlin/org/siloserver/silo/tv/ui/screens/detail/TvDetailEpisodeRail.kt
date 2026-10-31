@@ -430,8 +430,8 @@ private fun TvDetailEpisodeCard(
                 .background(DarkSurfaceElevated)
                 .then(
                     when {
-                        isFocused -> Modifier.border(3.dp, Color.White.copy(alpha = 0.9f), shape)
-                        isCurrent -> Modifier.border(2.dp, Color.White.copy(alpha = 0.7f), shape)
+                        isFocused -> Modifier.border(3.dp, org.siloserver.silo.tv.ui.theme.AccentLavender, shape)
+                        isCurrent -> Modifier.border(2.dp, org.siloserver.silo.tv.ui.theme.AccentLavender.copy(alpha = 0.7f), shape)
                         else -> Modifier.border(1.dp, org.siloserver.silo.tv.ui.theme.CardRestingBorder, shape)
                     },
                 ),

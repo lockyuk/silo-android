@@ -716,7 +716,7 @@ private fun SettingsRailCategoryRow(
         ),
         border = ClickableSurfaceDefaults.border(
             border = if (selected) {
-                Border(BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)), shape = RowShape)
+                Border(BorderStroke(1.dp, org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.restOutline(Color.White.copy(alpha = 0.10f))), shape = RowShape)
             } else {
                 Border.None
             },
@@ -3027,8 +3027,8 @@ internal fun SettingsInfoRow(label: String, value: String, singleLine: Boolean =
             .fillMaxWidth()
             .let { if (singleLine) it.height(RowHeight) else it.heightIn(min = RowHeight) }
             .clip(RowShape)
-            .background(Color.White.copy(alpha = 0.07f))
-            .border(1.dp, Color.White.copy(alpha = 0.09f), RowShape)
+            .background(org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.rest(Color.White.copy(alpha = 0.07f)))
+            .border(1.dp, org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.restOutline(Color.White.copy(alpha = 0.09f)), RowShape)
             .padding(horizontal = 12.dp, vertical = if (singleLine) 0.dp else 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -3071,7 +3071,7 @@ internal fun SettingsFooterText(text: String, modifier: Modifier = Modifier) {
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun invertedRowColors() = ClickableSurfaceDefaults.colors(
-    containerColor = Color.White.copy(alpha = 0.07f),
+    containerColor = org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.rest(Color.White.copy(alpha = 0.07f)),
     contentColor = Color.White,
     focusedContainerColor = FocusedContainer,
     focusedContentColor = FocusedContent,
@@ -3086,7 +3086,7 @@ private fun invertedRowColors() = ClickableSurfaceDefaults.colors(
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun invertedRowBorder() = ClickableSurfaceDefaults.border(
-    border = Border(BorderStroke(1.dp, Color.White.copy(alpha = 0.09f)), shape = RowShape),
+    border = Border(BorderStroke(1.dp, org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.restOutline(Color.White.copy(alpha = 0.09f))), shape = RowShape),
     focusedBorder = Border.None,
     pressedBorder = Border.None,
 )

@@ -157,7 +157,7 @@ private fun TvDetailTrailerCard(
                 .clip(cardShape)
                 .background(DarkSurfaceElevated)
                 .then(
-                    if (isFocused) Modifier.border(2.dp, Color.White.copy(alpha = 0.94f), cardShape)
+                    if (isFocused) Modifier.border(2.dp, org.siloserver.silo.tv.ui.theme.AccentLavender, cardShape)
                     else Modifier.border(1.dp, org.siloserver.silo.tv.ui.theme.CardRestingBorder, cardShape),
                 ),
             contentAlignment = Alignment.Center,

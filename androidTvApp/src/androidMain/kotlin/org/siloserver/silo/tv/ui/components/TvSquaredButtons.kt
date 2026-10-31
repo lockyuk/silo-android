@@ -272,11 +272,11 @@ internal fun SquaredPillSurface(
     )
     val fill by animateColorAsState(
         targetValue = if (stableHero) {
-            if (isFocused) FocusedContainer else Color.White.copy(alpha = 0.10f)
+            if (isFocused) FocusedContainer else org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.rest(Color.White.copy(alpha = 0.10f))
         } else when (kind) {
             // Rest keeps the fill opaque enough that its text stays readable.
             PillKind.Primary -> if (isFocused) FocusedContainer else FocusedContainer.copy(alpha = 0.86f)
-            PillKind.Secondary -> if (isFocused) FocusedContainer else Color.Black.copy(alpha = 0.52f)
+            PillKind.Secondary -> if (isFocused) FocusedContainer else org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.rest(Color.Black.copy(alpha = 0.52f))
         },
         animationSpec = focusSpring(),
         label = "pillFill",
@@ -285,8 +285,8 @@ internal fun SquaredPillSurface(
         targetValue = when {
             isFocused && primary -> Color.Black.copy(alpha = 0.18f)
             isFocused -> Color.Black.copy(alpha = 0.12f)
-            primary -> Color.White.copy(alpha = 0.12f)
-            else -> Color.White.copy(alpha = 0.24f)
+            primary -> org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.restOutline(Color.White.copy(alpha = 0.12f))
+            else -> org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.restOutline(Color.White.copy(alpha = 0.24f))
         },
         animationSpec = focusSpring(),
         label = "pillInnerBorder",
@@ -423,7 +423,7 @@ fun TvSquareToggleButton(
     val shape = CircleShape
 
     val fill by animateColorAsState(
-        targetValue = if (isFocused) org.siloserver.silo.tv.ui.theme.FocusedContainer else Color.White.copy(alpha = 0.10f),
+        targetValue = if (isFocused) org.siloserver.silo.tv.ui.theme.FocusedContainer else org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.rest(Color.White.copy(alpha = 0.10f)),
         animationSpec = focusSpring(),
         label = "toggleFill",
     )

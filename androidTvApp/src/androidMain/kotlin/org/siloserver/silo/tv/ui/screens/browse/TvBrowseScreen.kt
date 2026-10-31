@@ -417,7 +417,7 @@ private fun FilterEntryButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
 
-    val container = if (isFocused) Color.White.copy(alpha = 0.94f) else Color.White.copy(alpha = 0.08f)
+    val container = if (isFocused) Color.White.copy(alpha = 0.94f) else org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.rest(Color.White.copy(alpha = 0.08f))
     val foreground = if (isFocused) org.siloserver.silo.tv.ui.theme.FocusedContent else Color.White
 
     Surface(
@@ -435,7 +435,7 @@ private fun FilterEntryButton(
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.025f),
         border = ClickableSurfaceDefaults.border(
             border = Border(
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f)),
+                border = BorderStroke(1.dp, org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.restOutline(Color.White.copy(alpha = 0.06f))),
                 shape = RoundedCornerShape(12.dp),
             ),
             focusedBorder = Border(
@@ -509,7 +509,7 @@ private fun FilterChoiceChip(
     val container = when {
         isFocused -> org.siloserver.silo.tv.ui.theme.FocusedContainer
         selected -> org.siloserver.silo.tv.ui.theme.ChromeSelectedFill
-        else -> Color.White.copy(alpha = 0.08f)
+        else -> org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.rest(Color.White.copy(alpha = 0.08f))
     }
     val foreground = when {
         isFocused -> Color.Black
@@ -534,7 +534,7 @@ private fun FilterChoiceChip(
             border = Border(
                 border = BorderStroke(
                     width = 1.dp,
-                    color = if (selected) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.06f),
+                    color = if (selected) Color.White.copy(alpha = 0.35f) else org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.restOutline(Color.White.copy(alpha = 0.06f)),
                 ),
                 shape = RoundedCornerShape(12.dp),
             ),

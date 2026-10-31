@@ -138,6 +138,16 @@ enum class TvAccentTheme(
 
     fun next(): TvAccentTheme = entries[(ordinal + 1) % entries.size]
 
+    /**
+     * A control at rest (not focused): [default] on the Default theme, so it
+     * looks as it always has, else the theme's tinted fill. White text stays
+     * readable on every theme's rest fill.
+     */
+    fun rest(default: Color): Color = if (this == Default) default else restFill
+
+    /** A resting outline: [default] on the Default theme, else the theme's outline. */
+    fun restOutline(default: Color): Color = if (this == Default) default else outline
+
     companion object {
         private const val PREFS = "tv_appearance"
         private const val KEY = "accent_theme"

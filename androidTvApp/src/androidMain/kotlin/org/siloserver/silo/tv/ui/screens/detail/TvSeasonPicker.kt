@@ -245,7 +245,7 @@ private fun TvSeriesModeTab(
         targetValue = when {
             isFocused -> org.siloserver.silo.tv.ui.theme.FocusedContainer
             isSelected -> org.siloserver.silo.tv.ui.theme.ChromeSelectedFill
-            else -> Color.White.copy(alpha = 0.05f)
+            else -> org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.rest(Color.White.copy(alpha = 0.05f))
         },
         animationSpec = spring(dampingRatio = 0.78f, stiffness = 420f),
         label = "seriesModeFill",

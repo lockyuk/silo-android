@@ -1436,7 +1436,7 @@ private fun CalendarEventCard(
                     BorderStroke(1.dp, org.siloserver.silo.tv.ui.theme.CardRestingBorder),
                     shape = posterShape,
                 ),
-                focusedBorder = Border(BorderStroke(2.5.dp, Color.White), shape = posterShape),
+                focusedBorder = Border(BorderStroke(2.5.dp, org.siloserver.silo.tv.ui.theme.AccentLavender), shape = posterShape),
             ),
             colors = CardDefaults.colors(containerColor = Color.White.copy(alpha = 0.06f)),
             modifier = Modifier

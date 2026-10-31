@@ -295,7 +295,7 @@ private fun BrowseControlPill(
     val container = when {
         isFocused -> org.siloserver.silo.tv.ui.theme.FocusedContainer
         active -> org.siloserver.silo.tv.ui.theme.ChromeSelectedFill
-        else -> Color.White.copy(alpha = 0.08f)
+        else -> org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.rest(Color.White.copy(alpha = 0.08f))
     }
     val foreground = if (isFocused) org.siloserver.silo.tv.ui.theme.FocusedContent else Color.White
 
@@ -314,7 +314,7 @@ private fun BrowseControlPill(
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.04f),
         border = ClickableSurfaceDefaults.border(
             border = Border(
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f)),
+                border = BorderStroke(1.dp, org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.restOutline(Color.White.copy(alpha = 0.06f))),
                 shape = RoundedCornerShape(999.dp),
             ),
             focusedBorder = Border(

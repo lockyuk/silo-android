@@ -88,24 +88,25 @@ fun TvHeroActionPill(
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
     val (baseRestBg, restFg, baseRestBorder) = when (variant) {
+        // Filled is the theme's own fill with its matched text colour.
         TvPillVariant.Filled -> Triple(
-            Color.White.copy(alpha = 0.92f),
-            DarkOnPrimary,
-            Color.White.copy(alpha = 0.42f),
+            org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.focusFill.copy(alpha = 0.92f),
+            org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.focusContent,
+            org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.restOutline(Color.White.copy(alpha = 0.42f)),
         )
         TvPillVariant.Hollow -> Triple(
-            DarkBackground.copy(alpha = 0.42f),
+            org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.rest(DarkBackground.copy(alpha = 0.42f)),
             Color.White,
-            Color.White.copy(alpha = 0.24f),
+            org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.restOutline(Color.White.copy(alpha = 0.24f)),
         )
         TvPillVariant.Ghost -> Triple(
-            SelectedContainer,
+            org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.rest(SelectedContainer),
             Color.White.copy(alpha = 0.85f),
             Color.Transparent,
         )
     }
-    val restBg = if (selected) Color.White.copy(alpha = 0.14f) else baseRestBg
-    val restBorder = if (selected) Color.White.copy(alpha = 0.70f) else baseRestBorder
+    val restBg = if (selected) org.siloserver.silo.tv.ui.theme.ChromeSelectedFill else baseRestBg
+    val restBorder = if (selected) org.siloserver.silo.tv.ui.theme.AccentLavender.copy(alpha = 0.70f) else baseRestBorder
 
     val pillShape = RoundedCornerShape(100.dp)
     val controlHeight = heightOverride ?: when (variant) {

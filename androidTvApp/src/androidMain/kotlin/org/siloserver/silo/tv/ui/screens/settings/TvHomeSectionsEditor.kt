@@ -475,7 +475,7 @@ private fun HeroOptionRow(
         onClick = onClick,
         shape = ClickableSurfaceDefaults.shape(shape = shape),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.White.copy(alpha = 0.07f),
+            containerColor = org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.rest(Color.White.copy(alpha = 0.07f)),
             contentColor = Color.White,
             focusedContainerColor = FocusedContainer,
             focusedContentColor = FocusedContent,
@@ -483,7 +483,7 @@ private fun HeroOptionRow(
             pressedContentColor = FocusedContent,
         ),
         border = ClickableSurfaceDefaults.border(
-            border = Border(BorderStroke(1.dp, Color.White.copy(alpha = 0.09f)), shape = shape),
+            border = Border(BorderStroke(1.dp, org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.restOutline(Color.White.copy(alpha = 0.09f))), shape = shape),
             focusedBorder = Border.None,
             pressedBorder = Border.None,
         ),
@@ -530,8 +530,8 @@ private fun HomeSectionsCard(content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White.copy(alpha = 0.07f), shape)
-            .border(1.dp, Color.White.copy(alpha = 0.09f), shape),
+            .background(org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.rest(Color.White.copy(alpha = 0.07f)), shape)
+            .border(1.dp, org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.restOutline(Color.White.copy(alpha = 0.09f)), shape),
     ) {
         content()
     }
@@ -650,7 +650,7 @@ private fun HomeSectionsControlButton(
         enabled = enabled,
         shape = ClickableSurfaceDefaults.shape(shape = shape),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.White.copy(alpha = 0.09f),
+            containerColor = org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.rest(Color.White.copy(alpha = 0.09f)),
             contentColor = Color.White,
             focusedContainerColor = FocusedContainer,
             focusedContentColor = FocusedContent,
@@ -660,7 +660,7 @@ private fun HomeSectionsControlButton(
             disabledContentColor = Color.White.copy(alpha = 0.28f),
         ),
         border = ClickableSurfaceDefaults.border(
-            border = Border(BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)), shape = shape),
+            border = Border(BorderStroke(1.dp, org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.restOutline(Color.White.copy(alpha = 0.10f))), shape = shape),
             focusedBorder = Border.None,
             pressedBorder = Border.None,
         ),
