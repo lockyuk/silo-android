@@ -740,13 +740,13 @@ private fun CascadeRowChrome(
     onKey: (androidx.compose.ui.input.key.KeyEvent) -> Boolean,
 ) {
     val shape = RoundedCornerShape(cornerRadius)
-    val contentColor = if (isFocused) DarkBackground else SiloOnSurface.copy(alpha = 0.9f)
+    val contentColor = if (isFocused) org.siloserver.silo.tv.ui.theme.FocusedContent else SiloOnSurface.copy(alpha = 0.9f)
 
     var rowModifier = Modifier
         .fillMaxWidth()
         .padding(vertical = 2.dp)
         .clip(shape)
-        .background(if (isFocused) SiloOnSurface else Color.Transparent)
+        .background(if (isFocused) org.siloserver.silo.tv.ui.theme.FocusedContainer else Color.Transparent)
 
     if (onTopChanged != null) {
         rowModifier = rowModifier.onGloballyPositioned { onTopChanged(it.positionInParent().y) }

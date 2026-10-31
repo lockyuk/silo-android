@@ -104,10 +104,16 @@ data class SiloCardFocus(
  * The light grey outline every artwork card wears while it does not hold
  * focus — the same grey as the menu bar's capsule.
  */
-val CardRestingBorder = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.14f)
+val CardRestingBorder: androidx.compose.ui.graphics.Color get() = TvAccentTheme.current.outline
 
-/** A thin outline for cards that do not hold focus, or null for none. */
-val LocalCardRestingBorder = androidx.compose.runtime.staticCompositionLocalOf<androidx.compose.ui.graphics.Color?> { CardRestingBorder }
+/**
+ * A thin outline for cards that do not hold focus, or null for none.
+ * Unspecified (the default) means the accent theme's outline, read at use so
+ * a theme change reaches it.
+ */
+val LocalCardRestingBorder = androidx.compose.runtime.staticCompositionLocalOf<androidx.compose.ui.graphics.Color?> {
+    androidx.compose.ui.graphics.Color.Unspecified
+}
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -118,6 +124,7 @@ fun siloCardDefaults(
     scale = CardDefaults.scale(focusedScale = focusedScale),
     border = CardDefaults.border(
         border = LocalCardRestingBorder.current
+            ?.let { if (it == androidx.compose.ui.graphics.Color.Unspecified) CardRestingBorder else it }
             ?.let { Border(border = BorderStroke(1.dp, it), shape = shape) }
             ?: Border.None,
         focusedBorder = Border(

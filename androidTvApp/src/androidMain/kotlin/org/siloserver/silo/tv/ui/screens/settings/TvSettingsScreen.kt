@@ -1116,6 +1116,9 @@ private fun TvGeneralSettingsPane(
             }
         }
         item {
+            TvColourSettingsGroup()
+        }
+        item {
             TvTitleArtSettingsGroup(store = titleArtStore)
         }
         item {
@@ -3183,6 +3186,23 @@ private fun TvThemeMusicSettingsGroup(store: PlayerSettingsStore) {
             text = "Play a title's theme music while its page is open, when the server has one. " +
                 "Loop repeats it until you leave the page. Change the volume with Left and Right; " +
                 "it is kept on this device.",
+        )
+    }
+}
+
+/** The menu, focus and card colours: Default, Silo Purple or Blue, per device. */
+@Composable
+private fun TvColourSettingsGroup() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val theme = org.siloserver.silo.tv.ui.theme.TvAccentTheme.current
+    SettingsGroup(title = "Colour") {
+        SettingsValueRow(
+            label = "Colour Theme",
+            value = theme.label,
+            onClick = { org.siloserver.silo.tv.ui.theme.TvAccentTheme.set(context, theme.next()) },
+        )
+        SettingsFooterText(
+            text = "Tints the menu bar, highlights and card outlines. Kept on this device.",
         )
     }
 }

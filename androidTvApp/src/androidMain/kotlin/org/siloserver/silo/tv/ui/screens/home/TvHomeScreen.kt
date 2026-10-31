@@ -268,7 +268,8 @@ fun TvHomeScreen(
 }
 
 /** The thin grey outline on Home's unfocused cards, like the menu capsule's edge. */
-private val HomeCardRestingBorder = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.14f)
+/** The accent theme's outline (see LocalCardRestingBorder). */
+private val HomeCardRestingBorder = androidx.compose.ui.graphics.Color.Unspecified
 
 @Composable
 private fun TvHomeEmptyState(

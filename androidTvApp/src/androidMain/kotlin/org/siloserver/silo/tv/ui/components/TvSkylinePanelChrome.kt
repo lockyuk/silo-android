@@ -46,8 +46,8 @@ fun Modifier.tvSkylinePanelChrome(corner: Dp = 11.dp): Modifier {
         .background(
             Brush.verticalGradient(
                 colors = listOf(
-                    Color(0xFF1D1F24),
-                    Color(0xFF17181B),
+                    org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.panelTop,
+                    org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.panelBottom,
                 ),
             ),
         )

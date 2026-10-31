@@ -2125,10 +2125,10 @@ private fun TvServerOfflinePill(
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color(0xFF3A1F22).copy(alpha = 0.94f),
             contentColor = Color.White,
-            focusedContainerColor = SiloOnSurface,
-            focusedContentColor = DarkBackground,
-            pressedContainerColor = SiloOnSurface,
-            pressedContentColor = DarkBackground,
+            focusedContainerColor = org.siloserver.silo.tv.ui.theme.FocusedContainer,
+            focusedContentColor = org.siloserver.silo.tv.ui.theme.FocusedContent,
+            pressedContainerColor = org.siloserver.silo.tv.ui.theme.FocusedContainer,
+            pressedContentColor = org.siloserver.silo.tv.ui.theme.FocusedContent,
         ),
         border = ClickableSurfaceDefaults.border(
             border = Border(border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)), shape = pillShape),
@@ -2175,10 +2175,10 @@ private fun ProfileDropdownRow(
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
             contentColor = SiloOnSurface,
-            focusedContainerColor = SiloOnSurface,
-            focusedContentColor = DarkBackground,
-            pressedContainerColor = SiloOnSurface,
-            pressedContentColor = DarkBackground,
+            focusedContainerColor = org.siloserver.silo.tv.ui.theme.FocusedContainer,
+            focusedContentColor = org.siloserver.silo.tv.ui.theme.FocusedContent,
+            pressedContainerColor = org.siloserver.silo.tv.ui.theme.FocusedContainer,
+            pressedContentColor = org.siloserver.silo.tv.ui.theme.FocusedContent,
         ),
         border = ClickableSurfaceDefaults.border(
             border = Border(border = BorderStroke(0.dp, Color.Transparent), shape = rowShape),

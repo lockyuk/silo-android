@@ -29,8 +29,9 @@ val DarkOutlineVariant = Color.White.copy(alpha = 0.08f)
 val Scrim = Color(0xFF000000)
 
 // Focus signature — tvOS uses a white-on-white card style with a soft shadow.
-val FocusedContainer = SiloOnSurface
-val FocusedContent = DarkBackground
+// Follow the chosen accent theme (TvAccentTheme): white-on-black by default.
+val FocusedContainer: Color get() = TvAccentTheme.current.focusFill
+val FocusedContent: Color get() = TvAccentTheme.current.focusContent
 val SelectedContainer = Color.White.copy(alpha = 0.12f)
 val SubtleSurface = Color.White.copy(alpha = 0.08f)
 val ElevatedSurface = DarkSurfaceElevated.copy(alpha = 0.80f)
@@ -41,17 +42,17 @@ val HeroIndicatorInactive = Color.White.copy(alpha = 0.32f)
 // `siloChromeSelectedBorder` in iOS `Theme/Colors.swift`. The focused
 // capsule inverts to a solid `SiloOnSurface` fill (white-on-background);
 // a selected-but-unfocused tab carries only this low-alpha chrome.
-val ChromeSelectedFill = Color.White.copy(alpha = 0.14f)
-val ChromeSelectedBorder = Color.White.copy(alpha = 0.10f)
+val ChromeSelectedFill: Color get() = TvAccentTheme.current.selectedFill
+val ChromeSelectedBorder: Color get() = TvAccentTheme.current.outline
 
 // Legacy lavender accent collapses to monochrome white-at-opacity. tvOS does not
 // use a chromatic accent — focus state is the lift+glow, progress is white-on-white.
-val AccentLavender = SiloOnSurface
+val AccentLavender: Color get() = TvAccentTheme.current.cardFocus
 val AccentLavenderSoft = Color.White.copy(alpha = 0.40f)
 val AccentLavenderMuted = Color.White.copy(alpha = 0.15f)
 
 // 0.28 (was 0.08, invisible on OLED black): focus glow must read at 10 ft.
-val SiloBlueGlow = Color.White.copy(alpha = 0.28f)
+val SiloBlueGlow: Color get() = TvAccentTheme.current.cardGlow
 val SiloBlueBorderIdle = Color.White.copy(alpha = 0.16f)
 
 // Hero scrim — tvOS detail hero uses a 4-stop horizontal-then-vertical fade.

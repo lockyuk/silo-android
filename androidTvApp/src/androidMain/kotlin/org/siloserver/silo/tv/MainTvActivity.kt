@@ -119,6 +119,7 @@ class MainTvActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        org.siloserver.silo.tv.ui.theme.TvAccentTheme.load(this)
 
         // Own our window insets so WindowInsets.ime is dispatched to Compose.
         // The login/server-setup screens already use imePadding()+bringIntoView

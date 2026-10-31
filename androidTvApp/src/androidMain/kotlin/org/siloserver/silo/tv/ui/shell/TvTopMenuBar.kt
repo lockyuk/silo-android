@@ -70,6 +70,8 @@ import org.siloserver.silo.tv.ui.theme.ChromeSelectedBorder
 import org.siloserver.silo.tv.ui.theme.ChromeSelectedFill
 import org.siloserver.silo.tv.ui.theme.SiloOnSurface
 import org.siloserver.silo.tv.ui.theme.DarkBackground
+import org.siloserver.silo.tv.ui.theme.FocusedContainer
+import org.siloserver.silo.tv.ui.theme.FocusedContent
 import org.siloserver.silo.tv.ui.theme.Spacing
 import org.siloserver.silo.tv.ui.theme.TvSkyline
 import org.siloserver.silo.tv.ui.theme.navRailLabel
@@ -725,8 +727,8 @@ private val TvSiloWordmarkHeight = 26.dp
 private const val TvSiloWordmarkAspect = 764f / 400f
 
 /** Grey capsule behind the search icon and tabs. */
-private val TvTopMenuClusterFill = Color(0xFF2A2A2E).copy(alpha = 0.72f)
-private val TvTopMenuClusterBorder = org.siloserver.silo.tv.ui.theme.CardRestingBorder
+private val TvTopMenuClusterFill: Color get() = org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.barFill
+private val TvTopMenuClusterBorder: Color get() = org.siloserver.silo.tv.ui.theme.CardRestingBorder
 private val TvTopMenuClusterPadding = 4.dp
 
 /**
@@ -756,7 +758,7 @@ private fun TvTopMenuTab(
 
     val shape = RoundedCornerShape(percent = 50)
     val containerColor = when {
-        isFocused -> SiloOnSurface
+        isFocused -> FocusedContainer
         isSelected -> ChromeSelectedFill
         else -> Color.Transparent
     }
@@ -766,7 +768,7 @@ private fun TvTopMenuTab(
         else -> Color.Transparent
     }
     val textColor = when {
-        isFocused -> DarkBackground
+        isFocused -> FocusedContent
         isSelected -> SiloOnSurface
         else -> SiloOnSurface.copy(alpha = 0.62f)
     }
@@ -780,10 +782,10 @@ private fun TvTopMenuTab(
             contentColor = textColor,
             // Keep the inverted look while focused/pressed; the capsule is the
             // only focus cue, so the focused container matches our own fill.
-            focusedContainerColor = SiloOnSurface,
-            focusedContentColor = DarkBackground,
-            pressedContainerColor = SiloOnSurface,
-            pressedContentColor = DarkBackground,
+            focusedContainerColor = FocusedContainer,
+            focusedContentColor = FocusedContent,
+            pressedContainerColor = FocusedContainer,
+            pressedContentColor = FocusedContent,
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         border = ClickableSurfaceDefaults.border(
@@ -838,8 +840,8 @@ private fun TvTopMenuIconButton(
     LaunchedEffect(isInteractionFocused) { onFocusChanged(isInteractionFocused) }
 
     val shape = CircleShape
-    val containerColor = if (isFocused) SiloOnSurface else Color.Transparent
-    val iconColor = if (isFocused) DarkBackground else SiloOnSurface.copy(alpha = 0.62f)
+    val containerColor = if (isFocused) FocusedContainer else Color.Transparent
+    val iconColor = if (isFocused) FocusedContent else SiloOnSurface.copy(alpha = 0.62f)
 
     Surface(
         onClick = onClick,
@@ -848,10 +850,10 @@ private fun TvTopMenuIconButton(
         colors = ClickableSurfaceDefaults.colors(
             containerColor = containerColor,
             contentColor = iconColor,
-            focusedContainerColor = SiloOnSurface,
-            focusedContentColor = DarkBackground,
-            pressedContainerColor = SiloOnSurface,
-            pressedContentColor = DarkBackground,
+            focusedContainerColor = FocusedContainer,
+            focusedContentColor = FocusedContent,
+            pressedContainerColor = FocusedContainer,
+            pressedContentColor = FocusedContent,
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         border = ClickableSurfaceDefaults.border(
@@ -946,7 +948,7 @@ private fun TvTopMenuAvatar(
                 .background(Color.White.copy(alpha = 0.18f))
                 .border(
                     width = if (isFocused) 2.dp else 1.dp,
-                    color = if (isFocused) SiloOnSurface else Color.White.copy(alpha = 0.18f),
+                    color = if (isFocused) FocusedContainer else Color.White.copy(alpha = 0.18f),
                     shape = CircleShape,
                 ),
             contentAlignment = Alignment.Center,
