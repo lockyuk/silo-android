@@ -83,7 +83,7 @@ class TvDetailFocusPolicyTest {
             "src/androidMain/kotlin/org/siloserver/silo/tv/ui/screens/detail/TvDetailEpisodeRail.kt",
         ).readText()
 
-        assertTrue(buttonSource.contains("Color.White.copy(alpha = 0.76f)"))
+        assertTrue(buttonSource.contains("FocusedContainer.copy(alpha = 0.86f)"))
         assertFalse(detailSource.contains("private fun CircleAction("))
         assertTrue(detailSource.contains("iconActive = Icons.Filled.SkipPrevious"))
         assertTrue(detailSource.contains("Modifier.width(170.dp)"))

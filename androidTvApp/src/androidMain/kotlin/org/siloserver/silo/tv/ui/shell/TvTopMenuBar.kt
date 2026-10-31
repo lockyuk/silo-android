@@ -945,7 +945,7 @@ private fun TvTopMenuAvatar(
             modifier = Modifier
                 .size(TvSkyline.barIconSize)
                 .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.18f))
+                .background(org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.restFill)
                 .border(
                     width = if (isFocused) 2.dp else 1.dp,
                     color = if (isFocused) FocusedContainer else Color.White.copy(alpha = 0.18f),

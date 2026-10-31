@@ -376,7 +376,8 @@ private val HeroLogoTopGap = 26.dp
 
 private val HeroLogoMaxWidth = 250.dp
 
-private val HeroAccent = Color(0xFFE50914)
+/** Eyebrow tick and resume bar: red by default, the colour theme's accent otherwise. */
+private val HeroAccent: Color get() = org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.accent
 private val HeroGold = Color(0xFFF5C518)
 
 /** Outfit for the hero's display type, so it reads apart from the Inter used elsewhere. */
@@ -792,18 +793,23 @@ private fun HeroArrow(icon: ImageVector, flash: Boolean, revision: Int) {
         glow.snapTo(1f)
         glow.animateTo(0f, tween(HeroArrowFlashMillis))
     }
+    val restFill = org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.restFill
+    val flashFill = org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.focusFill
+    val flashContent = org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.focusContent
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .size(HeroControlsHeight)
             .drawBehind {
-                drawCircle(Color.White.copy(alpha = 0.14f + 0.86f * glow.value))
+                // Rest in the theme's fill; a step flashes it toward the focus fill.
+                drawCircle(androidx.compose.ui.graphics.lerp(restFill, flashFill, glow.value))
             },
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = Color.White,
+            // White at rest; the focus fill's own text colour while it flashes.
+            tint = if (glow.value > 0.5f) flashContent else Color.White,
             modifier = Modifier.size(28.dp),
         )
     }
@@ -817,6 +823,7 @@ private const val HeroArrowFlashMillis = 350
  */
 @Composable
 private fun HeroIndicators(count: Int, current: Int, progress: () -> Float, modifier: Modifier = Modifier) {
+    val indicator = org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.indicator
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         repeat(count) { i ->
             if (i == current) {
@@ -829,7 +836,7 @@ private fun HeroIndicators(count: Int, current: Int, progress: () -> Float, modi
                         // Drawn from the timer each frame without recomposing
                         // the hero: only this bar changes as it runs.
                         .drawBehind {
-                            drawRect(Color.White, size = Size(size.width * (0.15f + 0.85f * progress()), size.height))
+                            drawRect(indicator, size = Size(size.width * (0.15f + 0.85f * progress()), size.height))
                         },
                 )
             } else {

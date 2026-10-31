@@ -56,6 +56,8 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import org.siloserver.silo.tv.ui.theme.FocusedContainer
+import org.siloserver.silo.tv.ui.theme.FocusedContent
 import org.siloserver.silo.tv.ui.theme.SiloOnSurface
 import org.siloserver.silo.tv.ui.theme.TvControlCorner
 
@@ -254,24 +256,27 @@ internal fun SquaredPillSurface(
     // --- Body visuals (per kind) ---
     val foreground by animateColorAsState(
         targetValue = if (stableHero) {
-            if (isFocused) Color.Black else Color.White
+            if (isFocused) FocusedContent else Color.White
         } else when (kind) {
             // The Play pill remains the bright primary action at rest. Making
             // it use the same translucent treatment as the circular utility
             // buttons erased the hierarchy and made the whole action cluster
             // look malformed whenever focus moved down to the selector.
-            PillKind.Primary -> Color.Black
-            PillKind.Secondary -> if (isFocused) Color.Black else Color.White
+            // The theme's focus fill and its matching text colour, a pair
+            // kept readable on every theme.
+            PillKind.Primary -> FocusedContent
+            PillKind.Secondary -> if (isFocused) FocusedContent else Color.White
         },
         animationSpec = focusSpring(),
         label = "pillForeground",
     )
     val fill by animateColorAsState(
         targetValue = if (stableHero) {
-            if (isFocused) Color.White else Color.White.copy(alpha = 0.10f)
+            if (isFocused) FocusedContainer else Color.White.copy(alpha = 0.10f)
         } else when (kind) {
-            PillKind.Primary -> if (isFocused) Color.White else Color.White.copy(alpha = 0.76f)
-            PillKind.Secondary -> if (isFocused) Color.White else Color.Black.copy(alpha = 0.52f)
+            // Rest keeps the fill opaque enough that its text stays readable.
+            PillKind.Primary -> if (isFocused) FocusedContainer else FocusedContainer.copy(alpha = 0.86f)
+            PillKind.Secondary -> if (isFocused) FocusedContainer else Color.Black.copy(alpha = 0.52f)
         },
         animationSpec = focusSpring(),
         label = "pillFill",

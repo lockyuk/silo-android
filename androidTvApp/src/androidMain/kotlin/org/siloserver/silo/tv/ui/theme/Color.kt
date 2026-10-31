@@ -68,7 +68,7 @@ val CardShadowColor = Color.Black.copy(alpha = 0.55f)
 
 // Resume bar uses pure white over a dim track on tvOS — no chroma.
 val ProgressTrack = Color.White.copy(alpha = 0.20f)
-val ProgressFill = SiloOnSurface
+val ProgressFill: Color get() = TvAccentTheme.current.indicator
 
 val StageLightStrong = Color.White.copy(alpha = 0.15f)
 val StageLightSoft = Color.White.copy(alpha = 0.08f)

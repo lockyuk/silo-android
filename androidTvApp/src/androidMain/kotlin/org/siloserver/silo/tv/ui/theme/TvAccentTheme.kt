@@ -8,8 +8,11 @@ import androidx.compose.ui.graphics.Color
 
 /**
  * The app's chrome colours: the menu bar capsule and its tabs, dropdown
- * panels, the focus fill of buttons and pills, and card outlines. Default is
- * the grey-and-white tvOS look; the others tint all of those at once.
+ * panels, the focus fill of buttons and pills, card outlines, progress bars,
+ * the hero's controls and the profile circle. Default is the grey-and-white
+ * tvOS look; the others tint all of those at once. Body text never changes
+ * colour, and text on a [focusFill] always uses [focusContent], a pair chosen
+ * to stay readable (WCAG AA).
  */
 enum class TvAccentTheme(
     val label: String,
@@ -29,6 +32,12 @@ enum class TvAccentTheme(
     /** Dropdown panel gradient, top to bottom. */
     val panelTop: Color,
     val panelBottom: Color,
+    /** Progress bars, the hero's eyebrow tick: a mark on dark art, never behind text. */
+    val accent: Color,
+    /** The running slideshow dot and other small "you are here" marks. */
+    val indicator: Color,
+    /** Resting round controls (hero arrows) and the profile circle. */
+    val restFill: Color,
 ) {
     Default(
         label = "Default",
@@ -41,10 +50,14 @@ enum class TvAccentTheme(
         cardGlow = Color.White.copy(alpha = 0.28f),
         panelTop = Color(0xFF1D1F24),
         panelBottom = Color(0xFF17181B),
+        accent = Color(0xFFE50914),
+        indicator = Color.White,
+        restFill = Color.White.copy(alpha = 0.18f),
     ),
     Purple(
         label = "Silo Purple",
-        focusFill = Color(0xFF8B5CF6),
+        // White on #7C3AED is 5.7:1 (WCAG AA for normal text).
+        focusFill = Color(0xFF7C3AED),
         focusContent = Color.White,
         barFill = Color(0xFF2B1F4A).copy(alpha = 0.80f),
         outline = Color(0xFFA78BFA).copy(alpha = 0.35f),
@@ -53,18 +66,73 @@ enum class TvAccentTheme(
         cardGlow = Color(0xFF8B5CF6).copy(alpha = 0.45f),
         panelTop = Color(0xFF261C40),
         panelBottom = Color(0xFF1A1430),
+        accent = Color(0xFFA78BFA),
+        indicator = Color(0xFFC4B5FD),
+        restFill = Color(0xFF7C3AED).copy(alpha = 0.45f),
     ),
     Blue(
-        label = "Blue",
-        focusFill = Color(0xFF3B82F6),
+        label = "Light Blue",
+        // A light sky blue, so text on it is black: 13:1 (WCAG AAA).
+        focusFill = Color(0xFF7DD3FC),
+        focusContent = Color.Black,
+        barFill = Color(0xFF14273D).copy(alpha = 0.80f),
+        outline = Color(0xFF7DD3FC).copy(alpha = 0.40f),
+        selectedFill = Color(0xFF7DD3FC).copy(alpha = 0.28f),
+        cardFocus = Color(0xFF7DD3FC),
+        cardGlow = Color(0xFF38BDF8).copy(alpha = 0.45f),
+        panelTop = Color(0xFF16283D),
+        panelBottom = Color(0xFF0F1C2C),
+        accent = Color(0xFF7DD3FC),
+        indicator = Color(0xFFBAE6FD),
+        restFill = Color(0xFF38BDF8).copy(alpha = 0.35f),
+    ),
+    Orange(
+        label = "Orange",
+        // Black on #FB923C is 8.6:1 (WCAG AAA).
+        focusFill = Color(0xFFFB923C),
+        focusContent = Color.Black,
+        barFill = Color(0xFF3A2414).copy(alpha = 0.80f),
+        outline = Color(0xFFFDBA74).copy(alpha = 0.40f),
+        selectedFill = Color(0xFFFB923C).copy(alpha = 0.28f),
+        cardFocus = Color(0xFFFDBA74),
+        cardGlow = Color(0xFFF97316).copy(alpha = 0.45f),
+        panelTop = Color(0xFF33200F),
+        panelBottom = Color(0xFF22160B),
+        accent = Color(0xFFFB923C),
+        indicator = Color(0xFFFED7AA),
+        restFill = Color(0xFFF97316).copy(alpha = 0.35f),
+    ),
+    Yellow(
+        label = "Yellow",
+        // Black on #FACC15 is 12.9:1 (WCAG AAA).
+        focusFill = Color(0xFFFACC15),
+        focusContent = Color.Black,
+        barFill = Color(0xFF36300F).copy(alpha = 0.80f),
+        outline = Color(0xFFFDE047).copy(alpha = 0.40f),
+        selectedFill = Color(0xFFFACC15).copy(alpha = 0.28f),
+        cardFocus = Color(0xFFFDE047),
+        cardGlow = Color(0xFFEAB308).copy(alpha = 0.45f),
+        panelTop = Color(0xFF2F2A0E),
+        panelBottom = Color(0xFF1F1C0A),
+        accent = Color(0xFFFACC15),
+        indicator = Color(0xFFFEF08A),
+        restFill = Color(0xFFEAB308).copy(alpha = 0.35f),
+    ),
+    Red(
+        label = "Red",
+        // White on #DC2626 is 4.8:1 (WCAG AA).
+        focusFill = Color(0xFFDC2626),
         focusContent = Color.White,
-        barFill = Color(0xFF172A4A).copy(alpha = 0.80f),
-        outline = Color(0xFF60A5FA).copy(alpha = 0.35f),
-        selectedFill = Color(0xFF3B82F6).copy(alpha = 0.30f),
-        cardFocus = Color(0xFF60A5FA),
-        cardGlow = Color(0xFF3B82F6).copy(alpha = 0.45f),
-        panelTop = Color(0xFF16263F),
-        panelBottom = Color(0xFF101B2E),
+        barFill = Color(0xFF3F1A1A).copy(alpha = 0.80f),
+        outline = Color(0xFFF87171).copy(alpha = 0.40f),
+        selectedFill = Color(0xFFDC2626).copy(alpha = 0.28f),
+        cardFocus = Color(0xFFF87171),
+        cardGlow = Color(0xFFEF4444).copy(alpha = 0.45f),
+        panelTop = Color(0xFF361717),
+        panelBottom = Color(0xFF241010),
+        accent = Color(0xFFF87171),
+        indicator = Color(0xFFFCA5A5),
+        restFill = Color(0xFFEF4444).copy(alpha = 0.35f),
     ),
     ;
 
