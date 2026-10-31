@@ -26,7 +26,25 @@ data class TvHomeSectionLayout(
     /** The row shown as Home's hero; null means Continue Watching. */
     val heroSectionId: String? = null,
     val heroDisabled: Boolean = false,
+    /** Which titles the hero shows from its row. */
+    val heroContent: TvHeroContent = TvHeroContent.All,
 )
+
+/** What the hero shows: everything, only TV episodes/series, or only films. */
+enum class TvHeroContent(val label: String) {
+    All("TV & Movies"),
+    Series("TV Shows"),
+    Movies("Movies"),
+    ;
+
+    fun next(): TvHeroContent = entries[(ordinal + 1) % entries.size]
+
+    fun accepts(type: String): Boolean = when (this) {
+        All -> true
+        Series -> type.lowercase() in setOf("episode", "series", "season", "show")
+        Movies -> type.equals("movie", ignoreCase = true)
+    }
+}
 
 data class TvHomeSectionPreferenceState(
     val authority: String? = null,
@@ -127,6 +145,18 @@ class TvHomeSectionPreferences(
         }
     }
 
+    /** Limit the hero to TV, films, or both. */
+    suspend fun setHeroContent(content: TvHeroContent) {
+        val authority = activeAuthority() ?: return
+        mutex.withLock {
+            val current = currentLayout(authority)
+            if (current.heroContent == content) return
+            val updated = current.copy(heroContent = content)
+            persist(authority, updated)
+            publish(authority.identity, updated)
+        }
+    }
+
     private suspend fun activeAuthority(): Authority? {
         val scope = tokenManager.snapshotCurrentScope()
         val profileId = (if (scope != null) scope.profileId else tokenManager.getProfileId())
@@ -152,6 +182,9 @@ class TvHomeSectionPreferences(
             hiddenSectionIds = preferences[hiddenKey(authority.serverId)].orEmpty(),
             heroSectionId = preferences[heroKey(authority.serverId)]?.takeIf(String::isNotBlank),
             heroDisabled = preferences[heroDisabledKey(authority.serverId)] ?: false,
+            heroContent = preferences[heroContentKey(authority.serverId)]
+                ?.let { saved -> TvHeroContent.entries.firstOrNull { it.name == saved } }
+                ?: TvHeroContent.All,
         )
     }
 
@@ -162,6 +195,7 @@ class TvHomeSectionPreferences(
             val heroSectionId = layout.heroSectionId
             if (heroSectionId == null) preferences.remove(heroKey(authority.serverId)) else preferences[heroKey(authority.serverId)] = heroSectionId
             preferences[heroDisabledKey(authority.serverId)] = layout.heroDisabled
+            preferences[heroContentKey(authority.serverId)] = layout.heroContent.name
         }
     }
 
@@ -219,8 +253,16 @@ class TvHomeSectionPreferences(
             if (layout.heroDisabled) return null
             val populated = arrange(sections, layout, includingHidden = true)
             val continueWatching = populated.firstOrNull { it.isTvContinueWatchingRow() }
-            val chosen = layout.heroSectionId ?: return continueWatching
-            return populated.firstOrNull { it.id == chosen } ?: continueWatching
+            val chosen = layout.heroSectionId
+            val row = chosen?.let { id -> populated.firstOrNull { it.id == id } } ?: continueWatching
+            return row?.limitedTo(layout.heroContent)
+        }
+
+        /** The row with only the titles [content] allows; null when none are left. */
+        private fun ResolvedSection.limitedTo(content: TvHeroContent): ResolvedSection? {
+            if (content == TvHeroContent.All) return this
+            val kept = items.filter { content.accepts(it.type) }
+            return if (kept.isEmpty()) null else copy(items = kept)
         }
 
         internal fun retainedOrder(
@@ -240,6 +282,9 @@ class TvHomeSectionPreferences(
 
         private fun heroKey(serverId: String) =
             stringPreferencesKey("home_hero_section_${serverHash(serverId)}")
+
+        private fun heroContentKey(serverId: String) =
+            stringPreferencesKey("home_hero_content_${serverHash(serverId)}")
 
         private fun heroDisabledKey(serverId: String) =
             booleanPreferencesKey("home_hero_disabled_${serverHash(serverId)}")

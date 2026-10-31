@@ -101,10 +101,13 @@ data class SiloCardFocus(
 )
 
 /**
- * A thin outline for cards that do not hold focus, or null for none. Home sets
- * it so its cards read against the full-screen backdrop.
+ * The light grey outline every artwork card wears while it does not hold
+ * focus — the same grey as the menu bar's capsule.
  */
-val LocalCardRestingBorder = androidx.compose.runtime.staticCompositionLocalOf<androidx.compose.ui.graphics.Color?> { null }
+val CardRestingBorder = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.14f)
+
+/** A thin outline for cards that do not hold focus, or null for none. */
+val LocalCardRestingBorder = androidx.compose.runtime.staticCompositionLocalOf<androidx.compose.ui.graphics.Color?> { CardRestingBorder }
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable

@@ -21,7 +21,8 @@ fun visibleTvRoots(
     requestsEnabled: Boolean = false,
 ): List<TvRootDestination> = buildList {
     add(TvRootDestination.Home)
-    TvLibraryTabType.entries
+    // Series ahead of Movies (user choice), then the rest in enum order.
+    TvLibraryTabOrder
         .filter { type -> libraries.any { type.matches(it) } }
         .filter { type -> type != TvLibraryTabType.Audiobooks || showAudiobooks }
         .forEach { type -> add(TvRootDestination.LibraryType(type)) }
@@ -35,3 +36,11 @@ fun firstTvRoute(): String = TvMainRoute.Home.route
 
 fun TvRootDestination.isVisibleIn(destinations: List<TvRootDestination>): Boolean =
     this in destinations
+
+/** Menu order of the library-type tabs. */
+internal val TvLibraryTabOrder: List<TvLibraryTabType> = listOf(
+    TvLibraryTabType.Series,
+    TvLibraryTabType.Movies,
+    TvLibraryTabType.Music,
+    TvLibraryTabType.Audiobooks,
+)

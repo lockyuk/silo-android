@@ -326,7 +326,7 @@ fun TvCascadeSelector(
                     .tvSkylinePanelChrome()
                     .padding(CascadePanelPadding),
             ) {
-                CascadePanelHeader(anchorLibrary.name.uppercase())
+                // Just the sections: no library-name header or hint footer.
                 pills.forEach { pill ->
                     val requester = visiblePillRequesters.getValue(pill)
                     CascadeSectionRow(
@@ -343,7 +343,6 @@ fun TvCascadeSelector(
                         },
                     )
                 }
-                CascadePanelFooter(isSingleLibrary = true)
             }
             return@Row
         }

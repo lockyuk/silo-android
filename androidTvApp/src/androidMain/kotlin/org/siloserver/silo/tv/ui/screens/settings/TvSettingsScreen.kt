@@ -59,6 +59,9 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import org.siloserver.silo.common.settings.SeekIntervalSettingsModel
 import org.siloserver.silo.common.settings.SeekIntervalSettingsUiState
 import org.siloserver.silo.model.settings.SeekDirection
@@ -3154,9 +3157,32 @@ private fun TvThemeMusicSettingsGroup(store: PlayerSettingsStore) {
                 },
             )
         }
+        val themeVolume: org.siloserver.silo.common.thememusic.ThemeMusicVolume = koinInject()
+        val volumePercent by themeVolume.percent.collectAsState()
+        SettingsValueRow(
+            label = "Theme Music Volume",
+            value = "$volumePercent%",
+            onClick = themeVolume::step,
+            // Left/Right nudge it down/up without wrapping.
+            modifier = Modifier.onPreviewKeyEvent { event ->
+                if (event.type != androidx.compose.ui.input.key.KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                when (event.key) {
+                    androidx.compose.ui.input.key.Key.DirectionLeft -> {
+                        themeVolume.set(volumePercent - org.siloserver.silo.common.thememusic.ThemeMusicVolume.STEP)
+                        true
+                    }
+                    androidx.compose.ui.input.key.Key.DirectionRight -> {
+                        themeVolume.set(volumePercent + org.siloserver.silo.common.thememusic.ThemeMusicVolume.STEP)
+                        true
+                    }
+                    else -> false
+                }
+            },
+        )
         SettingsFooterText(
             text = "Play a title's theme music while its page is open, when the server has one. " +
-                "Loop repeats it until you leave the page.",
+                "Loop repeats it until you leave the page. Change the volume with Left and Right; " +
+                "it is kept on this device.",
         )
     }
 }

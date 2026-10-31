@@ -182,15 +182,18 @@ fun TvCalendarScreen(
     // lands there when the Calendar tab swaps in; gate the jump so a silent
     // re-emission doesn't yank focus back after the user has navigated.
     var calendarFilterHasFocus by remember { mutableStateOf(false) }
+    // TV always shows every release, so there is no filter capsule: the
+    // selected day of the week strip is the screen's first control, and the
+    // old "filter" focus targets all point at it.
+    val selectedDayFocusRequester = remember { FocusRequester() }
     val filterFocusRequesters = remember {
         mapOf(
-            CalendarFilter.Following to FocusRequester(),
-            CalendarFilter.Trending to FocusRequester(),
-            CalendarFilter.All to FocusRequester(),
+            CalendarFilter.Following to selectedDayFocusRequester,
+            CalendarFilter.Trending to selectedDayFocusRequester,
+            CalendarFilter.All to selectedDayFocusRequester,
         )
     }
-    val filterFocusRequester = filterFocusRequesters.getValue(CalendarFilter.Following)
-    val selectedDayFocusRequester = remember { FocusRequester() }
+    val filterFocusRequester = selectedDayFocusRequester
     var lastAppliedFocusRequest by remember { mutableIntStateOf(-1) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -479,7 +482,7 @@ fun TvCalendarScreen(
                     // focus had landed, which meant the reconfirm after Android's
                     // delayed focus pass, the bar-suppression release and
                     // onInitialContentFocus() never ran.
-                    calendarFilterHasFocus = zone == CalendarControlFocusZone.Filter
+                    calendarFilterHasFocus = zone != null
                     if (zone != null) snapControlsToInitialPosition()
                 },
                 onFocusRequestAcknowledged = {
@@ -553,7 +556,7 @@ private fun CalendarControls(
             // item a stable minimum measure (filter capsule + spacing + 48dp
             // week strip + bottom inset), otherwise restoring item zero after
             // browsing shelves can reuse a clipped one-line measurement.
-            .heightIn(min = 108.dp)
+            .heightIn(min = 56.dp)
             .padding(
                 start = Spacing.safeArea,
                 end = Spacing.safeArea,
@@ -562,14 +565,6 @@ private fun CalendarControls(
             ),
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
-        CalendarControlRow(
-            selectedFilter = selectedFilter,
-            onSelectFilter = onSelectFilter,
-            firstSegmentFocusRequester = firstSegmentFocusRequester,
-            segmentFocusRequesters = segmentFocusRequesters,
-            onControlFocused = onControlFocused,
-        )
-
         WeekStrip(
             weekDates = weekDates,
             today = today,
@@ -993,7 +988,8 @@ internal fun calendarUpFallbackAction(
         isReturningToControls = isReturningToControls,
     ) -> if (isRepeat) CalendarUpFallbackAction.StayInContent else CalendarUpFallbackAction.ReturnToControls
     focusedShelfIndex == null && isRepeat -> CalendarUpFallbackAction.StayInContent
-    focusedControlZone == CalendarControlFocusZone.WeekStrip -> CalendarUpFallbackAction.FocusFilter
+    // The week strip is the top control now that the filter capsule is gone.
+    focusedControlZone == CalendarControlFocusZone.WeekStrip -> CalendarUpFallbackAction.EnterMenu
     focusedControlZone == CalendarControlFocusZone.Filter -> CalendarUpFallbackAction.EnterMenu
     else -> CalendarUpFallbackAction.MoveWithinContent
 }
@@ -1153,7 +1149,9 @@ private fun CalendarList(
             top = Spacing.sm,
             bottom = 28.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        // No list spacing: an empty day draws nothing at all, so each shelf
+        // carries its own gap below it instead.
+        verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
         item(key = "calendar-controls") {
             // Arrival for the shelf→controls Up hand-off is "the CONTROLS row
@@ -1196,8 +1194,8 @@ private fun CalendarList(
                 }
             }
             else -> {
-        // Render EVERY weekday so the week keeps its shape; event-less days get
-        // a "Nothing scheduled" stub instead of being skipped.
+        // Every weekday keeps its list slot (indexes drive the day snap), but
+        // a day with nothing scheduled draws nothing.
         itemsIndexed(state.weekDates, key = { _, date -> "day-$date" }) { index, date ->
             DayShelf(
                 date = date,
@@ -1256,6 +1254,7 @@ private fun DayShelf(
         episodeContentId: String?,
     ) -> Unit,
 ) {
+    if (items.isEmpty()) return
     val targetCardFocusRequester = remember { FocusRequester() }
     val rowState = rememberLazyListState()
 
@@ -1289,6 +1288,7 @@ private fun DayShelf(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(top = 8.dp)
             // NOTE: DirectionUp is handled by the shell's content Up-fallback
             // (registered in CalendarList) — an ancestor's onPreviewKeyEvent
             // tunnels before any handler here could fire, so a local preview
@@ -1301,10 +1301,8 @@ private fun DayShelf(
             },
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
-        DayHeader(date = date, isToday = isToday, muted = items.isEmpty())
-        if (items.isEmpty()) {
-            NothingScheduledRow()
-        } else {
+        DayHeader(date = date, isToday = isToday, muted = false)
+        run {
             CompositionLocalProvider(LocalBringIntoViewSpec provides TvSmoothBringIntoViewSpec) {
             LazyRow(
                 state = rowState,
@@ -1354,38 +1352,33 @@ private fun DayHeader(date: String, isToday: Boolean, muted: Boolean) {
     val fullDateFormatter = remember(locale) {
         DateTimeFormatter.ofPattern("EEEE, MMMM d", locale)
     }
-    Text(
-        text = if (isToday) {
-            "Today"
-        } else {
-            localDate.format(fullDateFormatter)
-        },
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.Bold,
-        color = if (muted) Color.White.copy(alpha = 0.45f) else MaterialTheme.colorScheme.onBackground,
-        modifier = Modifier.padding(start = Spacing.safeArea),
-    )
-}
-
-@OptIn(ExperimentalTvMaterial3Api::class)
-@Composable
-private fun NothingScheduledRow() {
+    // Web DayGroup: the date as the row title, with a Today pill beside it.
     Row(
         modifier = Modifier.padding(start = Spacing.safeArea),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            imageVector = Icons.Filled.CalendarMonth,
-            contentDescription = null,
-            tint = Color.White.copy(alpha = 0.32f),
-            modifier = Modifier.size(20.dp),
-        )
         Text(
-            text = "Nothing scheduled",
-            style = MaterialTheme.typography.bodyLarge,
-            color = Color.White.copy(alpha = 0.50f),
+            text = localDate.format(fullDateFormatter),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = if (muted) Color.White.copy(alpha = 0.45f) else MaterialTheme.colorScheme.onBackground,
         )
+        if (isToday) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(100.dp))
+                    .background(Color(0xFFE50914))
+                    .padding(horizontal = 9.dp, vertical = 3.dp),
+            ) {
+                Text(
+                    text = "TODAY",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 14.sp, lineHeight = 18.sp),
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                )
+            }
+        }
     }
 }
 
@@ -1417,7 +1410,6 @@ private fun CalendarEventCard(
     val isFocused by interactionSource.collectIsFocusedAsState()
     val posterWidth = CalendarPosterWidth.cardScaled()
     val posterHeight = CalendarPosterHeight.cardScaled()
-    val caption = LocalCardPresentation.current.caption
 
     // Both edges. Gain alone made the screen's record of "what has focus"
     // sticky, so a card focus passed over on the way somewhere else still
@@ -1440,6 +1432,10 @@ private fun CalendarEventCard(
             shape = CardDefaults.shape(shape = posterShape),
             scale = CardDefaults.scale(focusedScale = 1.06f),
             border = CardDefaults.border(
+                border = Border(
+                    BorderStroke(1.dp, org.siloserver.silo.tv.ui.theme.CardRestingBorder),
+                    shape = posterShape,
+                ),
                 focusedBorder = Border(BorderStroke(2.5.dp, Color.White), shape = posterShape),
             ),
             colors = CardDefaults.colors(containerColor = Color.White.copy(alpha = 0.06f)),
@@ -1489,39 +1485,15 @@ private fun CalendarEventCard(
                     }
                 }
 
-                // Air-time capsule (bottom-trailing) — only for REAL broadcast
-                // times; date-only entries report midnight, which rendered as
-                // a meaningless "00:00" on every card (QA 2026-07-08).
-                item.localDisplayAirTime()?.let { airTime ->
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(6.dp)
-                            .clip(RoundedCornerShape(100.dp))
-                            .background(Color.Black.copy(alpha = 0.62f))
-                            .padding(horizontal = 9.dp, vertical = 3.dp),
-                    ) {
-                        Text(
-                            text = airTime,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 14.sp,
-                                lineHeight = 18.sp,
-                            ),
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White,
-                        )
-                    }
-                }
             }
         }
 
-        // Caption below the poster: titles may wrap to two lines, but a
-        // one-line title does not reserve an empty second line before detail.
-        // Artwork-only drops the whole block; the outer spacedBy only applies
-        // between children, so the poster keeps no trailing gap.
-        if (caption.showsTitle) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
+        // S08E02 and the air time, whatever the card caption setting, since
+        // the episode number is what a calendar is for.
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                // Episodes show only S02E10 (the poster names the show);
+                // a film has no number, so it keeps its title.
+                if (!item.isEpisode) Text(
                     text = item.title,
                     style = MaterialTheme.typography.labelLarge.copy(
                         fontSize = 17.5.sp,
@@ -1533,8 +1505,8 @@ private fun CalendarEventCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                if (caption.showsMetadata) {
-                    cardSubtitle(item)?.let { subtitle ->
+                run {
+                    listOfNotNull(cardSubtitle(item), item.localDisplayAirTime()).forEach { subtitle ->
                         Text(
                             text = subtitle,
                             style = MaterialTheme.typography.bodySmall.copy(
@@ -1548,7 +1520,6 @@ private fun CalendarEventCard(
                         )
                     }
                 }
-            }
         }
     }
 }
@@ -1674,16 +1645,17 @@ private fun badgeLabel(badge: String): String? = when (badge) {
     else -> null
 }
 
-/** "S5 · E14 · Title" for episodes, "Movie" for films — mirrors tvOS card caption. */
+/** "S08E02" for episodes, "Movie" for films — no episode title or synopsis. */
 private fun cardSubtitle(item: CalendarItem): String? {
     val parts = mutableListOf<String>()
     if (item.isEpisode) {
         val season = item.seasonNumber
         val episode = item.episodeNumber
         if (season != null && episode != null) {
-            parts.add("S$season · E$episode")
+            parts.add("S%02dE%02d".format(season, episode))
+        } else if (season != null) {
+            parts.add("Season $season")
         }
-        item.episodeTitle?.takeIf { it.isNotBlank() }?.let { parts.add(it) }
     }
     if (item.type == CalendarItemType.Movie) {
         parts.add("Movie")

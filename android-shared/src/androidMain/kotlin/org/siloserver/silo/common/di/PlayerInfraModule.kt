@@ -382,8 +382,10 @@ val playerInfraModule = module {
             dataSourceFactory = androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(
                 get<okhttp3.OkHttpClient>(PLAYER_TRANSPORT_OKHTTP_QUALIFIER),
             ),
+            volume = get(),
         )
     }
+    single { org.siloserver.silo.common.thememusic.ThemeMusicVolume(androidContext()) }
 
     single {
         ServerDrivenConfigRefresher(

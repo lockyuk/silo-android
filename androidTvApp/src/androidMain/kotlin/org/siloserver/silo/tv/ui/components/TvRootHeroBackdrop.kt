@@ -261,6 +261,9 @@ private fun CornerAnchoredArt(
                     // shared art + copy crossfade. A second Coil fade would
                     // make the image visibly lag behind the text.
                     crossfadeMillis = 0,
+                    // Some episode stills carry the film's black bars; full
+                    // screen they read as a black band under the menu.
+                    cropLetterbox = frame.fullBleed,
                     onSuccess = onSettled,
                     onError = onSettled,
                     modifier = Modifier.fillMaxSize(),

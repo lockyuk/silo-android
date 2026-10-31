@@ -699,7 +699,7 @@ private fun heroMeta(item: SectionItem): HeroMeta {
     return HeroMeta(listOfNotNull(runtime), rating, heroQuality(item.overlaySummary))
 }
 
-/** The file's resolution and dynamic range: `4K`, `1080p`, `Dolby Vision`, `HDR10`. */
+/** The file's resolution, dynamic range and audio: `4K`, `Dolby Vision`, `Dolby Atmos`. */
 private fun heroQuality(summary: OverlaySummary?): List<String> {
     if (summary == null) return emptyList()
     val quality = mutableListOf<String>()
@@ -717,7 +717,24 @@ private fun heroQuality(summary: OverlaySummary?): List<String> {
             hdr.uppercase()
         }
     }
+    heroAudio(summary)?.let { quality += it }
     return quality
+}
+
+/** The main audio track as a badge: `Dolby Atmos`, `Dolby Digital+ 5.1`, `DTS-HD 7.1`. */
+internal fun heroAudio(summary: OverlaySummary): String? {
+    val codec = summary.audio?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    val channels = summary.audioChannels?.trim()?.takeIf { it.isNotEmpty() }
+    val name = when (codec.lowercase().replace(" ", "")) {
+        "atmos", "truehdatmos", "eac3atmos" -> return "Dolby Atmos"
+        "truehd" -> "Dolby TrueHD"
+        "eac3", "e-ac3", "ddp", "dd+" -> "Dolby Digital+"
+        "ac3", "dd" -> "Dolby Digital"
+        "dts:x", "dtsx" -> return "DTS:X"
+        "dts-hd", "dtshd", "dts-hdma" -> "DTS-HD"
+        else -> codec.uppercase()
+    }
+    return listOfNotNull(name, channels).joinToString(" ")
 }
 
 /** The red resume bar and the time left, under the synopsis. */

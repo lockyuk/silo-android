@@ -22,8 +22,8 @@ class TvMediaDestinationsTest {
         assertEquals(
             listOf(
                 TvRootDestination.Home,
-                TvRootDestination.LibraryType(TvLibraryTabType.Movies),
                 TvRootDestination.LibraryType(TvLibraryTabType.Series),
+                TvRootDestination.LibraryType(TvLibraryTabType.Movies),
                 TvRootDestination.LibraryType(TvLibraryTabType.Music),
                 TvRootDestination.ForYou,
                 TvRootDestination.Calendar,

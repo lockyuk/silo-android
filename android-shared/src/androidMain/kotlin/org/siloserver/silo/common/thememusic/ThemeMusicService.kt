@@ -59,6 +59,7 @@ class ThemeMusicService(
     /** Emits when a playback session starts playing ([playbackStarts]). */
     playbackStarts: Flow<Unit>,
     private val dataSourceFactory: DataSource.Factory,
+    private val volume: ThemeMusicVolume? = null,
 ) {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -66,6 +67,10 @@ class ThemeMusicService(
 
     /** What this device decodes, probed once; the server converts the rest to AAC. */
     private val acceptedFormats: List<ThemeAudioFormatV2> by lazy { probeAcceptedFormats() }
+
+    /** Themes playing now, so a volume change reaches them. Declared before
+     *  init: the volume collector runs immediately on Main.immediate. */
+    private val liveAudio = mutableSetOf<ExoThemeAudio>()
 
     private val coordinator = ThemeMusicCoordinator(
         scope = scope,
@@ -80,6 +85,8 @@ class ThemeMusicService(
                 .collect { (enabled, loop) -> coordinator.setPreferences(enabled, loop) }
         }
         scope.launch { identityChanges.collect { coordinator.reset() } }
+        // A volume change applies to the theme already playing.
+        volume?.let { v -> scope.launch { v.percent.collect { liveAudio.forEach { it.applyGain() } } } }
         // A paused theme holds no audio focus, so the session's focus request
         // alone would not end it.
         scope.launch { playbackStarts.collect { coordinator.interrupt() } }
@@ -107,7 +114,11 @@ class ThemeMusicService(
     }
 
     private fun createAudio(url: String, loop: Boolean, listener: ThemeAudio.Listener): ThemeAudio =
-        ExoThemeAudio(appContext, dataSourceFactory, url, loop, listener)
+        ExoThemeAudio(appContext, dataSourceFactory, url, loop, listener, gain = { volume?.gain ?: 1f })
+            .also { audio ->
+                liveAudio += audio
+                audio.onReleased = { liveAudio -= audio }
+            }
 
     companion object {
         /** Container and codec pairs ExoPlayer extracts, with the decoder each needs. */
@@ -166,7 +177,13 @@ private class ExoThemeAudio(
     url: String,
     loop: Boolean,
     listener: ThemeAudio.Listener,
+    /** The device's theme volume, applied on top of the player's fades. */
+    private val gain: () -> Float = { 1f },
 ) : ThemeAudio {
+    var onReleased: () -> Unit = {}
+
+    /** The fade level last asked for, before the device gain. */
+    private var level = 0f
     private val player = ExoPlayer.Builder(context)
         .setMediaSourceFactory(
             DefaultMediaSourceFactory(dataSourceFactory).setLoadErrorHandlingPolicy(GrantErrorPolicy),
@@ -208,8 +225,15 @@ private class ExoThemeAudio(
     }
 
     override var volume: Float
-        get() = player.volume
-        set(value) { player.volume = value }
+        get() = level
+        set(value) {
+            level = value
+            applyGain()
+        }
+
+    fun applyGain() {
+        player.volume = level * gain()
+    }
 
     override fun setLooping(loop: Boolean) {
         player.repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
@@ -219,7 +243,10 @@ private class ExoThemeAudio(
 
     override fun pause() = player.pause()
 
-    override fun release() = player.release()
+    override fun release() {
+        onReleased()
+        player.release()
+    }
 }
 
 /**

@@ -106,7 +106,7 @@ class TvLauncherIconAssetsTest {
 
     @Test
     fun tvBannerRemainsOpaqueWordmarkAtRequiredDimensions() {
-        val banner = ImageIO.read(File("src/androidMain/res/drawable/tv_banner.png"))
+        val banner = ImageIO.read(File("src/androidMain/res/drawable-xhdpi/tv_banner.png"))
         assertEquals(320, banner.width)
         assertEquals(180, banner.height)
         assertFalse(banner.colorModel.hasAlpha())
@@ -139,7 +139,7 @@ class TvLauncherIconAssetsTest {
 
     @Test
     fun tvBannerKeepsColorMarkInsideTheFireTvSquareSafeArea() {
-        val banner = ImageIO.read(File("src/androidMain/res/drawable/tv_banner.png"))
+        val banner = ImageIO.read(File("src/androidMain/res/drawable-xhdpi/tv_banner.png"))
         val accentPixels = buildList {
             for (y in 0 until banner.height) {
                 for (x in 0 until banner.width) {

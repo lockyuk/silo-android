@@ -500,6 +500,10 @@ val androidTvModule = module {
             repository = get(),
             timezoneId = java.util.TimeZone.getDefault().id,
             todayProvider = { java.time.LocalDate.now().toString() },
+            // TV always shows every release: no Following/Trending choice.
+            filterStore = org.siloserver.silo.viewmodel.CalendarFilterStore.InMemory(
+                org.siloserver.silo.model.calendar.CalendarFilter.All,
+            ),
         )
     }
     viewModel { org.siloserver.silo.tv.ui.screens.browse.TvBrowseViewModel(get()) }

@@ -63,9 +63,9 @@ class TvCalendarFocusRoutingTest {
     }
 
     @Test
-    fun weekStripMovesUpToActiveFilter() {
+    fun weekStripMovesUpToCalendarMenuTab() {
         assertEquals(
-            CalendarUpFallbackAction.FocusFilter,
+            CalendarUpFallbackAction.EnterMenu,
             calendarUpFallbackAction(null, 0, false, CalendarControlFocusZone.WeekStrip),
         )
     }

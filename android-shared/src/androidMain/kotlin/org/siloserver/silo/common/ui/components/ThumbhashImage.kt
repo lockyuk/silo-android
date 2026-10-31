@@ -36,6 +36,7 @@ import coil3.compose.AsyncImage
 import coil3.decode.DataSource
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import coil3.request.transformations
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -139,6 +140,8 @@ fun ThumbhashImage(
     /** Applied to the loaded image only — used by the blurred page backdrop. */
     colorFilter: ColorFilter? = null,
     defaultArtwork: DefaultArtworkKind? = null,
+    /** Crops black letterbox bars baked into the picture (full-screen backdrops). */
+    cropLetterbox: Boolean = false,
 ) {
     val context = LocalContext.current
     val deferPresentationWhile = LocalImagePresentationDeferral.current
@@ -187,13 +190,14 @@ fun ThumbhashImage(
     var failed by remember(url) { mutableStateOf(false) }
     val failedArtwork = defaultArtwork?.takeIf { failed && !hasUsableThumbhash }
 
-    val model = remember(url, decodeSizePx, crossfadeMillis, cacheKey) {
+    val model = remember(url, decodeSizePx, crossfadeMillis, cacheKey, cropLetterbox) {
         ImageRequest.Builder(context)
             .data(url)
             .apply {
                 if (crossfadeMillis > 0) crossfade(crossfadeMillis) else crossfade(false)
             }
             .apply { decodeSizePx?.let { size(it) } }
+            .apply { if (cropLetterbox) transformations(LetterboxCropTransformation) }
             .apply {
                 cacheKey?.let {
                     memoryCacheKey(it)

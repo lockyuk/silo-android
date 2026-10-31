@@ -306,8 +306,9 @@ internal fun TvHomeSectionsEditor(
                                     color = Color.White,
                                 )
                                 Text(
-                                    text = heroOptions.firstOrNull { it.key == heroChoiceKey }?.label
-                                        ?: "Continue Watching",
+                                    text = (heroOptions.firstOrNull { it.key == heroChoiceKey }?.label
+                                        ?: "Continue Watching") +
+                                        if (preferenceState.layout.heroDisabled) "" else " · ${preferenceState.layout.heroContent.label}",
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         fontSize = 14.sp,
                                         lineHeight = 17.sp,
@@ -315,6 +316,17 @@ internal fun TvHomeSectionsEditor(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            if (!preferenceState.layout.heroDisabled && !pickingHero) {
+                                // Cycles TV & Movies → TV Shows → Movies.
+                                HomeSectionsControlButton(
+                                    label = preferenceState.layout.heroContent.label,
+                                    onClick = {
+                                        scope.launch {
+                                            preferences.setHeroContent(preferenceState.layout.heroContent.next())
+                                        }
+                                    },
                                 )
                             }
                             HomeSectionsControlButton(
