@@ -290,6 +290,7 @@ class TvShellFocusState {
             DiagnosticsFocusLogger.transition("menu", if (focused) "focused" else "blurred")
         }
         isMenuFocused = focused
+        TvMenuBarFocus.held = focused
         if (focused) {
             // The bar answered, so the outstanding handoff is settled.
             barHandoffAttempted = false
@@ -460,4 +461,14 @@ fun rememberTvShellFocusState(): TvShellFocusState = remember { TvShellFocusStat
 private fun TvTopMenuPanel.diagnosticsTarget(): String = when (this) {
     TvTopMenuPanel.Profile -> "profile_menu"
     is TvTopMenuPanel.Root -> "root_panel"
+}
+
+/**
+ * Whether the top menu bar holds focus, for pages that would otherwise take
+ * focus on their own when they first load: a tab pressed in the bar keeps
+ * focus there until the viewer presses Down.
+ */
+object TvMenuBarFocus {
+    @Volatile
+    var held: Boolean = false
 }

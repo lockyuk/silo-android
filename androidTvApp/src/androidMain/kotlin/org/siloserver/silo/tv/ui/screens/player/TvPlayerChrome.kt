@@ -41,6 +41,15 @@ internal object TvPlayerChrome {
     val StopText = Color(0xFFFF6961)
     val StopRest = Stop.copy(alpha = 0.12f)
 
+    /**
+     * The colour theme's focus fill and its matched text colour, and its
+     * progress colour. Text that is not on a focus fill stays [Paper].
+     */
+    val Focus: Color get() = org.siloserver.silo.tv.ui.theme.FocusedContainer
+    val OnFocus: Color get() = org.siloserver.silo.tv.ui.theme.FocusedContent
+    val OnFocusMuted: Color get() = OnFocus.copy(alpha = 0.66f)
+    val Progress: Color get() = org.siloserver.silo.tv.ui.theme.TvAccentTheme.current.indicator
+
     val SideInset = 48.dp
     val BottomInset = 26.dp
 }

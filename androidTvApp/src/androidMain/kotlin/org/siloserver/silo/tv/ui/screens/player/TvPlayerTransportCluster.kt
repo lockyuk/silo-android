@@ -203,11 +203,11 @@ private fun TransportIconButton(
     // Focus inverts the disc to Paper — no scale, so a button never crosses
     // its own hit target or nudges its neighbours.
     val fill by animateColorAsState(
-        targetValue = if (isFocused) TvPlayerChrome.Paper else TvPlayerChrome.ButtonRest,
+        targetValue = if (isFocused) TvPlayerChrome.Focus else TvPlayerChrome.ButtonRest,
         animationSpec = tween(120),
         label = "transportBg",
     )
-    val tint = if (isFocused) TvPlayerChrome.Ink else TvPlayerChrome.Paper
+    val tint = if (isFocused) TvPlayerChrome.OnFocus else TvPlayerChrome.Paper
     val expanded = isFocused && label != null
 
     Row(

@@ -243,15 +243,15 @@ private fun TvSeriesModeTab(
     val isPressed by interactionSource.collectIsPressedAsState()
     val fill by animateColorAsState(
         targetValue = when {
-            isFocused -> Color.White
-            isSelected -> Color.White.copy(alpha = 0.20f)
+            isFocused -> org.siloserver.silo.tv.ui.theme.FocusedContainer
+            isSelected -> org.siloserver.silo.tv.ui.theme.ChromeSelectedFill
             else -> Color.White.copy(alpha = 0.05f)
         },
         animationSpec = spring(dampingRatio = 0.78f, stiffness = 420f),
         label = "seriesModeFill",
     )
     val labelColor by animateColorAsState(
-        targetValue = if (isFocused) Color.Black else Color.White,
+        targetValue = if (isFocused) org.siloserver.silo.tv.ui.theme.FocusedContent else Color.White,
         animationSpec = spring(dampingRatio = 0.78f, stiffness = 420f),
         label = "seriesModeLabel",
     )

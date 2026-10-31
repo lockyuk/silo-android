@@ -321,8 +321,8 @@ private fun TvSegment(
             contentColor = content,
             focusedContainerColor = if (emphasis == SegmentEmphasis.Selected) Color.White else Color.White.copy(alpha = 0.26f),
             focusedContentColor = if (emphasis == SegmentEmphasis.Selected) Color.Black else Color.White,
-            pressedContainerColor = Color.White,
-            pressedContentColor = Color.Black,
+            pressedContainerColor = org.siloserver.silo.tv.ui.theme.FocusedContainer,
+            pressedContentColor = org.siloserver.silo.tv.ui.theme.FocusedContent,
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.06f),
         border = ClickableSurfaceDefaults.border(

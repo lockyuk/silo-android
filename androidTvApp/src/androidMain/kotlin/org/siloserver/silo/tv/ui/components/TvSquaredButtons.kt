@@ -423,12 +423,12 @@ fun TvSquareToggleButton(
     val shape = CircleShape
 
     val fill by animateColorAsState(
-        targetValue = if (isFocused) Color.White else Color.White.copy(alpha = 0.10f),
+        targetValue = if (isFocused) org.siloserver.silo.tv.ui.theme.FocusedContainer else Color.White.copy(alpha = 0.10f),
         animationSpec = focusSpring(),
         label = "toggleFill",
     )
     val foreground by animateColorAsState(
-        targetValue = if (isFocused) Color.Black else Color.White,
+        targetValue = if (isFocused) org.siloserver.silo.tv.ui.theme.FocusedContent else Color.White,
         animationSpec = focusSpring(),
         label = "toggleForeground",
     )

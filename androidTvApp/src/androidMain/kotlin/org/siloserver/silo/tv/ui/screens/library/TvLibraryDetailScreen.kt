@@ -37,6 +37,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import org.siloserver.silo.model.catalog.BrowseItem
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -405,6 +406,36 @@ private enum class TvBrowsePanel { Sort, Filter }
 internal fun libraryLazyGridIndex(itemIndex: Int, headerCount: Int): Int =
     itemIndex.coerceAtLeast(0) + headerCount.coerceAtLeast(0)
 
+/** A title as the server sorts it: upper case, without a leading "The", "A" or "An". */
+private fun sortKey(title: String): String {
+    val upper = title.trim().uppercase()
+    for (article in listOf("THE ", "A ", "AN ")) {
+        if (upper.startsWith(article) && upper.length > article.length) return upper.substring(article.length).trimStart()
+    }
+    return upper
+}
+
+/** An A–Z rail pick: [letter] null for "All", "#" for titles not starting with A–Z. */
+internal data class TvLetterJump(val letter: String?, val id: Int)
+
+/**
+ * Where a letter jump lands in title-sorted [items]: the first title filed
+ * under [letter] ("The Office" is under O, as the server files it), else the
+ * first one past it. Null while no loaded title reaches the letter yet.
+ */
+internal fun letterJumpIndex(items: List<BrowseItem>, letter: String?, descending: Boolean): Int? {
+    if (items.isEmpty()) return null
+    if (letter == null) return 0
+    // "#" sorts before A–Z: first when ascending, after Z when descending.
+    fun bucket(item: BrowseItem): Int {
+        val first = sortKey(item.title).firstOrNull()
+        return if (first != null && first in 'A'..'Z') first - 'A' + 1 else 0
+    }
+    val target = if (letter == "#") 0 else (letter.uppercase().first() - 'A' + 1)
+    val index = items.indexOfFirst { if (descending) bucket(it) <= target else bucket(it) >= target }
+    return index.takeIf { it >= 0 }
+}
+
 @Composable
 private fun LibraryTab(
     state: TvLibraryDetailViewModel.UiState,
@@ -431,11 +462,41 @@ private fun LibraryTab(
     val restoredGridItemFocusRequester = remember { FocusRequester() }
     val gridState = rememberLazyGridState()
     var openPanel by remember { mutableStateOf<TvBrowsePanel?>(null) }
+    var letterJump by remember { mutableStateOf<TvLetterJump?>(null) }
+    var letterJumpDone by remember { mutableIntStateOf(0) }
     val gridHeaderCount = listOf(
         showBrowseControls,
         showGenreChips,
         state.selectedAudiobookGroup != null && onClearAudiobookGroup != null,
     ).count { it }
+
+    // Scroll to the jump's letter once a title at or past it is loaded,
+    // loading further pages until one is.
+    LaunchedEffect(letterJump, state.browseItems.size, state.browseHasMore, state.browseLoadingMore) {
+        val jump = letterJump ?: return@LaunchedEffect
+        if (jump.id == letterJumpDone) return@LaunchedEffect
+        val index = letterJumpIndex(
+            items = state.browseItems,
+            letter = jump.letter,
+            descending = state.browseFilter.order.equals("desc", ignoreCase = true),
+        )
+        when {
+            index != null -> {
+                letterJumpDone = jump.id
+                gridState.scrollToItem(libraryLazyGridIndex(itemIndex = index, headerCount = gridHeaderCount))
+            }
+            state.browseHasMore -> if (!state.browseLoadingMore && !state.browseLoading) onLoadMore()
+            else -> {
+                // Nothing at or past the letter: the end of the list is closest.
+                letterJumpDone = jump.id
+                if (state.browseItems.isNotEmpty()) {
+                    gridState.scrollToItem(
+                        libraryLazyGridIndex(itemIndex = state.browseItems.lastIndex, headerCount = gridHeaderCount),
+                    )
+                }
+            }
+        }
+    }
 
     val restoration = rememberTvFlatReturnRestoration(
         itemIds = state.browseItems.map { it.contentId },
@@ -520,8 +581,14 @@ private fun LibraryTab(
         // right edge stays plain up/down grid navigation.
         if (showAlphabetRail && state.browseFilter.sort == TvLibrarySortOption.Title.wireValue) {
             TvAlphabetRail(
-                selected = state.browseFilter.namePrefix,
-                onSelect = onNamePrefixChanged,
+                selected = letterJump?.letter ?: state.browseFilter.namePrefix,
+                // A letter scrolls to the first title starting with it; the
+                // other titles stay. A prefix filter saved by an older build
+                // is cleared first so the whole library is there to scroll.
+                onSelect = { letter ->
+                    if (state.browseFilter.namePrefix != null) onNamePrefixChanged(null)
+                    letterJump = TvLetterJump(letter, (letterJump?.id ?: 0) + 1)
+                },
                 onUpFallbackChanged = onContentUpFallbackChanged,
                 modifier = Modifier.padding(end = Spacing.md),
             )

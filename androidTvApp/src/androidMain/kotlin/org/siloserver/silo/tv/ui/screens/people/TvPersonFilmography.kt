@@ -279,12 +279,12 @@ private fun CreditRow(credit: FilmographyCredit, onClick: () -> Unit) {
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
             contentColor = Color.White,
-            focusedContainerColor = Color.White.copy(alpha = 0.14f),
+            focusedContainerColor = org.siloserver.silo.tv.ui.theme.ChromeSelectedFill,
             focusedContentColor = Color.White,
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.01f),
         border = ClickableSurfaceDefaults.border(
-            focusedBorder = Border(BorderStroke(2.dp, Color.White.copy(alpha = 0.85f)), shape = shape),
+            focusedBorder = Border(BorderStroke(2.dp, org.siloserver.silo.tv.ui.theme.AccentLavender), shape = shape),
         ),
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -414,6 +414,12 @@ private fun TvCreditDialog(credit: FilmographyCredit, onDismiss: () -> Unit) {
                         }
                         Button(
                             onClick = onDismiss,
+                            colors = androidx.tv.material3.ButtonDefaults.colors(
+                                focusedContainerColor = org.siloserver.silo.tv.ui.theme.FocusedContainer,
+                                focusedContentColor = org.siloserver.silo.tv.ui.theme.FocusedContent,
+                                pressedContainerColor = org.siloserver.silo.tv.ui.theme.FocusedContainer,
+                                pressedContentColor = org.siloserver.silo.tv.ui.theme.FocusedContent,
+                            ),
                             modifier = Modifier
                                 .focusRequester(closeFocus)
                                 .onFocusChanged { closeFocused = it.isFocused },

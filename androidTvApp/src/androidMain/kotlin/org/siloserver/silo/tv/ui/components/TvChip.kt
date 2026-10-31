@@ -18,8 +18,6 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
-import org.siloserver.silo.tv.ui.theme.SiloBlue
-import org.siloserver.silo.tv.ui.theme.DarkOnPrimary
 import org.siloserver.silo.tv.ui.theme.FocusedContainer
 import org.siloserver.silo.tv.ui.theme.FocusedContent
 
@@ -43,8 +41,9 @@ fun TvFilterChip(
         onClick = onClick,
         shape = ClickableSurfaceDefaults.shape(shape = shape),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (selected) SiloBlue else Color.Transparent,
-            contentColor = if (selected) DarkOnPrimary else Color.White.copy(alpha = 0.82f),
+            // Selected wears the theme's fill and its matched text colour.
+            containerColor = if (selected) FocusedContainer else Color.Transparent,
+            contentColor = if (selected) FocusedContent else Color.White.copy(alpha = 0.82f),
             focusedContainerColor = FocusedContainer,
             focusedContentColor = FocusedContent,
             pressedContainerColor = FocusedContainer,

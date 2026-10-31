@@ -91,7 +91,7 @@ private fun SpeedFineAdjustRow(
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
     val bg = if (isFocused) Color.White else Color.White.copy(alpha = 0.12f)
-    val fg = if (isFocused) Color.Black else Color.White
+    val fg = if (isFocused) org.siloserver.silo.tv.ui.theme.FocusedContent else Color.White
     Row(
         modifier = Modifier
             .fillMaxWidth()

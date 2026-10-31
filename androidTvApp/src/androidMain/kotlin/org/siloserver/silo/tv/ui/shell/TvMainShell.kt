@@ -41,6 +41,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -543,6 +544,8 @@ fun TvMainShell(
         onOpenCollectionDetail(collectionId, title)
     }
     var contentUpFallback by remember { mutableStateOf<((Boolean) -> Boolean)?>(null) }
+    // Until when a tab press keeps focus on the bar (see onSelectFromBar).
+    var barHoldUntilMs by remember { mutableLongStateOf(0L) }
     // Feeds that registered the up-fallback slot, were superseded by a newer
     // feed, and are still awaiting their (now-stale) onDispose. Tracking them
     // lets us ignore that late dispose instead of nulling the entering feed's
@@ -920,6 +923,32 @@ fun TvMainShell(
         moveFocusToContent(route)
     }
 
+    // Pressing a menu tab changes page but leaves focus on the tab: the viewer
+    // goes into the page with Down. Calendar and Requests keep their own focus
+    // hand-off (the bar stays unfocusable until their page has claimed focus).
+    val onSelectFromBar: (TvRootDestination) -> Unit = { dest ->
+        barHoldUntilMs = android.os.SystemClock.uptimeMillis() + BarHoldAfterTabPressMillis
+        when (dest) {
+            TvRootDestination.Home,
+            TvRootDestination.ForYou,
+            is TvRootDestination.LibraryType -> {
+                if (dest == TvRootDestination.Home) homeDetailReturnFocusState = resetTvDetailReturnFocus()
+                if (dest == TvRootDestination.ForYou) forYouDetailReturnFocusState = resetTvDetailReturnFocus()
+                if (dest is TvRootDestination.LibraryType) {
+                    activeLibrary(dest.type)?.let { lib ->
+                        scopeSelections[dest.type] = lib.id
+                        pillSelections[dest.type] = TvLibraryPill.Recommended
+                        panelScope.launch { tvLibraryScopeStore.setSelectedLibraryId(lib.id, dest.type) }
+                    }
+                }
+                focusState.closePanel()
+                val route = dest.toRoute()
+                if (route != currentRoute) navigateToRoute(route)
+            }
+            else -> onSelectRoot(dest)
+        }
+    }
+
     // Search is no longer a root tab — it's a trailing icon button. Navigate to
     // the (still-defined) Search route and drop focus into the search field.
     val onSearchPressed: () -> Unit = {
@@ -1107,6 +1136,8 @@ fun TvMainShell(
             // Keep the key-event path as a pre-Android-16 remote/keyboard
             // fallback. API 36 Back presses arrive through BackHandler above.
             .onPreviewKeyEvent { ev ->
+                // Any key the viewer presses ends the post-tab-press hold.
+                if (ev.type == KeyEventType.KeyDown) barHoldUntilMs = 0L
                 if (ev.type == KeyEventType.KeyUp &&
                     (ev.key == Key.Back || ev.key == Key.Escape)
                 ) {
@@ -1130,7 +1161,14 @@ fun TvMainShell(
             modifier = Modifier
                 .fillMaxSize()
                 .nestedScroll(nestedScrollConnection)
-                .onFocusChanged { contentHasFocus = it.hasFocus }
+                .onFocusChanged {
+                    contentHasFocus = it.hasFocus
+                    // A page that claims focus on its own just after a tab
+                    // press hands it back: the tab keeps focus until Down.
+                    if (it.hasFocus && android.os.SystemClock.uptimeMillis() < barHoldUntilMs) {
+                        focusState.requestMenuFocusIfAvailable(selectedMenuFocusTarget)
+                    }
+                }
                 .focusRequester(contentFocusRequester)
                 // During a detail-return resume the restorer's saved child is
                 // gone (the shell left composition), so fall back to the
@@ -1544,20 +1582,10 @@ fun TvMainShell(
             selectedRoot = selectedRoot,
             destinations = visibleRoots,
             accountState = accountSnapshot,
-            onSelectRoot = onSelectRoot,
-            onSelectTab = { type ->
-                // Enter/Select on a library-type tab jumps straight to that
-                // type's Recommended content. Prefer a full scope commit (so it
-                // lands on Recommended and closes any open preview panel); fall
-                // back to a plain route nav if the active library hasn't
-                // resolved yet.
-                val activeLib = activeLibrary(type)
-                if (activeLib != null) {
-                    commitScope(type, activeLib, TvLibraryPill.Recommended)
-                } else {
-                    onSelectRoot(TvRootDestination.LibraryType(type))
-                }
-            },
+            onSelectRoot = onSelectFromBar,
+            // Enter/Select on a library-type tab opens that type's Recommended
+            // page and keeps focus on the tab (see onSelectFromBar).
+            onSelectTab = { type -> onSelectFromBar(TvRootDestination.LibraryType(type)) },
             onSearchClick = onSearchPressed,
             onProfileClick = focusState::enterProfileMenu,
             onProfileDwell = focusState::previewProfileMenu,
@@ -2216,3 +2244,6 @@ private fun ProfileDropdownRow(
         }
     }
 }
+
+/** How long after a tab press a page's own focus claim is handed back to the bar. */
+private const val BarHoldAfterTabPressMillis = 1500L

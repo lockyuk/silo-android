@@ -110,7 +110,7 @@ fun TvSkipSeekIndicator(
                             .fillMaxWidth(progress)
                             .height(4.dp)
                             .clip(RoundedCornerShape(percent = 50))
-                            .background(TvPlayerChrome.Paper),
+                            .background(TvPlayerChrome.Progress),
                     )
                 }
             }

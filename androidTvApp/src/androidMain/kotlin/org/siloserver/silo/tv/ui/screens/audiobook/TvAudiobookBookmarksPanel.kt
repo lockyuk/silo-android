@@ -145,7 +145,7 @@ private fun BookmarkActionRow(
             text = "+  $label",
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.SemiBold,
-            color = if (isFocused) Color.Black else Color.White,
+            color = if (isFocused) org.siloserver.silo.tv.ui.theme.FocusedContent else Color.White,
         )
     }
 }
@@ -160,7 +160,7 @@ private fun BookmarkRow(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
-    val fg = if (isFocused) Color.Black else Color.White
+    val fg = if (isFocused) org.siloserver.silo.tv.ui.theme.FocusedContent else Color.White
     // TV Surface (same pattern as TvMediaCard's Card): foundation
     // combinedClickable's onLongClick is unreliable for hardware D-pad
     // long-press, and delete is the only removal path for a bookmark.
@@ -172,10 +172,10 @@ private fun BookmarkRow(
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
             contentColor = Color.White,
-            focusedContainerColor = Color.White,
-            focusedContentColor = Color.Black,
-            pressedContainerColor = Color.White,
-            pressedContentColor = Color.Black,
+            focusedContainerColor = org.siloserver.silo.tv.ui.theme.FocusedContainer,
+            focusedContentColor = org.siloserver.silo.tv.ui.theme.FocusedContent,
+            pressedContainerColor = org.siloserver.silo.tv.ui.theme.FocusedContainer,
+            pressedContentColor = org.siloserver.silo.tv.ui.theme.FocusedContent,
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         modifier = Modifier

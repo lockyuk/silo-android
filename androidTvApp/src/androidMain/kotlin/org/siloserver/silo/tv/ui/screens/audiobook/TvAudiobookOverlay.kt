@@ -174,7 +174,7 @@ internal fun TvAudiobookOverlayRow(
         isCurrent -> Color.White.copy(alpha = 0.12f)
         else -> Color.Transparent
     }
-    val fg = if (isFocused) Color.Black else Color.White
+    val fg = if (isFocused) org.siloserver.silo.tv.ui.theme.FocusedContent else Color.White
     Row(
         modifier = modifier
             .fillMaxWidth()

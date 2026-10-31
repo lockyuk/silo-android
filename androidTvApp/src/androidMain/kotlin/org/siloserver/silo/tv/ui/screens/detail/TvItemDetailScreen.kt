@@ -2485,10 +2485,10 @@ private fun TvAudiobookDetailActionRow(
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.White.copy(alpha = 0.06f),
             contentColor = Color.White,
-            focusedContainerColor = Color.White,
-            focusedContentColor = Color.Black,
-            pressedContainerColor = Color.White,
-            pressedContentColor = Color.Black,
+            focusedContainerColor = org.siloserver.silo.tv.ui.theme.FocusedContainer,
+            focusedContentColor = org.siloserver.silo.tv.ui.theme.FocusedContent,
+            pressedContainerColor = org.siloserver.silo.tv.ui.theme.FocusedContainer,
+            pressedContentColor = org.siloserver.silo.tv.ui.theme.FocusedContent,
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.015f),
         border = ClickableSurfaceDefaults.border(

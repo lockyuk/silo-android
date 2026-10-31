@@ -293,11 +293,11 @@ private fun BrowseControlPill(
     val isFocused by interactionSource.collectIsFocusedAsState()
 
     val container = when {
-        isFocused -> Color.White.copy(alpha = 0.94f)
-        active -> Color.White.copy(alpha = 0.22f)
+        isFocused -> org.siloserver.silo.tv.ui.theme.FocusedContainer
+        active -> org.siloserver.silo.tv.ui.theme.ChromeSelectedFill
         else -> Color.White.copy(alpha = 0.08f)
     }
-    val foreground = if (isFocused) Color.Black else Color.White
+    val foreground = if (isFocused) org.siloserver.silo.tv.ui.theme.FocusedContent else Color.White
 
     Surface(
         onClick = onClick,
@@ -306,10 +306,10 @@ private fun BrowseControlPill(
         colors = ClickableSurfaceDefaults.colors(
             containerColor = container,
             contentColor = foreground,
-            focusedContainerColor = Color.White.copy(alpha = 0.94f),
-            focusedContentColor = Color.Black,
-            pressedContainerColor = Color.White.copy(alpha = 0.94f),
-            pressedContentColor = Color.Black,
+            focusedContainerColor = org.siloserver.silo.tv.ui.theme.FocusedContainer,
+            focusedContentColor = org.siloserver.silo.tv.ui.theme.FocusedContent,
+            pressedContainerColor = org.siloserver.silo.tv.ui.theme.FocusedContainer,
+            pressedContentColor = org.siloserver.silo.tv.ui.theme.FocusedContent,
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.04f),
         border = ClickableSurfaceDefaults.border(
@@ -854,7 +854,7 @@ private fun BrowsePanelRow(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
-    val foreground = (if (isFocused) Color.Black else Color.White).copy(
+    val foreground = (if (isFocused) org.siloserver.silo.tv.ui.theme.FocusedContent else Color.White).copy(
         alpha = if (isFocused) 1f else contentAlpha,
     )
 
@@ -865,10 +865,10 @@ private fun BrowsePanelRow(
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
             contentColor = foreground,
-            focusedContainerColor = Color.White,
-            focusedContentColor = Color.Black,
-            pressedContainerColor = Color.White,
-            pressedContentColor = Color.Black,
+            focusedContainerColor = org.siloserver.silo.tv.ui.theme.FocusedContainer,
+            focusedContentColor = org.siloserver.silo.tv.ui.theme.FocusedContent,
+            pressedContainerColor = org.siloserver.silo.tv.ui.theme.FocusedContainer,
+            pressedContentColor = org.siloserver.silo.tv.ui.theme.FocusedContent,
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         modifier = Modifier

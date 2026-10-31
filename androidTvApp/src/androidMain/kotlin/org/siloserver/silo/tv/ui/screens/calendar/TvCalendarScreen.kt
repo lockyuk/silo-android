@@ -1422,8 +1422,8 @@ private fun CalendarEventCard(
     // button; the caption sits OUTSIDE it and brightens on focus.
     Column(
         modifier = Modifier
-            .width(posterWidth)
-            .alpha(if (item.watched) 0.65f else 1f),
+            // Watched episodes look like the rest; the corner tick says so.
+            .width(posterWidth),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Card(

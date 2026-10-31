@@ -707,8 +707,8 @@ internal fun FilterChoiceChip(
     val isFocused by interactionSource.collectIsFocusedAsState()
 
     val container = when {
-        isFocused -> Color.White.copy(alpha = 0.94f)
-        selected -> Color.White.copy(alpha = 0.22f)
+        isFocused -> org.siloserver.silo.tv.ui.theme.FocusedContainer
+        selected -> org.siloserver.silo.tv.ui.theme.ChromeSelectedFill
         else -> Color.White.copy(alpha = 0.08f)
     }
     val foreground = when {
@@ -724,10 +724,10 @@ internal fun FilterChoiceChip(
         colors = ClickableSurfaceDefaults.colors(
             containerColor = container,
             contentColor = foreground,
-            focusedContainerColor = Color.White.copy(alpha = 0.94f),
-            focusedContentColor = Color.Black,
-            pressedContainerColor = Color.White.copy(alpha = 0.94f),
-            pressedContentColor = Color.Black,
+            focusedContainerColor = org.siloserver.silo.tv.ui.theme.FocusedContainer,
+            focusedContentColor = org.siloserver.silo.tv.ui.theme.FocusedContent,
+            pressedContainerColor = org.siloserver.silo.tv.ui.theme.FocusedContainer,
+            pressedContentColor = org.siloserver.silo.tv.ui.theme.FocusedContent,
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
         border = ClickableSurfaceDefaults.border(

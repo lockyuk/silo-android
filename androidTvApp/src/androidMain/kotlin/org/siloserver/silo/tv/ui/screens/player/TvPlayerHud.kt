@@ -755,12 +755,12 @@ private fun HudTabPill(
     // white-16% marker so the one Paper element on screen is the control
     // you're on. Focus is an inversion, never a scale.
     val bg = when {
-        isFocused -> TvPlayerChrome.Paper
+        isFocused -> TvPlayerChrome.Focus
         isSelected -> Color.White.copy(alpha = 0.16f)
         else -> Color.Transparent
     }
     val fg = when {
-        isFocused -> TvPlayerChrome.Ink
+        isFocused -> TvPlayerChrome.OnFocus
         isSelected -> TvPlayerChrome.Paper
         else -> TvPlayerChrome.Graphite
     }
@@ -984,13 +984,13 @@ private fun HudChip(text: String, onPaper: Boolean = false) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(4.dp))
-            .background(if (onPaper) TvPlayerChrome.Ink.copy(alpha = 0.10f) else TvPlayerChrome.Chip)
+            .background(if (onPaper) TvPlayerChrome.OnFocus.copy(alpha = 0.10f) else TvPlayerChrome.Chip)
             .padding(horizontal = 5.dp, vertical = 2.dp),
     ) {
         Text(
             text = text.uppercase(),
             style = TvPlayerType.Chip,
-            color = if (onPaper) TvPlayerChrome.InkMuted else TvPlayerType.Chip.color,
+            color = if (onPaper) TvPlayerChrome.OnFocusMuted else TvPlayerType.Chip.color,
             maxLines = 1,
         )
     }
@@ -2191,7 +2191,7 @@ private fun StyleColorSwatch(
             .size(32.dp)
             .border(
                 width = 2.dp,
-                color = if (isFocused) TvPlayerChrome.Paper else Color.Transparent,
+                color = if (isFocused) TvPlayerChrome.Focus else Color.Transparent,
                 shape = CircleShape,
             )
             .padding(4.dp)
@@ -2316,10 +2316,10 @@ private data class HudRowColors(
 
 private fun hudRowColors(focused: Boolean, current: Boolean = false): HudRowColors = when {
     focused -> HudRowColors(
-        background = TvPlayerChrome.Paper,
-        content = TvPlayerChrome.Ink,
-        detail = TvPlayerChrome.InkMuted,
-        chevron = TvPlayerChrome.Ink.copy(alpha = 0.45f),
+        background = TvPlayerChrome.Focus,
+        content = TvPlayerChrome.OnFocus,
+        detail = TvPlayerChrome.OnFocusMuted,
+        chevron = TvPlayerChrome.OnFocus.copy(alpha = 0.45f),
     )
     current -> HudRowColors(
         background = TvPlayerChrome.Selected,
@@ -2610,13 +2610,13 @@ private fun HudChapterRow(
                     .fillMaxWidth()
                     .height(2.dp)
                     .clip(RoundedCornerShape(1.dp))
-                    .background(if (isFocused) TvPlayerChrome.Ink.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.14f)),
+                    .background(if (isFocused) TvPlayerChrome.OnFocus.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.14f)),
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(progress)
                         .height(2.dp)
-                        .background(if (isFocused) TvPlayerChrome.Ink else TvPlayerChrome.Paper),
+                        .background(if (isFocused) TvPlayerChrome.OnFocus else TvPlayerChrome.Progress),
                 )
             }
         }

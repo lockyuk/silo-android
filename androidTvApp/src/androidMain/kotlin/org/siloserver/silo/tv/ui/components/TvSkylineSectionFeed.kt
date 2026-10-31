@@ -818,6 +818,11 @@ fun TvSkylineSectionFeed(
         if (initialFocusRequested || firstRowId == null) return@LaunchedEffect
         delay(120)
         if (initialFocusRequested) return@LaunchedEffect
+        // Opened from a menu tab that kept focus: leave it there; Down enters.
+        if (org.siloserver.silo.tv.ui.shell.TvMenuBarFocus.held) {
+            initialFocusRequested = true
+            return@LaunchedEffect
+        }
         detailReturnPending = false
         requestFirstRowFocus()
         initialFocusRequested = true

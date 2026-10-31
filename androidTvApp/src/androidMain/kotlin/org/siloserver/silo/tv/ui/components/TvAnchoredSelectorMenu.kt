@@ -461,12 +461,12 @@ private fun ConnectedSelectorTrigger(
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
     val foreground by animateColorAsState(
-        targetValue = if (focused) Color.Black else Color.White,
+        targetValue = if (focused) org.siloserver.silo.tv.ui.theme.FocusedContent else Color.White,
         animationSpec = tween(120),
         label = "selectorSegmentForeground",
     )
     val fill by animateColorAsState(
-        targetValue = if (focused) Color.White else Color.Transparent,
+        targetValue = if (focused) org.siloserver.silo.tv.ui.theme.FocusedContainer else Color.Transparent,
         animationSpec = tween(120),
         label = "selectorSegmentFill",
     )

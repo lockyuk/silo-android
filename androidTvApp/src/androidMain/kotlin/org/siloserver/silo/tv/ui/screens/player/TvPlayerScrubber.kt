@@ -419,7 +419,7 @@ fun TvPlayerScrubber(
                     chapterFractions = chapterFractions,
                     trackColor = Color.White.copy(alpha = trackAlpha),
                     bufferedColor = Color.White.copy(alpha = 0.20f),
-                    playedColor = TvPlayerChrome.Paper,
+                    playedColor = TvPlayerChrome.Progress,
                     playedFraction = totalProgress,
                     bufferedFraction = bufferedFrac.coerceAtLeast(totalProgress),
                     bands = markerBands,
@@ -441,7 +441,7 @@ fun TvPlayerScrubber(
                         .size(puckSize)
                         .shadow(8.dp, CircleShape, clip = false)
                         .clip(CircleShape)
-                        .background(Color.White),
+                        .background(TvPlayerChrome.Progress),
                 )
             }
 
@@ -591,7 +591,7 @@ private fun TvScrubberAutoSeekChip(rate: Int, modifier: Modifier = Modifier) {
         modifier = modifier
             .shadow(8.dp, RoundedCornerShape(percent = 50), clip = false)
             .clip(RoundedCornerShape(percent = 50))
-            .background(Color.White)
+            .background(TvPlayerChrome.Focus)
             .padding(horizontal = 9.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -599,12 +599,12 @@ private fun TvScrubberAutoSeekChip(rate: Int, modifier: Modifier = Modifier) {
         Icon(
             imageVector = if (rate < 0) Icons.Filled.FastRewind else Icons.Filled.FastForward,
             contentDescription = null,
-            tint = Color.Black,
+            tint = TvPlayerChrome.OnFocus,
             modifier = Modifier.size(12.dp),
         )
         Text(
             text = "${abs(rate)}x",
-            color = Color.Black,
+            color = TvPlayerChrome.OnFocus,
             maxLines = 1,
             softWrap = false,
             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),

@@ -215,17 +215,17 @@ private fun LetterButton(
     }
     val containerColor = when {
         !expanded -> Color.Transparent
-        isAll && isFocused -> Color.White.copy(alpha = 0.94f)
-        isAll && isSelected -> Color.White.copy(alpha = 0.22f)
+        isAll && isFocused -> org.siloserver.silo.tv.ui.theme.FocusedContainer
+        isAll && isSelected -> org.siloserver.silo.tv.ui.theme.ChromeSelectedFill
         isAll -> Color.White.copy(alpha = 0.08f)
-        chip -> Color.White
+        chip -> org.siloserver.silo.tv.ui.theme.FocusedContainer
         else -> Color.Transparent
     }
     val contentColor = when {
         !expanded -> Color.Transparent
-        isFocused -> Color.Black
+        isFocused -> org.siloserver.silo.tv.ui.theme.FocusedContent
         isAll && isSelected -> Color.White
-        isSelected -> Color.Black
+        isSelected -> org.siloserver.silo.tv.ui.theme.FocusedContent
         isAll -> Color.White.copy(alpha = 0.85f)
         else -> Color.White.copy(alpha = 0.55f)
     }
@@ -239,12 +239,11 @@ private fun LetterButton(
             contentColor = contentColor,
             focusedContainerColor = when {
                 !expanded -> Color.Transparent
-                isAll -> Color.White.copy(alpha = 0.94f)
-                else -> Color.White
+                else -> org.siloserver.silo.tv.ui.theme.FocusedContainer
             },
-            focusedContentColor = Color.Black,
-            pressedContainerColor = Color.White,
-            pressedContentColor = Color.Black,
+            focusedContentColor = org.siloserver.silo.tv.ui.theme.FocusedContent,
+            pressedContainerColor = org.siloserver.silo.tv.ui.theme.FocusedContainer,
+            pressedContentColor = org.siloserver.silo.tv.ui.theme.FocusedContent,
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = if (expanded && isAll) 1.05f else 1f),
         modifier = when {
