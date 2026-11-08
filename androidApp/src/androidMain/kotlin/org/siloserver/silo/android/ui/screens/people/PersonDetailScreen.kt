@@ -110,6 +110,16 @@ fun PersonDetailScreen(
                     onRefresh = { viewModel.reload() },
                     modifier = Modifier.fillMaxSize(),
                 ) {
+                val credits by rememberPluginCredits(state.person!!)
+                val full = credits
+                if (full != null && full.isNotEmpty()) {
+                    PersonFullFilmography(
+                        person = state.person!!,
+                        isRefreshingMetadata = state.isRefreshingMetadata,
+                        credits = full,
+                        onItemClick = onItemClick,
+                    )
+                } else
                 PersonDetailContent(
                     person = state.person!!,
                     isRefreshingMetadata = state.isRefreshingMetadata,
@@ -270,7 +280,7 @@ private fun PersonDetailContent(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun PersonHeader(person: Person, isRefreshingMetadata: Boolean = false) {
+internal fun PersonHeader(person: Person, isRefreshingMetadata: Boolean = false) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(18.dp),
@@ -348,7 +358,7 @@ private fun PersonHeader(person: Person, isRefreshingMetadata: Boolean = false) 
 }
 
 @Composable
-private fun PersonPortrait(person: Person) {
+internal fun PersonPortrait(person: Person) {
     val width = 132.dp
     val height = (width.value * 1.5f).dp
     val shape = RoundedCornerShape(8.dp)

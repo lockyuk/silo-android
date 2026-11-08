@@ -701,6 +701,9 @@ fun AppNavigation(
         LocalSharedTransitionScope provides this,
         LocalHeroSourceHandoff provides heroSourceHandoff,
         LocalProfileSwitch provides switchProfile,
+        org.siloserver.silo.android.ui.screens.detail.LocalOpenRequestDetail provides { mediaType, tmdbId ->
+            navController.navigate(Route.RequestDetail(mediaType, tmdbId).route)
+        },
     ) {
     Box(modifier = Modifier.fillMaxSize()) {
     // The first-run screens draw over one shared brand-light backdrop that

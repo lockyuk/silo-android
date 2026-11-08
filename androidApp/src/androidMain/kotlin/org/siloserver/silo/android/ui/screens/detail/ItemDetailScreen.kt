@@ -185,6 +185,16 @@ fun ItemDetailScreen(
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.uiState.collectAsState()
+    // Warm the image cache with artwork and cast photos the view model found ahead of time.
+    val prefetchContext = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(viewModel) {
+        viewModel.prefetchImageUrls.collect { urls ->
+            val loader = coil3.SingletonImageLoader.get(prefetchContext)
+            urls.forEach { url ->
+                loader.enqueue(coil3.request.ImageRequest.Builder(prefetchContext).data(url).build())
+            }
+        }
+    }
     DetailThemeMusic(koinInject<ThemeMusicService>(), rememberDetailThemes(state))
     val shuffleLauncher = org.siloserver.silo.android.ui.screens.shuffle.rememberShuffleLauncher(onShuffleStarted)
     val seriesRedirect = remember(state.detail, allowSeriesRedirect) {

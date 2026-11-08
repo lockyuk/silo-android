@@ -93,6 +93,37 @@ object ExternalRatings {
      */
     fun forPhone(ratings: List<DisplayRating>): List<DisplayRating> = ratings.take(PHONE_LIMIT)
 
+    const val SOURCE_RT_CRITIC = "rt_critic"
+    const val SOURCE_RT_AUDIENCE = "rt_audience"
+
+    /**
+     * Every rating the title has, for the phone's graphic ratings row: the
+     * server's chosen list first, then any of IMDb, TMDB and Rotten Tomatoes
+     * critic and audience scores it did not include.
+     */
+    fun everything(
+        ratings: List<DisplayRating>?,
+        ratingImdb: Double?,
+        ratingTmdb: Double?,
+        ratingRtCritic: Int?,
+        ratingRtAudience: Int?,
+    ): List<DisplayRating> {
+        val base = forTitle(ratings, ratingImdb, ratingTmdb)
+        val have = base.map { it.source }.toSet()
+        val extra = listOfNotNull(
+            imdb(ratingImdb),
+            tmdb(ratingTmdb),
+            percent(SOURCE_RT_CRITIC, "RT Critics", ratingRtCritic),
+            percent(SOURCE_RT_AUDIENCE, "RT Audience", ratingRtAudience),
+        ).filter { it.source !in have }
+        return base + extra
+    }
+
+    private fun percent(source: String, name: String, value: Int?): DisplayRating? {
+        if (value == null || value !in 1..100) return null
+        return DisplayRating(source = source, name = name, score = value.toDouble(), display = "$value%")
+    }
+
     /** The one rating a hero shows from card fields: IMDb, else TMDB. */
     fun primary(ratingImdb: Double?, ratingTmdb: Double?): DisplayRating? =
         imdb(ratingImdb) ?: tmdb(ratingTmdb)
@@ -122,6 +153,10 @@ object ExternalRatings {
         )
     }
 }
+
+/** Every rating this title has; see [ExternalRatings.everything]. */
+fun ItemDetail.allRatings(): List<DisplayRating> =
+    ExternalRatings.everything(ratings, ratingImdb, ratingTmdb, ratingRtCritic, ratingRtAudience)
 
 /** This title's ratings row; see [ExternalRatings.forTitle]. */
 fun ItemDetail.titleRatings(): List<DisplayRating> =
