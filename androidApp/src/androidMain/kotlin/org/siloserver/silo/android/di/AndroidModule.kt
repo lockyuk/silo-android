@@ -540,6 +540,7 @@ val androidModule = module {
             get(), get(), get(), get(), get(), get(), get(), params.get(),
             getOrNull<org.siloserver.silo.repository.port.UserItemStatePort>() ?: org.siloserver.silo.repository.port.NoOpUserItemStatePort,
             seriesTrackChoiceWriter = get(),
+            notificationsRepository = get(),
         )
     }
     viewModel { params -> PersonDetailViewModel(get(), params.get(), get()) }

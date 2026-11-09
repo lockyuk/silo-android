@@ -18,6 +18,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NotificationsRepositoryTest {
@@ -189,6 +190,27 @@ class NotificationsRepositoryTest {
         override suspend fun getPreferences() = prefsResponse
         override suspend fun updatePreferences(update: NotificationPreferencesUpdate) = prefsResponse
         override suspend fun capability() = capabilityResponse
+        var followed: ApiResult<Set<String>> = ApiResult.Success(emptySet())
+        var followCalls = mutableListOf<Pair<String, Boolean>>()
+        override suspend fun followedSeriesIds() = followed
+        override suspend fun setSeriesFollowed(seriesId: String, followed: Boolean): ApiResult<Unit> {
+            followCalls += seriesId to followed
+            return ApiResult.Success(Unit)
+        }
+    }
+
+    @Test
+    fun `following a series updates the followed set`() = kotlinx.coroutines.test.runTest {
+        val api = FakeNotificationsApi().apply { followed = ApiResult.Success(setOf("series-a")) }
+        val repo = NotificationsRepository(api)
+        assertNull(repo.followedSeries.value)
+        repo.loadFollowedSeries()
+        assertEquals(setOf("series-a"), repo.followedSeries.value)
+        repo.setSeriesFollowed("series-b", true)
+        assertEquals(setOf("series-a", "series-b"), repo.followedSeries.value)
+        repo.setSeriesFollowed("series-a", false)
+        assertEquals(setOf("series-b"), repo.followedSeries.value)
+        assertEquals(listOf("series-b" to true, "series-a" to false), api.followCalls)
     }
 
     @Test

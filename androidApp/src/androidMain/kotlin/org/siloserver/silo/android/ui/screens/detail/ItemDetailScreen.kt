@@ -759,6 +759,8 @@ fun ItemDetailScreen(
                             isLoadingEpisodes = state.isLoadingEpisodes,
                             isFavorite = state.isFavorite,
                             isInWatchlist = state.isInWatchlist,
+                            isFollowing = state.isFollowingSeries,
+                            onToggleFollow = if (state.followAvailable) viewModel::toggleFollowSeries else null,
                             nextEpisodeLabel = nextEpisodeLabel,
                             selectedEpisodeContentId = state.selectedEpisodeContentId,
                             selectedEpisodeDetail = selectedEpisodeDetail?.let(state::withPickedSeriesChoices),

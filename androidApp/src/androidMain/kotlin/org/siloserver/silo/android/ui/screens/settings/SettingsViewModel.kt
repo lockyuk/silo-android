@@ -174,10 +174,8 @@ data class SettingsUiState(
     // reports in-app notifications are enabled AND preferences load.
     val notificationsAvailable: Boolean = false,
     val notificationsEnabled: Boolean = true,
-    val notifyFavorites: Boolean = true,
-    val notifyWatchlist: Boolean = true,
-    val notifyContinueWatching: Boolean = true,
-    val notifyNextUp: Boolean = true,
+    val notifyNewEpisodes: Boolean = true,
+    val notifyNewMovies: Boolean = true,
 )
 
 class SettingsViewModel(
@@ -465,10 +463,8 @@ class SettingsViewModel(
                     state.copy(
                         notificationsAvailable = true,
                         notificationsEnabled = preferences.enabled,
-                        notifyFavorites = preferences.notifyFavorites,
-                        notifyWatchlist = preferences.notifyWatchlist,
-                        notifyContinueWatching = preferences.notifyContinueWatching,
-                        notifyNextUp = preferences.notifyNextUp,
+                        notifyNewEpisodes = preferences.notifyNewEpisodes,
+                        notifyNewMovies = preferences.notifyNewMovies,
                     )
                 }
             }
@@ -553,26 +549,14 @@ class SettingsViewModel(
         updateNotificationPreferences(NotificationPreferencesUpdate(enabled = value))
     }
 
-    fun setNotifyFavorites(value: Boolean) {
-        updateNotificationPreferences(NotificationPreferencesUpdate(notifyFavorites = value))
+    fun setNotifyNewEpisodes(value: Boolean) {
+        updateNotificationPreferences(NotificationPreferencesUpdate(notifyNewEpisodes = value))
     }
 
-    fun setNotifyWatchlist(value: Boolean) {
-        updateNotificationPreferences(NotificationPreferencesUpdate(notifyWatchlist = value))
+    fun setNotifyNewMovies(value: Boolean) {
+        updateNotificationPreferences(NotificationPreferencesUpdate(notifyNewMovies = value))
     }
 
-    fun setNotifyContinueWatching(value: Boolean) {
-        updateNotificationPreferences(NotificationPreferencesUpdate(notifyContinueWatching = value))
-    }
-
-    fun setNotifyNextUp(value: Boolean) {
-        updateNotificationPreferences(NotificationPreferencesUpdate(notifyNextUp = value))
-    }
-
-    /**
-     * Sends a partial PUT (one named field) and lets the repository's
-     * preferences flow drive the UI back to the server's truth.
-     */
     private fun updateNotificationPreferences(update: NotificationPreferencesUpdate) {
         viewModelScope.launch { notificationsRepository.updatePreferences(update) }
     }

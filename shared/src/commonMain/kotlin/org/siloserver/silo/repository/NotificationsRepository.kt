@@ -330,6 +330,29 @@ class NotificationsRepository(
         return result
     }
 
+    private val _followedSeries = MutableStateFlow<Set<String>?>(null)
+
+    /** Ids of the series the active profile follows; null until loaded. */
+    val followedSeries: StateFlow<Set<String>?> = _followedSeries.asStateFlow()
+
+    suspend fun loadFollowedSeries() {
+        val viewer = viewer()
+        val result = viewer.api.followedSeriesIds()
+        if (result is ApiResult.Success) publishFor(viewer) { _followedSeries.value = result.data }
+    }
+
+    /** Follows or unfollows [seriesId], updating [followedSeries] on success. */
+    suspend fun setSeriesFollowed(seriesId: String, followed: Boolean): ApiResult<Unit> {
+        val viewer = viewer()
+        val result = viewer.api.setSeriesFollowed(seriesId, followed)
+        if (!current(viewer)) return ApiResult.Error(0, "identity_changed", "The active viewer changed.")
+        if (result is ApiResult.Success) publishFor(viewer) {
+            val now = _followedSeries.value ?: emptySet()
+            _followedSeries.value = if (followed) now + seriesId else now - seriesId
+        }
+        return result
+    }
+
     suspend fun loadCapability() {
         val viewer = viewer()
         val result = viewer.api.capability()
@@ -352,6 +375,7 @@ class NotificationsRepository(
         _nextCursor.value = null
         _preferences.value = null
         _capability.value = null
+        _followedSeries.value = null
         _resetSignals.tryEmit(Unit)
     }
 

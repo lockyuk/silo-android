@@ -39,7 +39,7 @@ class NotificationModelsSerializationTest {
               "poster_path": "/p/sev.jpg",
               "poster_url": "https://cdn/sev.jpg",
               "poster_thumbhash": "1QcSHQRnh493V4dIh4eXh1h4kJUI",
-              "reason_flags": {"favorite": true, "next_up": true},
+              "reason_flags": {"followed": true},
               "created_at": "2026-06-12T09:30:00Z",
               "read_at": null
             }
@@ -61,12 +61,10 @@ class NotificationModelsSerializationTest {
         assertNull(row.readAt)
         assertFalse(row.isRead)
         // typed flags view
-        assertTrue(row.reasonFlagsTyped.favorite)
-        assertTrue(row.reasonFlagsTyped.nextUp)
-        assertFalse(row.reasonFlagsTyped.watchlist)
-        assertFalse(row.reasonFlagsTyped.continueWatching)
+        assertTrue(row.reasonFlagsTyped.followed)
+        assertFalse(row.reasonFlagsTyped.newRelease)
         // raw JsonObject preserved
-        assertEquals(true, (row.reasonFlags["favorite"] as JsonPrimitive).boolean)
+        assertEquals(true, (row.reasonFlags["followed"] as JsonPrimitive).boolean)
     }
 
     @Test
@@ -150,17 +148,16 @@ class NotificationModelsSerializationTest {
     fun `preferences default all-enabled and round-trip`() {
         val prefs = json.decodeFromString(
             NotificationPreferences.serializer(),
-            """{"profile_id":"p","enabled":true,"notify_favorites":true,
-                "notify_watchlist":false,"notify_continue_watching":true,"notify_next_up":true}""",
+            """{"profile_id":"p","enabled":true,"notify_new_episodes":false,"notify_new_movies":true}""",
         )
         assertTrue(prefs.enabled)
-        assertFalse(prefs.notifyWatchlist)
+        assertFalse(prefs.notifyNewEpisodes)
         // partial PUT body omits nulls (encodeDefaults+explicitNulls=false → only set fields)
         val body = json.encodeToString(
             NotificationPreferencesUpdate.serializer(),
-            NotificationPreferencesUpdate(notifyWatchlist = true),
+            NotificationPreferencesUpdate(notifyNewEpisodes = true),
         )
-        assertTrue("notify_watchlist" in body)
+        assertTrue("notify_new_episodes" in body)
         assertFalse("enabled" in body)
     }
 
@@ -170,16 +167,13 @@ class NotificationModelsSerializationTest {
             {"in_app":{"enabled":true},
              "apple_push":{"available":false,"provider":"off","supported_modes":["in_app_only"]},
              "android_push":{"available":false,"provider":"off","supported_modes":["in_app_only"]},
-             "web_push":{"available":false},
              "webhooks":{"available":false,"max_per_profile":0,"supported_types":[]},
-             "email":{"available":false,"modes":[],"digest_hour":0},
-             "discord":{"available":false,"modes":[],"digest_hour":0}}
+             "email":{"available":false,"modes":[],"digest_hour":0}}
         """.trimIndent()
         val cap = json.decodeFromString(NotificationCapability.serializer(), payload)
         assertTrue(cap.inApp.enabled)
         assertFalse(cap.androidPush.available)
         assertEquals("off", cap.androidPush.provider)
-        assertFalse(cap.webPush.available)
     }
 
     @Test

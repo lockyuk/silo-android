@@ -117,6 +117,10 @@ data class ItemDetailUiState(
     val allEpisodeIdsComplete: Boolean = false,
     val isFavorite: Boolean = false,
     val isInWatchlist: Boolean = false,
+    /** The server delivers notifications and the follow list loaded, so a series can be followed. */
+    val followAvailable: Boolean = false,
+    /** The profile follows this series: each new episode notifies it. */
+    val isFollowingSeries: Boolean = false,
     val userRating: Int? = null,
     val error: String? = null,
     val selectedVersionIndex: Int = 0,
@@ -175,6 +179,8 @@ class ItemDetailViewModel(
         org.siloserver.silo.repository.port.NoOpUserItemStatePort,
     /** Remembers a manual subtitle choice for the whole series on the server. */
     private val seriesTrackChoiceWriter: org.siloserver.silo.common.settings.SeriesTrackChoiceWriter? = null,
+    /** Follows series for new-episode notifications; null leaves following out. */
+    private val notificationsRepository: org.siloserver.silo.repository.NotificationsRepository? = null,
 ) : ViewModel() {
     /** Access changes this ViewModel has applied, kept while its screen is away. */
     val accessChanges = org.siloserver.silo.network.AccessChangeCursor()
@@ -280,6 +286,30 @@ class ItemDetailViewModel(
         // the picker falls back to an optimistic list; the server still rejects
         // a disallowed quality. Cached in the repo, so this is cheap per detail.
         viewModelScope.launch { downloadsRepository.refreshCapability() }
+        observeSeriesFollow()
+    }
+
+    private fun observeSeriesFollow() {
+        val notifications = notificationsRepository ?: return
+        if (contentId.isBlank()) return
+        viewModelScope.launch {
+            notifications.loadCapability()
+            notifications.loadFollowedSeries()
+        }
+        viewModelScope.launch {
+            kotlinx.coroutines.flow.combine(notifications.capability, notifications.followedSeries) { capability, followed ->
+                (capability?.inApp?.enabled == true && followed != null) to (followed?.contains(contentId) == true)
+            }.collect { (available, following) ->
+                _uiState.update { it.copy(followAvailable = available, isFollowingSeries = following) }
+            }
+        }
+    }
+
+    /** Follows or unfollows this series for new-episode notifications. */
+    fun toggleFollowSeries() {
+        val notifications = notificationsRepository ?: return
+        val follow = !_uiState.value.isFollowingSeries
+        viewModelScope.launch { notifications.setSeriesFollowed(contentId, follow) }
     }
 
     /**

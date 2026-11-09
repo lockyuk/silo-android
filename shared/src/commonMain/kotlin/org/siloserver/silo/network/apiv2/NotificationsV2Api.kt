@@ -19,6 +19,12 @@ private data class InboxSyncV2(val items: List<NotificationRow>, val page: PageI
     @SerialName("initial_snapshot") val initialSnapshot: Boolean)
 @Serializable
 private data class InboxReadThroughV2(val through: String)
+@Serializable
+private data class FollowedSeriesItemV2(@SerialName("content_id") val contentId: String)
+@Serializable
+private data class FollowedSeriesEntryV2(val item: FollowedSeriesItemV2)
+@Serializable
+private data class FollowedSeriesPageV2(val items: List<FollowedSeriesEntryV2>, val page: PageInfo)
 
 /** Each repository operation freezes one viewer; mutations never use auth-interceptor replay. */
 class NotificationsV2Api(
@@ -89,4 +95,34 @@ class NotificationsV2Api(
         }
     override suspend fun capability(): ApiResult<NotificationCapability> =
         exchange(HttpMethod.Get, "/api/v2/notifications/capabilities")
+    override suspend fun setSeriesFollowed(seriesId: String, followed: Boolean): ApiResult<Unit> =
+        exchange(if (followed) HttpMethod.Put else HttpMethod.Delete,
+            "/api/v2/notifications/series/${seriesId.encodeURLPathPart()}/follow")
+    override suspend fun followedSeriesIds(): ApiResult<Set<String>> {
+        val ids = LinkedHashSet<String>()
+        var cursor: String? = null
+        // A profile follows far fewer series than this; the cap only bounds a misbehaving server.
+        repeat(MAX_FOLLOWED_PAGES) {
+            val page = exchange<FollowedSeriesPageV2, FollowedSeriesPageV2>(HttpMethod.Get, "/api/v2/notifications/series", {
+                parameter("status", "followed"); parameter("limit", FOLLOWED_PAGE_SIZE)
+                cursor?.let { parameter("cursor", it) }
+            }) { it }
+            when (page) {
+                is ApiResult.Success -> {
+                    page.data.items.forEach { ids.add(it.item.contentId) }
+                    val next = page.data.page.nextCursor
+                    if (!page.data.page.hasMore || next.isNullOrBlank() || next == cursor) return ApiResult.Success(ids)
+                    cursor = next
+                }
+                is ApiResult.Error -> return page
+                is ApiResult.NetworkError -> return page
+            }
+        }
+        return ApiResult.Success(ids)
+    }
+
+    private companion object {
+        const val FOLLOWED_PAGE_SIZE = 200
+        const val MAX_FOLLOWED_PAGES = 20
+    }
 }

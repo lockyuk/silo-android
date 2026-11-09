@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.NotificationAdd
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.AudioFile
@@ -101,6 +103,9 @@ fun SeriesDetailContent(
     translation: (@Composable () -> Unit)? = null,
     // The season whose translation job, which fills its episodes' descriptions, is running.
     translatingSeasonContentId: String? = null,
+    /** Follows or unfollows the series for new-episode notifications; null when unavailable. */
+    onToggleFollow: (() -> Unit)? = null,
+    isFollowing: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val dominantColor by rememberDominantColor(
@@ -348,7 +353,8 @@ fun SeriesDetailContent(
                     onToggleWatched = onToggleWatched,
                     overflow = if (
                         markableSelectedSeason != null || partyAction != null ||
-                        onShuffleSeries != null || shuffleableSelectedSeason != null
+                        onShuffleSeries != null || shuffleableSelectedSeason != null ||
+                        onToggleFollow != null
                     ) {
                         { dismiss ->
                             if (onShuffleSeries != null) {
@@ -393,6 +399,21 @@ fun SeriesDetailContent(
                                     onClick = {
                                         dismiss()
                                         onSeasonWatchedChange(markableSelectedSeason, !seasonWatched)
+                                    },
+                                )
+                            }
+                            if (onToggleFollow != null) {
+                                SiloDropdownMenuItem(
+                                    text = { Text(if (isFollowing) "Stop Following" else "Follow for Notifications") },
+                                    leadingIcon = {
+                                        Icon(
+                                            if (isFollowing) Icons.Filled.Notifications else Icons.Filled.NotificationAdd,
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    onClick = {
+                                        dismiss()
+                                        onToggleFollow()
                                     },
                                 )
                             }

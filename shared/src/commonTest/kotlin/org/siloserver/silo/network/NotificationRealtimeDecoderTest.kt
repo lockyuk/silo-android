@@ -36,13 +36,13 @@ class NotificationRealtimeDecoderTest {
             {"type":"event","channel":"notifications","event":"notification.created",
              "event_id":"e1","timestamp":"2026-06-12T09:05:00Z",
              "data":{"id":"c1","type":"episode.available","profile_id":"p",
-               "reason_flags":{"favorite":true},
+               "reason_flags":{"followed":true},
                "created_at":"2026-06-12T09:05:00Z","read_at":null}}
         """.trimIndent()
         val event = decodeRealtimeFrame(json, frame)
         val created = assertIs<NotificationRealtimeEvent.Created>(event)
         assertEquals("c1", created.row.id)
-        assertTrue(created.row.reasonFlagsTyped.favorite)
+        assertTrue(created.row.reasonFlagsTyped.followed)
     }
 
     @Test

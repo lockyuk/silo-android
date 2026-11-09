@@ -47,20 +47,16 @@ object NotificationRealtime {
  */
 @Serializable
 data class NotificationReasonFlags(
-    val favorite: Boolean = false,
-    val watchlist: Boolean = false,
-    @SerialName("continue_watching") val continueWatching: Boolean = false,
-    @SerialName("next_up") val nextUp: Boolean = false,
+    val followed: Boolean = false,
+    @SerialName("new_release") val newRelease: Boolean = false,
 ) {
-    val any: Boolean get() = favorite || watchlist || continueWatching || nextUp
+    val any: Boolean get() = followed || newRelease
 
     companion object {
         /** Lenient read straight off a wire [JsonObject] (never throws). */
         fun from(flags: JsonObject): NotificationReasonFlags = NotificationReasonFlags(
-            favorite = flags.bool("favorite"),
-            watchlist = flags.bool("watchlist"),
-            continueWatching = flags.bool("continue_watching"),
-            nextUp = flags.bool("next_up"),
+            followed = flags.bool("followed"),
+            newRelease = flags.bool("new_release"),
         )
 
         private fun JsonObject.bool(key: String): Boolean =
@@ -143,10 +139,10 @@ data class WsTicketResponse(
 data class NotificationPreferences(
     @SerialName("profile_id") val profileId: String = "",
     val enabled: Boolean = true,
-    @SerialName("notify_favorites") val notifyFavorites: Boolean = true,
-    @SerialName("notify_watchlist") val notifyWatchlist: Boolean = true,
-    @SerialName("notify_continue_watching") val notifyContinueWatching: Boolean = true,
-    @SerialName("notify_next_up") val notifyNextUp: Boolean = true,
+    /** Every new episode the profile can open. Off: only the series it follows. */
+    @SerialName("notify_new_episodes") val notifyNewEpisodes: Boolean = true,
+    /** Every new movie the profile can open. */
+    @SerialName("notify_new_movies") val notifyNewMovies: Boolean = true,
 )
 
 /**
@@ -157,10 +153,8 @@ data class NotificationPreferences(
 @Serializable
 data class NotificationPreferencesUpdate(
     val enabled: Boolean? = null,
-    @SerialName("notify_favorites") val notifyFavorites: Boolean? = null,
-    @SerialName("notify_watchlist") val notifyWatchlist: Boolean? = null,
-    @SerialName("notify_continue_watching") val notifyContinueWatching: Boolean? = null,
-    @SerialName("notify_next_up") val notifyNextUp: Boolean? = null,
+    @SerialName("notify_new_episodes") val notifyNewEpisodes: Boolean? = null,
+    @SerialName("notify_new_movies") val notifyNewMovies: Boolean? = null,
 )
 
 /** GET /api/v2/notifications/capabilities — drives the settings UI. */
@@ -169,10 +163,8 @@ data class NotificationCapability(
     @SerialName("in_app") val inApp: CapabilityInApp = CapabilityInApp(),
     @SerialName("apple_push") val applePush: CapabilityPush = CapabilityPush(),
     @SerialName("android_push") val androidPush: CapabilityPush = CapabilityPush(),
-    @SerialName("web_push") val webPush: CapabilityWebPush = CapabilityWebPush(),
     val webhooks: CapabilityWebhooks = CapabilityWebhooks(),
     val email: CapabilityAccountChannel = CapabilityAccountChannel(),
-    val discord: CapabilityAccountChannel = CapabilityAccountChannel(),
 )
 
 @Serializable
@@ -183,12 +175,6 @@ data class CapabilityPush(
     val available: Boolean = false,
     val provider: String = "off",
     @SerialName("supported_modes") val supportedModes: List<String> = emptyList(),
-)
-
-@Serializable
-data class CapabilityWebPush(
-    val available: Boolean = false,
-    @SerialName("public_key") val publicKey: String = "",
 )
 
 @Serializable

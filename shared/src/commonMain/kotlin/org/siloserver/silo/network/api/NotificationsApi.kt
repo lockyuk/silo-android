@@ -59,4 +59,15 @@ interface NotificationsApi {
 
     /** GET /api/v2/notifications/capabilities — drives the settings UI. */
     suspend fun capability(): ApiResult<NotificationCapability>
+
+    /**
+     * PUT or DELETE /api/v2/notifications/series/{seriesId}/follow — 204, idempotent.
+     * Following makes each new episode of the series notify the profile.
+     */
+    suspend fun setSeriesFollowed(seriesId: String, followed: Boolean): ApiResult<Unit> =
+        ApiResult.Error(0, "unsupported", "Following is not supported.")
+
+    /** GET /api/v2/notifications/series?status=followed — the ids of every followed series. */
+    suspend fun followedSeriesIds(): ApiResult<Set<String>> =
+        ApiResult.Error(0, "unsupported", "Following is not supported.")
 }

@@ -399,29 +399,18 @@ fun SettingsNotificationsScreen(viewModel: SettingsViewModel, onBackClick: () ->
             item(key = "topics") {
                 SettingsSection(
                     title = "Notify Me About",
-                    footer = "Favorites and Next Up cover new episodes of series you follow. Watchlist covers " +
-                        "titles that become available. Continue Watching covers titles you started but " +
-                        "haven't finished.",
+                    footer = "Turn on Every New Episode to hear about all new episodes. Leave it off to hear only " +
+                        "about the shows you follow; follow a show from its page.",
                 ) {
                     SettingsSwitchRow(
-                        label = "Favorites",
-                        checked = state.notifyFavorites,
-                        onCheckedChange = viewModel::setNotifyFavorites,
+                        label = "Every new episode",
+                        checked = state.notifyNewEpisodes,
+                        onCheckedChange = viewModel::setNotifyNewEpisodes,
                     )
                     SettingsSwitchRow(
-                        label = "Watchlist",
-                        checked = state.notifyWatchlist,
-                        onCheckedChange = viewModel::setNotifyWatchlist,
-                    )
-                    SettingsSwitchRow(
-                        label = "Continue Watching",
-                        checked = state.notifyContinueWatching,
-                        onCheckedChange = viewModel::setNotifyContinueWatching,
-                    )
-                    SettingsSwitchRow(
-                        label = "Next Up",
-                        checked = state.notifyNextUp,
-                        onCheckedChange = viewModel::setNotifyNextUp,
+                        label = "New movies",
+                        checked = state.notifyNewMovies,
+                        onCheckedChange = viewModel::setNotifyNewMovies,
                     )
                 }
             }
