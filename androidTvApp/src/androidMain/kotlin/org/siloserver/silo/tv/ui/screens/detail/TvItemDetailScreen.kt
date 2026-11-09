@@ -43,6 +43,8 @@ import androidx.compose.material.icons.rounded.CheckCircleOutline
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.HeartBroken
+import androidx.compose.material.icons.rounded.NotificationAdd
+import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.RemoveDone
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.Tv
@@ -2090,6 +2092,19 @@ private fun HeroActionRow(
                     },
                 ),
             )
+            if (detail.type == "series" && state.followAvailable) {
+                add(
+                    TvDialogOption(
+                        key = "follow",
+                        title = if (state.isFollowingSeries) "Stop Following" else "Follow for Notifications",
+                        icon = if (state.isFollowingSeries) Icons.Rounded.Notifications else Icons.Rounded.NotificationAdd,
+                        onClick = {
+                            moreOpen = false
+                            viewModel.onToggleFollowSeries()
+                        },
+                    ),
+                )
+            }
             add(
                 TvDialogOption(
                     key = "watched",

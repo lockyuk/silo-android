@@ -653,6 +653,7 @@ val androidTvModule = module {
             capabilityDetector = get(),
             seriesTrackChoiceWriter = get(),
             awaitPlaybackSettled = playbackLifecycle::awaitPendingStop,
+            notificationsRepository = getOrNull(),
         )
     }
     // Watch Party: the shared hub, lobby (keyed per room; roomId is the
