@@ -34,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -94,7 +95,7 @@ private val HeroChipBorder = Color(0xFF8A93A6)
 private val HeroInk = Color(0xFF0B0D12)
 
 /** Height of everything above the buttons, so crossfading between items never moves them. */
-private val HeroInfoHeight = 236.dp
+private val HeroInfoHeight = 248.dp
 
 /**
  * The hero's content for [content]: eyebrow, clear logo, meta line, synopsis
@@ -133,6 +134,9 @@ internal fun TvHomeHeroPanel(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .padding(top = 5.dp)
+                // Entering the buttons from the menu or the row always lands on
+                // Play, whichever button is nearest.
+                .focusProperties { enter = { playFocusRequester } }
                 .focusGroup()
                 .onFocusChanged { onFocusedChange(it.hasFocus) }
                 .onPreviewKeyEvent { event ->
