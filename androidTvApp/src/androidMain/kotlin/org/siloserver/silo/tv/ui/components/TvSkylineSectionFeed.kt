@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -28,6 +29,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -163,6 +165,11 @@ fun TvSkylineSectionFeed(
     cardActions: (ResolvedSection, SectionItem) -> TvMediaCardActions = { _, _ -> TvMediaCardActions() },
     /** A non-null action replaces [onItemClick] while preserving detail-return tracking. */
     clickActionForSection: (ResolvedSection, SectionItem) -> (() -> Unit)? = { _, _ -> null },
+    /**
+     * The Home hero: the section above [sections] whose items rotate in a large
+     * billboard. Null for every feed without one.
+     */
+    hero: TvHomeHeroFeed? = null,
     /**
      * Optional high-priority cache warmer for cards whose Select target needs
      * more than the card's own marquee detail. It starts on raw focus (and for
@@ -580,8 +587,50 @@ fun TvSkylineSectionFeed(
         }
     }
 
+    val fallbackFirstRowFocusRequester = remember { FocusRequester() }
+    val resolvedFirstRowFocusRequester = firstRowFocusRequester ?: fallbackFirstRowFocusRequester
+
+    // The hero rotates through the first items of its section. It is in charge
+    // of the top of the screen while focus is on its buttons or on the first
+    // row beneath it; from the second row down, the focused card's marquee
+    // takes over as on any other feed.
+    val heroItems = remember(hero?.section) { hero?.section?.items?.take(TvHeroMaxItems).orEmpty() }
+    var heroIndex by remember { mutableIntStateOf(0) }
+    var heroFocused by remember { mutableStateOf(false) }
+    val heroWatchlistOverrides = remember { mutableStateMapOf<String, Boolean>() }
+    val heroActive = hero != null && heroItems.isNotEmpty()
+    val heroZone = heroActive && (heroFocused || focusedRowIndex <= 0)
+    val heroItem = heroItems.getOrNull(heroIndex.coerceIn(0, (heroItems.size - 1).coerceAtLeast(0)))
+    val heroMarquee = rememberTvFocusMarqueeState(fetchDetail = fetchDetail)
+    SideEffect { if (hero != null) heroMarquee.refreshSources(listOf(hero.section)) }
+    val heroSeeded = remember { mutableStateOf(false) }
+    LaunchedEffect(heroItem?.contentId, hero?.section?.id) {
+        val item = heroItem ?: return@LaunchedEffect
+        val section = hero?.section ?: return@LaunchedEffect
+        if (!heroSeeded.value) {
+            heroSeeded.value = true
+            heroMarquee.seedInitialPreview(item, section.title, section.id)
+        } else {
+            heroMarquee.preview(item, section.title, section.id)
+        }
+    }
+    // Seven seconds on each item while the billboard has focus.
+    LaunchedEffect(heroIndex, heroFocused, heroItems.size) {
+        if (heroFocused && heroItems.size > 1) {
+            delay(TvHeroRotateMs)
+            heroIndex = (heroIndex + 1) % heroItems.size
+        }
+    }
+
     var rowRelocationInFlight by remember { mutableStateOf(false) }
     val currentContentUpFallback = rememberUpdatedState<(Boolean) -> Boolean> { isRepeat ->
+        // The hero's buttons sit above the first row and below the top menu.
+        if (heroFocused) return@rememberUpdatedState false
+        if (heroActive && focusedRowIndex == 0 && !isRepeat) {
+            if (runCatching { resolvedFirstRowFocusRequester.requestFocus() }.isSuccess) {
+                return@rememberUpdatedState true
+            }
+        }
         val bandTopRow = rowBandState.firstVisibleItemIndex
         // See tvSkylineEffectiveRow: the reported focused row can lag or be
         // clamped; the band's top row is the ground truth it is checked against.
@@ -650,12 +699,11 @@ fun TvSkylineSectionFeed(
         }
     }
 
-    LaunchedEffect(marquee.backdropContent?.heroBackdropUrl) {
-        marquee.backdropContent?.let { tintState.set(it.source, it.heroBackdropUrl) }
+    val activeBackdrop = if (heroZone) heroMarquee.backdropContent else marquee.backdropContent
+    LaunchedEffect(activeBackdrop?.heroBackdropUrl) {
+        activeBackdrop?.let { tintState.set(it.source, it.heroBackdropUrl) }
     }
 
-    val fallbackFirstRowFocusRequester = remember { FocusRequester() }
-    val resolvedFirstRowFocusRequester = firstRowFocusRequester ?: fallbackFirstRowFocusRequester
     // Attached to the first row's LazyRow group (not a card). A programmatic
     // focus request that targets a DESCENDANT of a focusRestorer group is
     // cancelled by the restorer's custom `enter` (it restores, cancels, and
@@ -959,10 +1007,52 @@ fun TvSkylineSectionFeed(
             // its line fades into reserved space and episode art may upgrade,
             // but neither event replays/reflows the whole marquee.
             TvRootHeroBackdrop(
-                content = marquee.backdropContent,
+                content = activeBackdrop,
                 modifier = Modifier.fillMaxSize(),
             )
-            TvFocusMarquee(
+            // While the hero shows, the first row's header sits at the mockup's
+            // position: the band drops to it.
+            val bandNormalTop = maxHeight - bandHeight + contentVerticalOffset
+            val heroBandShift by animateDpAsState(
+                targetValue = if (heroZone) {
+                    (TvHeroRowHeaderTop - TvHeroRowHeaderInset - bandNormalTop).coerceIn(0.dp, 90.dp)
+                } else {
+                    0.dp
+                },
+                label = "heroBandShift",
+            )
+            if (heroZone && hero != null) {
+                val item = heroItem
+                val inWatchlist = item?.let { heroWatchlistOverrides[it.contentId] ?: (it.userState?.inWatchlist == true) } == true
+                TvHomeHeroPanel(
+                    content = heroMarquee.content,
+                    eyebrow = hero.section.title,
+                    playLabel = if (item?.positionSeconds != null) "Resume" else "Play",
+                    inWatchlist = inWatchlist,
+                    playFocusRequester = resolvedFirstRowFocusRequester,
+                    onFocusedChange = { heroFocused = it },
+                    onPlay = { item?.let(hero.onPlay) },
+                    onMoreInfo = { item?.let(hero.onMoreInfo) },
+                    onToggleWatchlist = {
+                        item?.let {
+                            heroWatchlistOverrides[it.contentId] = !inWatchlist
+                            hero.onToggleWatchlist(it, !inWatchlist)
+                        }
+                    },
+                    onDown = {
+                        if (!focusManager.moveFocus(FocusDirection.Down)) {
+                            runCatching { firstRowContainerFocusRequester.requestFocus() }
+                        }
+                    },
+                    modifier = Modifier.offset(x = TvHeroLeft, y = TvHeroTop),
+                )
+                TvHomeHeroDots(
+                    count = heroItems.size,
+                    current = heroIndex,
+                    modifier = Modifier.offset(x = TvHeroLeft, y = TvHeroDotsTop),
+                )
+            }
+            if (!heroZone) TvFocusMarquee(
                 content = marquee.content,
                 detailLine = marquee.enrichment?.detailLine,
                 translation = rememberTvMarqueeTranslation(
@@ -986,7 +1076,7 @@ fun TvSkylineSectionFeed(
                     .fillMaxWidth()
                     .height(bandHeight)
                     .align(Alignment.BottomStart)
-                    .offset(y = contentVerticalOffset)
+                    .offset(y = contentVerticalOffset + heroBandShift)
                     .clipToBounds(),
             ) {
                 LazyColumn(
@@ -1035,7 +1125,7 @@ fun TvSkylineSectionFeed(
                             posterWidth = RowDimens.DensePosterWidth *
                                 presentation.posterSize.posterScale,
                             firstItemFocusRequester = resolvedFirstRowFocusRequester
-                                .takeIf { isFirstRow },
+                                .takeIf { isFirstRow && !heroActive },
                             rowContainerFocusRequester = when {
                                 isFirstRow -> firstRowContainerFocusRequester
                                 isReturnRow -> detailReturnRowContainerFocusRequester

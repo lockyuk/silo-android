@@ -37,6 +37,7 @@ import org.siloserver.silo.tv.ui.components.TvLoadingScreen
 import org.siloserver.silo.tv.ui.components.TvMediaCardActions
 import org.siloserver.silo.tv.ui.components.TvSkylineDetailPrefetchTarget
 import org.siloserver.silo.tv.ui.components.TvSkylineSectionFeed
+import org.siloserver.silo.tv.ui.components.TvHomeHeroFeed
 import org.siloserver.silo.tv.ui.components.isTvContinueWatchingRow
 import org.siloserver.silo.tv.ui.components.isTvProgressRow
 import org.siloserver.silo.tv.ui.focus.TvContentInitialFocusMaxAttempts
@@ -138,8 +139,13 @@ fun TvHomeScreen(
                 onInitialContentFocus = onInitialContentFocus,
             )
         else -> key(homeSectionPreferenceState.layoutRevision) {
+            // The first section of the user's order becomes the hero; the rows
+            // start at the next one, so nothing shows twice.
+            val heroSection = visibleSections.firstOrNull()
+                ?.takeIf { it.items.isNotEmpty() && visibleSections.size > 1 }
             TvHomeContent(
-                sections = visibleSections,
+                sections = if (heroSection != null) visibleSections.drop(1) else visibleSections,
+                heroSection = heroSection,
                 sectionsFullyResolved = state.sectionsFullyResolved,
                 onItemClick = onItemClick,
                 onItemDetailSelection = onItemDetailSelection,
@@ -231,6 +237,7 @@ private fun TvHomeEmptyState(
 @Composable
 private fun TvHomeContent(
     sections: List<ResolvedSection>,
+    heroSection: ResolvedSection? = null,
     onItemClick: (String) -> Unit,
     onItemDetailSelection: (String, Int?, String?) -> Unit,
     onPlayItem: (contentId: String, type: String?, resumePositionSeconds: Double?) -> Unit,
@@ -251,7 +258,25 @@ private fun TvHomeContent(
     sectionsFullyResolved: Boolean = true,
     onMarqueeTranslated: () -> Unit = {},
 ) {
+    val hero = remember(heroSection) {
+        heroSection?.let { section ->
+            TvHomeHeroFeed(
+                section = section,
+                onPlay = { item -> onPlayItem(item.contentId, item.type, item.positionSeconds) },
+                onMoreInfo = { item ->
+                    if (section.isTvContinueWatchingRow()) {
+                        val target = item.tvContinueWatchingDetailTarget()
+                        onItemDetailSelection(target.contentId, target.seasonNumber, target.episodeContentId)
+                    } else {
+                        onItemClick(item.contentId)
+                    }
+                },
+                onToggleWatchlist = { item, inWatchlist -> onToggleWatchlist(item.contentId, inWatchlist) },
+            )
+        }
+    }
     TvSkylineSectionFeed(
+        hero = hero,
         onMarqueeTranslated = onMarqueeTranslated,
         surfaceKey = "home",
         // tvOS Home drops the foreground marquee + row band by 56pt while
