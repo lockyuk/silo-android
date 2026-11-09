@@ -57,6 +57,15 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import org.siloserver.silo.android.ui.components.ErrorView
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import org.siloserver.silo.android.ui.screens.detail.CastCrewSection
+import org.siloserver.silo.android.ui.screens.detail.DetailFactsList
+import org.siloserver.silo.android.ui.screens.detail.SectionHeader
+import org.siloserver.silo.android.ui.screens.detail.TrailersRail
+import org.siloserver.silo.model.catalog.CastMember
+import org.siloserver.silo.model.catalog.ItemVideo
+import org.siloserver.silo.model.catalog.trailerRailEntries
 import org.siloserver.silo.android.ui.screens.detail.AdaptiveDetailHero
 import org.siloserver.silo.android.ui.screens.detail.DetailLoadingSkeleton
 import org.siloserver.silo.android.ui.screens.detail.DetailPageSurface
@@ -144,6 +153,7 @@ fun RequestDetailScreen(
                         onCancel = viewModel::cancel,
                         onToggleFollow = viewModel::toggleFollow,
                         router = router,
+                        onLibraryItemClick = onLibraryItemClick,
                     )
                 }
                 "error" -> ErrorView(message = state.error.orEmpty(), onRetry = viewModel::load)
@@ -163,8 +173,18 @@ private fun RequestDetailContent(
     onCancel: () -> Unit,
     onToggleFollow: () -> Unit,
     router: RequestRouter,
+    onLibraryItemClick: (String) -> Unit,
 ) {
-    val itemDetail = remember(detail) { detail.toHeroDetail() }
+    // Cast ids, the trailer and the crew come from the server's Filmography
+    // plugin when it is installed; the page works without it.
+    val pluginApi: org.siloserver.silo.network.apiv2.FilmographyPluginApi = koinInject()
+    val tokens: org.siloserver.silo.network.TokenManager = koinInject()
+    val extra by produceState<org.siloserver.silo.model.catalog.PluginTitle?>(null, detail.tmdbId, detail.mediaType) {
+        val owner = tokens.snapshotCurrentScope() ?: return@produceState
+        value = (pluginApi.title(detail.mediaType == RequestMediaType.Series, detail.tmdbId, owner)
+            as? org.siloserver.silo.network.ApiResult.Success)?.data
+    }
+    val itemDetail = remember(detail, extra) { detail.toHeroDetail(extra) }
     val dominantColor by rememberDominantColor(imageUrl = itemDetail.backdropUrl, fallback = SiloBackground)
     val feedState = rememberLazyListState()
     val density = LocalDensity.current
@@ -207,6 +227,25 @@ private fun RequestDetailContent(
                         },
                     )
                 }
+                // The same sections, in the same order, as a library title's page.
+                if (itemDetail.cast.isNotEmpty()) {
+                    item(key = "cast", contentType = "detail-cast") {
+                        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            SectionHeader(title = "Cast & Crew")
+                            CastCrewSection(
+                                cast = itemDetail.cast,
+                                onPersonClick = {},
+                                onTitleClick = onLibraryItemClick,
+                            )
+                        }
+                    }
+                }
+                val trailerEntries = trailerRailEntries(itemDetail)
+                if (trailerEntries.isNotEmpty()) {
+                    item(key = "trailers", contentType = "detail-trailers") {
+                        TrailersRail(entries = trailerEntries, onPlayExtra = {})
+                    }
+                }
                 val recommendations = state.recommendations
                 if (recommendations.isNotEmpty()) {
                     item(key = "more-like-this", contentType = "rail") {
@@ -220,6 +259,9 @@ private fun RequestDetailContent(
                             }
                         }
                     }
+                }
+                item(key = "facts", contentType = "detail-facts") {
+                    DetailFactsList(detail = itemDetail, runtimeMinutes = itemDetail.runtime)
                 }
             }
         }
@@ -458,7 +500,7 @@ private fun stepDetail(step: RequestStep, isDone: Boolean, isCurrent: Boolean, p
 }
 
 /** A catalog-shaped detail for the shared hero: the title, artwork, rating, and facts a request carries. */
-private fun RequestMediaDetail.toHeroDetail(): ItemDetail = ItemDetail(
+private fun RequestMediaDetail.toHeroDetail(extra: org.siloserver.silo.model.catalog.PluginTitle?): ItemDetail = ItemDetail(
     contentId = "request:$mediaType:$tmdbId",
     type = if (mediaType == RequestMediaType.Series) "series" else "movie",
     title = title,
@@ -471,6 +513,25 @@ private fun RequestMediaDetail.toHeroDetail(): ItemDetail = ItemDetail(
     posterUrl = requestPosterUrl(posterPath),
     backdropUrl = requestBackdropUrl(backdropPath) ?: requestPosterUrl(posterPath),
     ratings = listOfNotNull(ExternalRatings.tmdb(voteAverage)),
+    studios = productionCompanies,
+    networks = networks,
+    releaseDate = releaseDate,
+    firstAirDate = firstAirDate,
+    lastAirDate = lastAirDate,
+    tmdbId = tmdbId.toString(),
+    imdbId = imdbId.takeIf { it.isNotBlank() },
+    tagline = tagline.takeIf { it.isNotBlank() } ?: extra?.tagline,
+    cast = extra?.cast?.takeIf { it.isNotEmpty() }?.mapIndexed { i, c ->
+        CastMember(name = c.name, character = c.character, order = i, tmdbId = c.tmdbId, photoUrl = c.photoUrl)
+    } ?: cast.mapIndexed { i, c ->
+        CastMember(
+            name = c.name,
+            character = c.character.takeIf { it.isNotBlank() },
+            order = i,
+            photoUrl = c.profilePath?.let { "https://image.tmdb.org/t/p/w185$it" },
+        )
+    },
+    videos = extra?.trailerKey?.let { listOf(ItemVideo(kind = "Trailer", site = "YouTube", siteKey = it, name = "Trailer", isOfficial = true)) },
 )
 
 private fun RequestMediaDetail.creditText(): String? = when {

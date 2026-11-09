@@ -97,6 +97,7 @@ import org.siloserver.silo.common.ui.components.ThumbhashImage
 import org.siloserver.silo.model.catalog.DisplayRating
 import org.siloserver.silo.model.catalog.ExternalRatings
 import org.siloserver.silo.model.catalog.ItemDetail
+import org.siloserver.silo.model.catalog.allRatings
 import org.siloserver.silo.model.catalog.titleRatings
 import org.siloserver.silo.model.catalog.Season
 import org.siloserver.silo.model.catalog.isSpecialsForDisplay
@@ -161,6 +162,8 @@ fun AdaptiveDetailHero(
     compactEyebrow: Boolean = false,
     /** Scales the compact hero's artwork height; see [DetailHeroArtwork]. */
     compactArtworkHeightFactor: Float = 1f,
+    /** Ratings to show instead of the title's own, such as a selected episode's. */
+    ratingsOverride: List<DisplayRating>? = null,
     actions: @Composable () -> Unit,
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
@@ -186,6 +189,7 @@ fun AdaptiveDetailHero(
                 reserveOverviewSpace = reserveOverviewSpace,
                 translation = translation,
                 belowOverview = expandedBelowOverview,
+                ratingsOverride = ratingsOverride,
                 actions = actions,
             )
         } else {
@@ -204,6 +208,7 @@ fun AdaptiveDetailHero(
                 belowOverview = belowOverview,
                 showEyebrow = compactEyebrow,
                 artworkHeightFactor = compactArtworkHeightFactor,
+                ratingsOverride = ratingsOverride,
                 actions = actions,
             )
         }
@@ -286,6 +291,7 @@ private fun ExpandedDetailHero(
     reserveOverviewSpace: Boolean,
     translation: (@Composable () -> Unit)?,
     belowOverview: (@Composable () -> Unit)?,
+    ratingsOverride: List<DisplayRating>? = null,
     actions: @Composable () -> Unit,
 ) {
     val hasPortrait = portraitArtwork.reserveSpace || !portraitArtwork.url.isNullOrBlank()
@@ -371,7 +377,7 @@ private fun ExpandedDetailHero(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             )
                         }
-                        DetailRatingsRow(ratings = detail.titleRatings())
+                        DetailRatingsRow(ratings = ratingsOverride ?: detail.titleRatings())
                     }
                 }
                 if (hasPortrait) {
@@ -608,6 +614,7 @@ fun DetailHero(
     showEyebrow: Boolean = false,
     /** Scales the artwork's height; see [DetailHeroArtwork]. */
     artworkHeightFactor: Float = 1f,
+    ratingsOverride: List<DisplayRating>? = null,
     actions: @Composable () -> Unit,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -641,7 +648,7 @@ fun DetailHero(
                 EyebrowChip(text = eyebrow)
             }
             val metadataTokens = (factsLine + sourceTokens).distinct()
-            val ratings = detail.titleRatings()
+            val ratings = ratingsOverride ?: detail.allRatings()
             if (metadataTokens.isNotEmpty() || detail.contentRating != null || ratings.isNotEmpty()) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -650,7 +657,7 @@ fun DetailHero(
                     if (metadataTokens.isNotEmpty() || detail.contentRating != null) {
                         SourceRow(tokens = metadataTokens, ratingChip = detail.contentRating)
                     }
-                    DetailRatingsRow(ratings = ExternalRatings.forPhone(ratings))
+                    RatingGauges(ratings)
                 }
             }
             actions()

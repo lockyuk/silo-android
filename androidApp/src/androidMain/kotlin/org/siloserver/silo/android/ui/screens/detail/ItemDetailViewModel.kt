@@ -1057,14 +1057,12 @@ class ItemDetailViewModel(
     private fun loadSelectedEpisodeDetail(contentId: String) {
         selectedEpisodeLoadGeneration++
         selectedEpisodeLoadJob = viewModelScope.launch {
-            val result = if (contentId == initialEpisodeContentId) {
-                catalogRepository.getItemDetailForPrefetch(contentId, libraryId = libraryId)
-            } else {
-                catalogRepository.getItemDetail(contentId, libraryId = libraryId)
-            }
+            // The warm-up below usually has this episode's detail already; use it first.
+            val result = catalogRepository.getItemDetailForPrefetch(contentId, libraryId = libraryId)
             when (result) {
                 is ApiResult.Success -> {
                     val refreshed = withLocalProgress(result.data)
+                    publishPrefetchImages(refreshed)
                     _uiState.update { state ->
                         if (state.selectedEpisodeContentId != contentId) state else state.copy(
                             selectedEpisodeDetail = state.episodes.firstOrNull { it.contentId == contentId }
@@ -1082,7 +1080,47 @@ class ItemDetailViewModel(
         }
     }
 
+    private val _prefetchImageUrls = kotlinx.coroutines.flow.MutableSharedFlow<List<String>>(extraBufferCapacity = 64)
+
+    /** Image URLs worth loading ahead of time (episode artwork, cast photos); the screen feeds them to the image loader. */
+    val prefetchImageUrls: kotlinx.coroutines.flow.SharedFlow<List<String>> = _prefetchImageUrls
+
+    private var episodeWarmupJob: Job? = null
+    private val warmedEpisodes = mutableSetOf<String>()
+
+    private fun publishPrefetchImages(detail: ItemDetail) {
+        val urls = buildList {
+            detail.backdropUrl?.let(::add)
+            detail.posterUrl?.let(::add)
+            detail.cast.take(12).forEach { c -> c.photoUrl?.let(::add) }
+        }.filter { it.isNotBlank() }
+        if (urls.isNotEmpty()) _prefetchImageUrls.tryEmit(urls)
+    }
+
+    /**
+     * Loads the shown season's episode details (ratings, cast, artwork) in the
+     * background, a few at a time, so opening any episode is instant. The
+     * selected episode goes first, then the rest in order.
+     */
+    private fun warmEpisodeDetails(episodes: List<EpisodeListItem>) {
+        val selected = _uiState.value.selectedEpisodeContentId
+        val todo = episodes.sortedBy { if (it.contentId == selected) 0 else 1 }
+            .map { it.contentId }.filter { warmedEpisodes.add(it) }.take(40)
+        if (todo.isEmpty()) return
+        episodeWarmupJob = viewModelScope.launch {
+            todo.chunked(3).forEach { batch ->
+                batch.map { id ->
+                    async {
+                        (catalogRepository.getItemDetailForPrefetch(id, libraryId = libraryId) as? ApiResult.Success)
+                            ?.let { publishPrefetchImages(it.data) }
+                    }
+                }.awaitAll()
+            }
+        }
+    }
+
     private fun ensureSeriesEpisodeSelection(episodes: List<EpisodeListItem>) {
+        warmEpisodeDetails(episodes)
         if (episodes.isEmpty()) return
         val current = _uiState.value.selectedEpisodeContentId
         if (episodes.any { it.contentId == current }) return

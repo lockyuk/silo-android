@@ -40,6 +40,7 @@ import org.siloserver.silo.model.catalog.ItemDetail
 import org.siloserver.silo.model.catalog.ItemExtra
 import org.siloserver.silo.model.catalog.Season
 import org.siloserver.silo.model.catalog.trailerRailEntries
+import org.siloserver.silo.model.catalog.allRatings
 import org.siloserver.silo.model.settings.EpisodeSpoilers
 import org.siloserver.silo.model.catalog.isEpisodeDescriptionTranslating
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -334,6 +335,8 @@ fun SeriesDetailContent(
                 reserveCreditSpace = !isExpandedDetailLayout && usesEpisodeEditorial,
                 translation = if (isExpandedDetailLayout || !usesEpisodeEditorial) translation else episodeTranslationLabel,
                 belowOverview = if (isExpandedDetailLayout) null else playbackSelector,
+                // A selected episode shows its own ratings (IMDb, RT, TMDB) when it has any.
+                ratingsOverride = loadedSelectedEpisodeDetail?.allRatings()?.takeIf { it.isNotEmpty() },
                 expandedBelowOverview = {
                     episodeSection(true)
                     playbackSelector()
@@ -507,6 +510,7 @@ fun SeriesDetailContent(
                     CastCrewSection(
                         cast = detail.cast,
                         onPersonClick = onPersonClick,
+                        onTitleClick = onSimilarItemClick,
                     )
                 }
             }

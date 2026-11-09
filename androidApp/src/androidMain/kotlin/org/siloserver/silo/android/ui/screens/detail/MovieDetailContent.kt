@@ -330,6 +330,7 @@ fun MovieDetailContent(
                     CastCrewSection(
                         cast = detail.cast,
                         onPersonClick = onPersonClick,
+                        onTitleClick = onSimilarItemClick,
                     )
                 }
             }

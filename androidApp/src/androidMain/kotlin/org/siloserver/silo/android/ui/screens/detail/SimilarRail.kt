@@ -25,13 +25,16 @@ import org.siloserver.silo.model.catalog.BrowseItem
  * empty/failed response, and an orphaned header would just read as a
  * broken row.
  */
+private const val SHOW_MORE_LIKE_THIS = false
+
 @Composable
 fun SimilarRail(
     items: List<BrowseItem>,
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (items.isNotEmpty()) {
+    // "More Like This" is switched off by request; flip this to bring the rail back.
+    if (SHOW_MORE_LIKE_THIS && items.isNotEmpty()) {
         Column(
             verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = modifier,

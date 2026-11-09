@@ -16,6 +16,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,8 +44,19 @@ fun CastCrewSection(
     cast: List<CastMember>,
     onPersonClick: (String) -> Unit,
     modifier: Modifier = Modifier,
+    /** When set, tapping an actor opens their filmography in a sheet over this page; titles in the library open through this. */
+    onTitleClick: ((String) -> Unit)? = null,
 ) {
     if (cast.isEmpty()) return
+    var sheetMember by remember { mutableStateOf<CastMember?>(null) }
+    sheetMember?.let { member ->
+        ActorFilmographySheet(
+            member = member,
+            onDismiss = { sheetMember = null },
+            onItemClick = { id -> sheetMember = null; onTitleClick?.invoke(id) },
+            onOpenProfile = { id -> sheetMember = null; onPersonClick(id) },
+        )
+    }
 
     // iOS PhoneCastRail: cardSpacing 14, cardWidth 96, photo 76.
     val rowState = rememberLazyListState()
@@ -62,7 +77,13 @@ fun CastCrewSection(
                 photoThumbhash = member.photoThumbhash,
                 name = member.name,
                 role = member.character,
-                onClick = member.personId?.let { id -> { onPersonClick(id) } },
+                // Anyone in the library opens their full person page (details and credits).
+                // Anyone else with a TMDB id opens the filmography sheet.
+                onClick = when {
+                    member.personId != null -> ({ onPersonClick(member.personId!!) })
+                    onTitleClick != null && !member.tmdbId.isNullOrBlank() -> ({ sheetMember = member })
+                    else -> null
+                },
             )
         }
     }
