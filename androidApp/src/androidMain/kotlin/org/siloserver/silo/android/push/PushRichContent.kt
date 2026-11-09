@@ -11,6 +11,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeoutOrNull
+import org.siloserver.silo.model.notifications.NotificationPush
 import org.siloserver.silo.model.notifications.NotificationRow
 import org.siloserver.silo.network.ApiResult
 import org.siloserver.silo.repository.CatalogRepository
@@ -40,9 +41,30 @@ internal class CatalogPushRichContentSource(
     private val partBudgetMs: Long = RICH_PART_BUDGET_MS,
 ) : PushRichContentSource {
     override suspend fun load(row: NotificationRow): PushRichContent = coroutineScope {
+        val styled = row.push
+        if (styled != null) {
+            // The admin's push styling decides the synopsis and the image.
+            val image = async { part { styledImageFor(styled) } }
+            return@coroutineScope PushRichContent(
+                synopsis = trimSynopsis(styled.synopsis),
+                poster = image.await(),
+            )
+        }
         val synopsis = async { part { synopsisFor(row) } }
         val poster = async { part { posterFor(row) } }
         PushRichContent(synopsis = synopsis.await(), poster = poster.await())
+    }
+
+    private suspend fun styledImageFor(styled: NotificationPush): Bitmap? {
+        val url = styled.imageUrl?.takeIf { it.isNotBlank() && styled.image != "none" } ?: return null
+        val backdrop = styled.image == "backdrop"
+        val request = ImageRequest.Builder(context)
+            .data(url)
+            .size(if (backdrop) BACKDROP_WIDTH_PX else POSTER_WIDTH_PX, if (backdrop) BACKDROP_HEIGHT_PX else POSTER_HEIGHT_PX)
+            .allowHardware(false)
+            .build()
+        val result = SingletonImageLoader.get(context).execute(request) as? SuccessResult ?: return null
+        return result.image.toBitmap()
     }
 
     private suspend fun <T> part(block: suspend () -> T?): T? =
@@ -79,6 +101,8 @@ internal class CatalogPushRichContentSource(
         const val RICH_PART_BUDGET_MS = 3_000L
         private const val POSTER_WIDTH_PX = 256
         private const val POSTER_HEIGHT_PX = 384
+        private const val BACKDROP_WIDTH_PX = 640
+        private const val BACKDROP_HEIGHT_PX = 360
     }
 }
 

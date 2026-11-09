@@ -13,6 +13,7 @@ import androidx.core.app.NotificationManagerCompat
 import org.siloserver.silo.android.MainActivity
 import org.siloserver.silo.android.R
 import org.siloserver.silo.android.ui.navigation.Route
+import org.siloserver.silo.model.notifications.NotificationPush
 import org.siloserver.silo.model.notifications.NotificationRow
 import org.siloserver.silo.model.notifications.NotificationType
 import org.siloserver.silo.network.ApiResult
@@ -58,7 +59,7 @@ class PushNotificationPresenter internal constructor(
         val issuingProfileId = attribution?.profileId
         val attributable = attribution != null
 
-        val content = notificationContentFor(
+        val baseContent = notificationContentFor(
             // Both sources of text are withheld when we cannot say whose this
             // is. The ROW matters as much as the payload: if the identity moved
             // across the fetch, its series/episode details belong to whoever we
@@ -68,6 +69,17 @@ class PushNotificationPresenter internal constructor(
             fallbackTitle = fallbackTitle.takeIf { attributable },
             fallbackBody = fallbackBody.takeIf { attributable },
         )
+        // The admin's push styling, when the server rendered one for this row,
+        // replaces the title and text built from the row's own fields.
+        val styled = row?.push?.takeIf { attributable && (it.title.isNotBlank() || it.body.isNotBlank()) }
+        val content = if (styled != null) {
+            baseContent.copy(
+                title = styled.title.ifBlank { baseContent.title },
+                body = styled.body.ifBlank { baseContent.body },
+            )
+        } else {
+            baseContent
+        }
         // Synopsis and poster come from the user's own server, and only for a
         // notification that is attributed AND belongs to the identity that is
         // active now: the catalog reads as the active identity, so another
@@ -96,11 +108,8 @@ class PushNotificationPresenter internal constructor(
             .setContentTitle(content.title)
             .setContentText(content.body)
             .setSubText(attribution?.let(::tileSubtitle))
-            .setLargeIcon(rich?.poster)
-            .setStyle(
-                NotificationCompat.BigTextStyle()
-                    .bigText(listOfNotNull(content.body, rich?.synopsis).joinToString("\n\n")),
-            )
+            .setLargeIcon(if (styled == null || styled.collapsedImage) rich?.poster else null)
+            .setStyle(expandedStyle(content, styled, rich))
             .setAutoCancel(true)
             .setContentIntent(
                 PendingIntent.getActivity(
@@ -115,6 +124,30 @@ class PushNotificationPresenter internal constructor(
         runCatching {
             NotificationManagerCompat.from(context)
                 .notify(deliveryId.hashCode(), notification)
+        }
+    }
+
+    /**
+     * The expanded view. Without admin styling it is the body plus the
+     * synopsis. With it, the styling decides: no expanded view, the image
+     * shown large, or the text with the synopsis.
+     */
+    private fun expandedStyle(
+        content: PushNotificationContent,
+        styled: NotificationPush?,
+        rich: PushRichContent?,
+    ): NotificationCompat.Style? {
+        val text = listOfNotNull(content.body, rich?.synopsis).joinToString("\n\n")
+        if (styled == null) return NotificationCompat.BigTextStyle().bigText(text)
+        if (!styled.expanded) return null
+        val picture = rich?.poster?.takeIf { styled.expandedImage }
+        return if (picture != null) {
+            NotificationCompat.BigPictureStyle()
+                .bigPicture(picture)
+                .bigLargeIcon(null as android.graphics.Bitmap?)
+                .setSummaryText(text)
+        } else {
+            NotificationCompat.BigTextStyle().bigText(text)
         }
     }
 

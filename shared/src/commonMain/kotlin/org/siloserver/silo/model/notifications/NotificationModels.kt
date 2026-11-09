@@ -75,6 +75,25 @@ data class NotificationReasonFlags(
  * future flag keys never break decoding; [reasonFlagsTyped] is the convenience
  * view.
  */
+/**
+ * How the admin's push templates render one notification. [image] is poster,
+ * backdrop or none; [imageUrl] is that image. [collapsedImage] and
+ * [expandedImage] say where it shows, and [expanded] whether there is an
+ * expanded view at all. [count] is above 1 for a grouped push.
+ */
+@Serializable
+data class NotificationPush(
+    val title: String = "",
+    val body: String = "",
+    val synopsis: String? = null,
+    val image: String = "none",
+    @SerialName("image_url") val imageUrl: String? = null,
+    @SerialName("collapsed_image") val collapsedImage: Boolean = false,
+    @SerialName("expanded_image") val expandedImage: Boolean = false,
+    val expanded: Boolean = false,
+    val count: Int = 0,
+)
+
 @Serializable
 data class NotificationRow(
     val id: String,
@@ -94,6 +113,8 @@ data class NotificationRow(
     @SerialName("reason_flags") val reasonFlags: JsonObject = JsonObject(emptyMap()),
     @SerialName("created_at") val createdAt: String,
     @SerialName("read_at") val readAt: String? = null,
+    /** The admin's push styling, rendered by the server; null when the templates do not cover this notification. */
+    @SerialName("push") val push: NotificationPush? = null,
 ) {
     val type: NotificationType get() = NotificationType.fromWire(rawType)
 
