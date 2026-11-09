@@ -856,6 +856,19 @@ fun TvSkylineSectionFeed(
         return true
     }
 
+    // With a hero, the "first row" focus target is the hero's Play button: the
+    // row's own card has no requester. The hero may not be attached yet, so
+    // retry for a few frames.
+    LaunchedEffect(firstRowFocusRequest, heroActive) {
+        if (!heroActive || firstRowFocusRequest == 0) return@LaunchedEffect
+        repeat(8) {
+            if (runCatching { resolvedFirstRowFocusRequester.requestFocus() }.isSuccess) {
+                return@LaunchedEffect
+            }
+            withFrameNanos { }
+        }
+    }
+
     // Early detail-return restore: runs when this feed is RECREATED for the
     // pop-return transition, long before the shell's ON_RESUME claim (the nav
     // fade has to settle first, ~500ms). Compose assigns default focus to the
