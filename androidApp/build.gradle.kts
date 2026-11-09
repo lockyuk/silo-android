@@ -189,7 +189,7 @@ android {
     namespace = "org.siloserver.silo.android"
     compileSdk = 36
     defaultConfig {
-        applicationId = "org.siloserver.silo"
+        applicationId = providers.gradleProperty("siloApplicationId").orElse("org.siloserver.silo").get()
         minSdk = 24
         targetSdk = 36
         // Shares one Play listing with the TV app (same applicationId). Two

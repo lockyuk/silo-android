@@ -341,6 +341,7 @@ val androidModule = module {
                 },
             ),
             registry = get(),
+            richContent = org.siloserver.silo.android.push.CatalogPushRichContentSource(androidContext(), get()),
         )
     }
     single { PushMessageHandler(presenter = get()) }

@@ -27,6 +27,7 @@ class PushNotificationPresenter internal constructor(
     private val tokenManager: TokenManager,
     private val targets: PushTargetResolver,
     private val registry: ServerRegistry? = null,
+    private val richContent: PushRichContentSource? = null,
 ) {
     suspend fun present(
         deliveryId: String,
@@ -67,6 +68,12 @@ class PushNotificationPresenter internal constructor(
             fallbackTitle = fallbackTitle.takeIf { attributable },
             fallbackBody = fallbackBody.takeIf { attributable },
         )
+        // Synopsis and poster come from the user's own server, and only for a
+        // notification that is attributed AND belongs to the identity that is
+        // active now: the catalog reads as the active identity, so another
+        // profile's or server's row must never be enriched from this one.
+        val rich = row?.takeIf { attributable && ownsActiveScope(issuingServerId, issuingProfileId) }
+            ?.let { richRow -> richContent?.let { runCatching { it.load(richRow) }.getOrNull() } }
         val contentIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra(EXTRA_DELIVERY_ID, deliveryId)
@@ -89,7 +96,11 @@ class PushNotificationPresenter internal constructor(
             .setContentTitle(content.title)
             .setContentText(content.body)
             .setSubText(attribution?.let(::tileSubtitle))
-            .setStyle(NotificationCompat.BigTextStyle().bigText(content.body))
+            .setLargeIcon(rich?.poster)
+            .setStyle(
+                NotificationCompat.BigTextStyle()
+                    .bigText(listOfNotNull(content.body, rich?.synopsis).joinToString("\n\n")),
+            )
             .setAutoCancel(true)
             .setContentIntent(
                 PendingIntent.getActivity(
@@ -279,6 +290,12 @@ class PushNotificationPresenter internal constructor(
             description = "Private Silo notification alerts"
         }
         manager.createNotificationChannel(channel)
+    }
+
+    private suspend fun ownsActiveScope(serverId: String?, profileId: String?): Boolean {
+        if (serverId == null || profileId == null) return false
+        val active = tokenManager.snapshotCurrentScope() ?: return false
+        return active.serverId == serverId && active.profileId == profileId
     }
 
     private fun canPostNotifications(): Boolean =
