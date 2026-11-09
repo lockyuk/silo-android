@@ -102,6 +102,7 @@ private val HeroInfoHeight = 248.dp
  * and resume line, then the Play / More info / watchlist buttons. The buttons
  * stay put while the information above them crossfades between items.
  */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 internal fun TvHomeHeroPanel(
     content: TvMarqueeContent?,
