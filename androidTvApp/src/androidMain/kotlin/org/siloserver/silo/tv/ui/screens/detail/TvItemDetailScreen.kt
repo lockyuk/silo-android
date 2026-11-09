@@ -673,7 +673,8 @@ private fun TvDetailContent(
     val showsBoxSetRow = !isAudiobook && detail.type == "movie" && state.boxSet != null && state.boxSetItems.isNotEmpty()
     val showsCastSection = !isAudiobook && detail.cast.isNotEmpty()
     val showsTrailersSection = !isAudiobook && trailerEntries.isNotEmpty()
-    val showsSimilarRail = !isAudiobook && detail.type != "episode" && state.moreLikeThis.isNotEmpty()
+    // "More like this" is switched off by request.
+    val showsSimilarRail = false
     val showsDetailsSection = !isAudiobook && remember(detail) { detail.hasTvDetailFacts() }
     // Whole-book timeline stitched from the item's audiobook-part files — the
     // same math the player VM uses. Drives the Parts section (one row per track)
@@ -2811,7 +2812,7 @@ private fun Double.formatHms(): String {
 
 /** Approved tvOS 64pt body rhythm and 140pt page tail at Android's 0.5 scale. */
 internal val TvDetailSectionGap = 32.dp
-internal val TvDetailPageBottomPadding = 70.dp
+internal val TvDetailPageBottomPadding = 160.dp
 internal val TvDetailHorizontalInset = 50.dp
 
 /** Pending-return id of the box set row's Explore all card; content ids never contain NUL. */

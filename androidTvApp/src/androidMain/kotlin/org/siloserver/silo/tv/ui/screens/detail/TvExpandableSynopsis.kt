@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -57,22 +58,15 @@ import org.siloserver.silo.tv.ui.focus.requestFocusUntilObserved
 import org.siloserver.silo.tv.ui.theme.DarkSurfaceElevated
 
 /**
- * The hero's clamped overview and entry point to its full-description popup.
+ * The hero's overview, clamped to [collapsedMaxLines] with a "Read more" pill
+ * under it when the text is longer. The pill expands the text where it stands
+ * (and the hero grows by [onExtraHeight] so the content below moves down); it
+ * is the only focus stop, and the text itself shows no focus or selection.
  *
- * The overview defaults to a 3-line clamp at tvOS÷2 sizing (26pt regular →
- * 13sp); constrained hero layouts can supply a smaller [collapsedMaxLines].
- * Pressing OK/Select opens a window-level, scrollable popup instead of
- * expanding the page and moving the detail controls beneath it.
- *
- * This is a **focusable leaf** — the hero's only text focus stop, reachable by
- * pressing Up from the action row, and actionable so it never feels "stuck".
- * It owns its own focus visuals: no chrome at rest, on focus a faint dark
- * `DarkSurfaceElevated@0.55` fill (`RoundedRectangle(8.dp)`, no border) so the
- * white text stays readable. The system halo
- * is suppressed (`indication = null`), matching the squared-control idiom.
- *
+ * [pillFocusRequester] lets the page start focus on the pill, and
+ * [onPillPresent] says whether there is one (short text has none).
  * [previewText] can include compact context (for example the focused episode
- * name) while [overview] remains the clean full text displayed in the popup.
+ * name) while [overview] remains the clean full text.
  */
 @Composable
 internal fun TvExpandableSynopsis(
@@ -82,175 +76,117 @@ internal fun TvExpandableSynopsis(
     collapsedMaxLines: Int = 3,
     dialogTitle: String? = null,
     previewText: String = overview,
+    pillFocusRequester: FocusRequester? = null,
+    onPillPresent: ((Boolean) -> Unit)? = null,
+    onExtraHeight: ((androidx.compose.ui.unit.Dp) -> Unit)? = null,
 ) {
     require(collapsedMaxLines > 0) { "collapsedMaxLines must be positive" }
 
-    var showFullSynopsis by remember(overview, dialogTitle) { mutableStateOf(false) }
-    val synopsisFocus = remember { FocusRequester() }
-    val interactionSource = remember { MutableInteractionSource() }
-    val isFocused by interactionSource.collectIsFocusedAsState()
-    val shape = RoundedCornerShape(4.dp)
+    var expanded by remember(overview, dialogTitle) { mutableStateOf(false) }
+    // Lines the whole text needs, measured with no height limit so the answer does not depend on
+    // how much room the hero happens to have (a height-limited measure made the pill flicker).
+    var fullLines by remember(previewText) { mutableStateOf(0) }
+    val lineHeight = 17.5.dp
+    val overflows = fullLines > collapsedMaxLines
+    val showPill = overflows
 
-    Column(
-        modifier = modifier
-            .widthIn(max = 600.dp)
-            .then(
-                if (isFocused) {
-                    Modifier.background(
-                        color = DarkSurfaceElevated.copy(alpha = 0.55f),
-                        shape = shape,
-                    )
-                } else {
-                    Modifier
-                },
-            )
-            .focusRequester(synopsisFocus)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-            ) { showFullSynopsis = true },
-        horizontalAlignment = Alignment.Start,
-        verticalArrangement = Arrangement.Top,
-    ) {
-        // Match tvOS's three-line synopsis inside the reserved hero slot.
-        Text(
-            text = previewText,
-            fontWeight = FontWeight.Normal,
-            fontSize = 13.sp,
-            lineHeight = 17.5.sp,
-            color = Color.White.copy(alpha = 0.82f),
-            textAlign = TextAlign.Start,
-            maxLines = collapsedMaxLines,
-            overflow = TextOverflow.Ellipsis,
-        )
+    LaunchedEffect(showPill) { onPillPresent?.invoke(showPill) }
+    LaunchedEffect(expanded, fullLines) {
+        onExtraHeight?.invoke(if (expanded && overflows) lineHeight * (fullLines - collapsedMaxLines) else 0.dp)
+    }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose {
+            onPillPresent?.invoke(false)
+            onExtraHeight?.invoke(0.dp)
+        }
     }
 
-    if (showFullSynopsis) {
-        TvSynopsisDialog(
-            title = dialogTitle,
-            overview = overview,
-            tagline = tagline,
-            onDismiss = { showFullSynopsis = false },
-        )
-        DisposableEffect(Unit) {
-            onDispose {
-                synopsisFocus.claimFocusOrReport(
-                    target = "detail_synopsis",
-                    action = "popup_dismissed",
+    Column(
+        modifier = modifier.widthIn(max = 600.dp),
+        horizontalAlignment = Alignment.Start,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box {
+            // Invisible, zero-size copy used only to count lines.
+            Box(
+                Modifier.layout { measurable, constraints ->
+                    measurable.measure(constraints.copy(minHeight = 0, maxHeight = androidx.compose.ui.unit.Constraints.Infinity))
+                    layout(0, 0) {}
+                },
+            ) {
+                Text(
+                    text = previewText,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 13.sp,
+                    lineHeight = 17.5.sp,
+                    onTextLayout = { fullLines = it.lineCount },
                 )
             }
+            Text(
+                text = previewText,
+                fontWeight = FontWeight.Normal,
+                fontSize = 13.sp,
+                lineHeight = 17.5.sp,
+                color = Color.White.copy(alpha = 0.82f),
+                textAlign = TextAlign.Start,
+                maxLines = if (expanded) Int.MAX_VALUE else collapsedMaxLines,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (showPill) {
+            TvReadMorePill(
+                expanded = expanded,
+                onClick = { expanded = !expanded },
+                focusRequester = pillFocusRequester,
+            )
         }
     }
 }
 
+/**
+ * Set by a page whose scrolling follows focus: called with a pixel amount (negative is up) when
+ * Up / Down is pressed on the pill and there is nothing further to move focus to, so an
+ * expanded synopsis can still be scrolled past.
+ */
+internal val LocalTvPageScrollBy = androidx.compose.runtime.staticCompositionLocalOf<((Float) -> Unit)?> { null }
+
+/** A "Read more" / "Show less" link drawn as a pill. White when focused. */
 @Composable
-private fun TvSynopsisDialog(
-    title: String?,
-    overview: String,
-    tagline: String?,
-    onDismiss: () -> Unit,
+internal fun TvReadMorePill(
+    expanded: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    focusRequester: FocusRequester? = null,
 ) {
-    val focus = remember { FocusRequester() }
-    var popupHasFocus by remember { mutableStateOf(false) }
-    val scrollState = rememberScrollState()
-    val scrollScope = rememberCoroutineScope()
-
-    LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(50)
-        requestFocusUntilObserved(
-            maxAttempts = TvContentInitialFocusMaxAttempts,
-            awaitAttempt = { withFrameNanos { } },
-            requestFocus = focus::requestFocus,
-            isFocused = { popupHasFocus },
-        )
-    }
-
-    Popup(
-        alignment = Alignment.Center,
-        onDismissRequest = onDismiss,
-        properties = PopupProperties(focusable = true, dismissOnBackPress = true),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(TvDialogDefaults.Scrim),
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.62f)
-                    .fillMaxHeight(0.72f)
-                    .tvDialogSurface()
-                    .onPreviewKeyEvent { event ->
-                        when {
-                            event.type == KeyEventType.KeyUp &&
-                                (event.key == Key.Back || event.key == Key.Escape ||
-                                    event.key == Key.DirectionCenter || event.key == Key.Enter) -> {
-                                onDismiss()
-                                true
-                            }
-                            event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown -> {
-                                scrollScope.launch {
-                                    scrollState.animateScrollTo(
-                                        (scrollState.value + 180).coerceAtMost(scrollState.maxValue),
-                                    )
-                                }
-                                true
-                            }
-                            event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp -> {
-                                scrollScope.launch {
-                                    scrollState.animateScrollTo(
-                                        (scrollState.value - 180).coerceAtLeast(0),
-                                    )
-                                }
-                                true
-                            }
-                            else -> false
-                        }
-                    },
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scrollState)
-                        .focusRequester(focus)
-                        .onFocusChanged { popupHasFocus = it.hasFocus }
-                        .focusable()
-                        .padding(horizontal = 32.dp, vertical = 28.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    title?.trim()?.takeIf { it.isNotEmpty() }?.let { heading ->
-                        Text(
-                            text = heading,
-                            style = MaterialTheme.typography.headlineSmall.copy(
-                                fontSize = 24.sp,
-                                lineHeight = 28.sp,
-                                fontWeight = FontWeight.Bold,
-                            ),
-                            color = Color.White,
-                        )
-                    }
-                    tagline?.trim()?.takeIf { it.isNotEmpty() }?.let { line ->
-                        Text(
-                            text = line,
-                            fontFamily = FontFamily.Serif,
-                            fontStyle = FontStyle.Italic,
-                            fontWeight = FontWeight.Normal,
-                            fontSize = 16.sp,
-                            lineHeight = 21.sp,
-                            color = Color.White.copy(alpha = 0.82f),
-                        )
-                    }
-                    Text(
-                        text = overview,
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontSize = 17.sp,
-                            lineHeight = 25.sp,
-                        ),
-                        color = Color.White.copy(alpha = 0.86f),
-                    )
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val pill = RoundedCornerShape(50)
+    val scrollBy = LocalTvPageScrollBy.current
+    Box(
+        modifier = modifier
+            .onPreviewKeyEvent { event ->
+                // Nothing is above the pill, so Up scrolls the page back to the top.
+                if (scrollBy != null && event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
+                    scrollBy(-360f)
+                    true
+                } else {
+                    false
                 }
             }
-        }
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .background(
+                color = if (isFocused) Color.White else Color.White.copy(alpha = 0.14f),
+                shape = pill,
+            )
+            .border(1.dp, Color.White.copy(alpha = if (isFocused) 0f else 0.35f), pill)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 5.dp),
+    ) {
+        Text(
+            text = if (expanded) "Show less" else "Read more",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (isFocused) Color.Black else Color.White,
+        )
     }
 }

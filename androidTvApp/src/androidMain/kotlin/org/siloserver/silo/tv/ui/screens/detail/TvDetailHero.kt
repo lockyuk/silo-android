@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -90,7 +92,15 @@ internal fun TvDetailHero(
     /** Grows the hero, not the artwork, for a taller summary strip (request
      *  detail's status and stage track) so the actions stay inside its clip. */
     extraHeight: Dp = 0.dp,
+    /** Lets a page start focus on the synopsis "Read more" pill when there is one. */
+    synopsisPillFocusRequester: androidx.compose.ui.focus.FocusRequester? = null,
+    onSynopsisPillPresent: ((Boolean) -> Unit)? = null,
 ) {
+    // Growth from an expanded synopsis: the hero gets taller, the rest of the page moves down.
+    var expandedExtra by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0.dp) }
+    // The "Read more" pill takes room under the synopsis; reserve it so the actions are not squeezed or clipped.
+    var pillPresent by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    val synopsisExtra = expandedExtra + if (pillPresent) SYNOPSIS_PILL_HEIGHT else 0.dp
     // tvOS 690pt on a 1080pt canvas. Android TV's 1920×1080 emulator reports
     // a 960×540dp layout canvas, so the same fraction produces 345dp.
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
@@ -102,7 +112,7 @@ internal fun TvDetailHero(
     } else {
         0.dp
     }
-    val heroHeight = screenHeight * HERO_HEIGHT_FRACTION + extraHeight - seriesLift
+    val heroHeight = screenHeight * HERO_HEIGHT_FRACTION + extraHeight - seriesLift + synopsisExtra
 
     BoxWithConstraints(
         modifier = modifier
@@ -179,6 +189,10 @@ internal fun TvDetailHero(
                 translation = translation.takeUnless { compactSeries },
                 machineTranslated = machineTranslated && !compactSeries,
                 playbackSummary = playbackSummary,
+                synopsisExtra = synopsisExtra,
+                onSynopsisExtraHeight = { expandedExtra = it },
+                synopsisPillFocusRequester = synopsisPillFocusRequester,
+                onSynopsisPillPresent = { present -> pillPresent = present; onSynopsisPillPresent?.invoke(present) },
             )
 
             Box(
@@ -225,12 +239,16 @@ private fun EditorialColumn(
     translation: (@Composable () -> Unit)? = null,
     machineTranslated: Boolean = false,
     playbackSummary: (@Composable () -> Unit)? = null,
+    synopsisExtra: androidx.compose.ui.unit.Dp = 0.dp,
+    onSynopsisExtraHeight: ((androidx.compose.ui.unit.Dp) -> Unit)? = null,
+    synopsisPillFocusRequester: androidx.compose.ui.focus.FocusRequester? = null,
+    onSynopsisPillPresent: ((Boolean) -> Unit)? = null,
 ) {
     val isCombinedSeriesEpisode = compactSeries && !seriesTitle.isNullOrBlank()
     Column(
         modifier = Modifier.widthIn(max = contentMaxWidth)
             // tvOS reserves 435pt for Series editorial content and its disclosure block.
-            .then(if (compactSeries) Modifier.height(217.5.dp) else Modifier),
+            .then(if (compactSeries) Modifier.height(217.5.dp + synopsisExtra) else Modifier),
         horizontalAlignment = Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(if (compactSeries) 2.dp else verticalSpacing),
     ) {
@@ -252,7 +270,15 @@ private fun EditorialColumn(
             val hasMetadata = factsLine.isNotEmpty() || !ratingChip.isNullOrBlank() || metadataSourceTokens.isNotEmpty()
             if (compactSeries || hasMetadata) {
                 Box(
-                    modifier = Modifier.height(SERIES_METADATA_SLOT_HEIGHT).clipToBounds(),
+                    modifier = Modifier
+                        .height(
+                            if (factsLine.any { it is TvHeroFactToken.ExternalRating }) {
+                                SERIES_METADATA_SLOT_HEIGHT + SERIES_RATINGS_ROW_HEIGHT
+                            } else {
+                                SERIES_METADATA_SLOT_HEIGHT
+                            },
+                        )
+                        .clipToBounds(),
                     contentAlignment = Alignment.CenterStart,
                 ) {
                     if (hasMetadata) {
@@ -271,7 +297,7 @@ private fun EditorialColumn(
                 // Reserve three lines even when the focused episode has no synopsis.
                 Box(
                     modifier = Modifier
-                        .height(SERIES_EPISODE_SYNOPSIS_HEIGHT)
+                        .height(SERIES_EPISODE_SYNOPSIS_HEIGHT + synopsisExtra)
                         .clipToBounds(),
                 ) {
                     overview?.takeIf { it.isNotBlank() }?.let { line ->
@@ -283,6 +309,9 @@ private fun EditorialColumn(
                             // The title is always isolated so the overview, not the
                             // title, sets the paragraph direction.
                             previewText = if (isCombinedSeriesEpisode) "\u2068$title\u2069 · $line" else line,
+                            pillFocusRequester = synopsisPillFocusRequester,
+                            onPillPresent = onSynopsisPillPresent,
+                            onExtraHeight = onSynopsisExtraHeight,
                         )
                     }
                 }
@@ -293,6 +322,9 @@ private fun EditorialColumn(
                         tagline = tagline,
                         collapsedMaxLines = collapsedSynopsisLines,
                         dialogTitle = title,
+                        pillFocusRequester = synopsisPillFocusRequester,
+                        onPillPresent = onSynopsisPillPresent,
+                        onExtraHeight = onSynopsisExtraHeight,
                     )
                 }
             }
@@ -483,23 +515,37 @@ private fun MetadataRow(
 ) {
     // Like tvOS: the source tokens (type, genres) give way first, then
     // ratings from the end of the list, so the other facts and any playback
-    // formats stay visible.
-    TvFactsRow(
-        tokens = tokens + sourceTokens.map { TvHeroFactToken.TextToken(it, givesWayFirst = true) },
-        style = LocalTextStyle.current.merge(
-            TextStyle(
-                fontWeight = FontWeight.Medium,
-                fontSize = 14.sp,
-                lineHeight = 16.sp,
-                color = Color.White.copy(alpha = 0.88f),
-            ),
+    // formats stay visible. External ratings (IMDb, RT, TMDB) sit on their own
+    // row directly under the year / runtime / seasons line.
+    val ratingTokens = tokens.filterIsInstance<TvHeroFactToken.ExternalRating>()
+    val factTokens = tokens - ratingTokens.toSet()
+    val style = LocalTextStyle.current.merge(
+        TextStyle(
+            fontWeight = FontWeight.Medium,
+            fontSize = 14.sp,
+            lineHeight = 16.sp,
+            color = Color.White.copy(alpha = 0.88f),
         ),
-        dividerColor = Color.White.copy(alpha = 0.45f),
-        ratingsDropFirst = true,
-        leading = ratingChip?.takeIf { it.isNotBlank() }?.let { rating ->
-            { RatingChip(text = rating, compact = compactRating) }
-        },
     )
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        TvFactsRow(
+            tokens = factTokens + sourceTokens.map { TvHeroFactToken.TextToken(it, givesWayFirst = true) },
+            style = style,
+            dividerColor = Color.White.copy(alpha = 0.45f),
+            ratingsDropFirst = true,
+            leading = ratingChip?.takeIf { it.isNotBlank() }?.let { rating ->
+                { RatingChip(text = rating, compact = compactRating) }
+            },
+        )
+        if (ratingTokens.isNotEmpty()) {
+            TvFactsRow(
+                tokens = ratingTokens,
+                style = style,
+                dividerColor = Color.White.copy(alpha = 0.45f),
+                ratingsDropFirst = true,
+            )
+        }
+    }
 }
 
 @Composable
@@ -553,6 +599,8 @@ private val HERO_CONTENT_MAX_WIDTH = 540.dp
 private val HERO_CONTENT_SPACING = 9.dp
 private val EDITORIAL_SPACING = 7.dp
 private val SERIES_METADATA_SLOT_HEIGHT = 18.dp
+private val SYNOPSIS_PILL_HEIGHT = 36.dp
+private val SERIES_RATINGS_ROW_HEIGHT = 24.dp
 private val SERIES_EPISODE_SYNOPSIS_HEIGHT = 56.dp
 private val SERIES_CREDIT_SLOT_HEIGHT = 14.dp
 

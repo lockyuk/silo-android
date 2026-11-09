@@ -1,5 +1,7 @@
 package org.siloserver.silo.tv.ui.screens.people
 
+import androidx.compose.ui.layout.layout
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -38,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import org.siloserver.silo.tv.ui.focus.TvContentInitialFocusMaxAttempts
@@ -100,6 +103,7 @@ fun TvPersonDetailScreen(
     personId: Long,
     onOpenItemDetail: (contentId: String) -> Unit,
     onBack: () -> Unit,
+    onOpenRequest: (mediaType: String, tmdbId: Int) -> Unit = { _, _ -> },
     viewModel: TvPersonDetailViewModel = koinViewModel(
         key = "person-$personId",
         parameters = { parametersOf(personId) },
@@ -125,199 +129,67 @@ fun TvPersonDetailScreen(
             )
             state.person != null -> TvPersonDetailContent(
                 person = state.person!!,
-                state = state,
-                onFilterSelected = viewModel::applyFilter,
-                onLoadMore = viewModel::loadMoreIfNeeded,
-                onRetryItems = viewModel::retryItems,
                 onOpenItemDetail = onOpenItemDetail,
+                onOpenRequest = onOpenRequest,
             )
         }
     }
 }
 
 @Composable
-private fun TvPersonDetailContent(
+internal fun TvPersonDetailContent(
     person: Person,
-    state: TvPersonDetailUiState,
-    onFilterSelected: (TvPersonMediaFilter) -> Unit,
-    onLoadMore: () -> Unit,
-    onRetryItems: () -> Unit,
     onOpenItemDetail: (contentId: String) -> Unit,
+    onOpenRequest: (mediaType: String, tmdbId: Int) -> Unit,
 ) {
-    val selectedFilterFocusRequester = remember { FocusRequester() }
-    var filterRowHasFocus by remember { mutableStateOf(false) }
-    var lastRefocusedFilter by remember { mutableStateOf(state.selectedFilter) }
     val bioFocusRequester = remember { FocusRequester() }
-    val gridState = rememberLazyGridState()
-    val scope = rememberCoroutineScope()
-    var initialFocusRequested by remember { mutableStateOf(false) }
-
-    val restoreHeaderTop = {
-        scope.launch { gridState.animateScrollToItem(0) }
-        Unit
-    }
-    // Up from the filter chips walks into the bio (a focusable, expandable
-    // stop like the hero synopsis on item detail pages) when one exists;
-    // otherwise it just re-anchors the header like before.
     val hasBio = remember(person.bio) { cleanPersonBio(person.bio) != null }
-    val focusBio = {
-        bioFocusRequester.claimFocusOrReport(target = "person_bio", action = "focus_bio")
-        scope.launch { gridState.animateScrollToItem(0) }
-        Unit
-    }
-
-    val restoreItemFocusRequester = remember { FocusRequester() }
-    // Returns land on the poster the viewer opened. Entry does not: this page
-    // opens on the filter row so the identity header stays visible, so on a
-    // fresh arrival the restoration stands down and the effect below is
-    // untouched.
-    val restoration = rememberTvFlatReturnRestoration(
-        itemIds = state.items.map { it.contentId },
-        hasMore = state.hasMore,
-        isLoadingMore = state.isLoadingItems,
-        errorMessage = state.pagingError,
-        surfaceKey = "person-${person.id}-${state.selectedFilter.name}",
-        onLoadMore = onLoadMore,
-        // The header is one full-span slot ahead of the posters, so the grid's
-        // own index runs one past the item index.
-        scrollToItem = { itemIndex -> gridState.scrollToItem(itemIndex + PersonGridHeaderSlots) },
-        requestFocus = restoreItemFocusRequester::requestFocus,
-        onRestored = {},
-        focusFirstItemWithoutTarget = false,
-    )
-
-    // Enter on the filter row so the full identity header remains visible.
-    // Moving down into the posters then scrolls the whole header away naturally.
-    // A return owns entry instead, so this stands aside for one.
-    LaunchedEffect(state.availableFilters.isNotEmpty()) {
-        if (initialFocusRequested || state.availableFilters.isEmpty()) return@LaunchedEffect
-        if (restoration.isReturning) return@LaunchedEffect
-        kotlinx.coroutines.delay(120)
-        requestFocusUntilObserved(
-            maxAttempts = TvContentInitialFocusMaxAttempts,
-            awaitAttempt = { withFrameNanos { } },
-            requestFocus = selectedFilterFocusRequester::requestFocus,
-            isFocused = { filterRowHasFocus },
-        )
-        initialFocusRequested = true
-    }
-
-    // key() below disposes the whole grid on a filter change, filter row and
-    // all — including the chip the viewer just pressed. Nothing else would put
-    // focus back on it.
-    //
-    // Every change refocuses, whether a press caused it or an async gate fell
-    // back to All on its own. Distinguishing the two was the earlier design and
-    // it was wrong: it existed to avoid yanking focus off a poster the viewer
-    // was reading, but the key change has already destroyed that poster by the
-    // time this runs. There is no focus left to preserve — only focus to lose.
-    //
-    // The first composition is not a change. Seeding from the current value is
-    // what makes that true even on a return, where entry belongs to the
-    // restoration rather than to the chips.
-    LaunchedEffect(state.selectedFilter) {
-        if (state.selectedFilter == lastRefocusedFilter) return@LaunchedEffect
-        lastRefocusedFilter = state.selectedFilter
-        // key() disposes the whole grid on a filter change, including the chip
-        // the viewer just pressed, so this is a relocation onto a node being
-        // recreated — short budget, and observed rather than assumed.
-        requestFocusUntilObserved(
-            maxAttempts = TvFrameRelocationMaxAttempts,
-            awaitAttempt = { withFrameNanos { } },
-            requestFocus = selectedFilterFocusRequester::requestFocus,
-            isFocused = { filterRowHasFocus },
-        )
-    }
-
-    // The surface key includes the filter, and the helper requires item
-    // content to be recreated when it changes. applyFilter usually empties
-    // the list first, which disposes the cards anyway — but not on every
-    // path: an asynchronous filter gate can fall back to All without
-    // clearing. Keying it here makes the precondition hold by construction
-    // rather than by timing.
-    key(state.selectedFilter) {
-        TvCatalogGrid(
-            items = state.items,
-            isLoading = state.isLoadingItems,
-            hasMore = state.hasMore,
-            onItemClick = { contentId ->
-                restoration.onItemClicked(
-                    itemId = contentId,
-                    index = state.items.indexOfFirst { it.contentId == contentId },
-                )
-                onOpenItemDetail(contentId)
-            },
-            onLoadMore = onLoadMore,
-            restoreItemIndex = restoration.requesterItemIndex,
-            restoreItemFocusRequester = restoreItemFocusRequester,
-            onRestoreRequesterAttached = restoration::onRequesterAttached,
-            onItemFocusedAtIndex = { item, index, focused ->
-                if (focused) {
-                    restoration.onItemFocused(item.contentId, index)
-                } else {
-                    restoration.onItemFocusLost(item.contentId)
-                }
-            },
-            modifier = Modifier.fillMaxSize(),
-            gridState = gridState,
-            fixedColumnCount = tvPresetGridColumns(PersonGridColumns),
-            // tvOS `TVPersonDetailContent`: 48pt page top, 72pt bottom, 40pt grid
-            // column spacing, 48pt header → filmography gap (all halved to dp).
-            contentPadding = PaddingValues(
-                start = Spacing.safeArea,
-                top = 24.dp,
-                end = Spacing.safeArea,
-                bottom = 36.dp,
+    val page = MaterialTheme.colorScheme.background
+    Box(modifier = Modifier.fillMaxSize()) {
+        // A soft colour wash instead of artwork: a hue picked from the person's name (so each
+        // page has its own colour, stable between visits) fading into the page colour.
+        val hue = remember(person.name) { (person.name.hashCode().toLong() and 0x7fffffffL).rem(360L).toFloat() }
+        val tint = remember(hue) { Color.hsv(hue, 0.55f, 0.55f) }
+        Box(
+            modifier = Modifier.fillMaxSize().background(
+                androidx.compose.ui.graphics.Brush.linearGradient(
+                    0f to tint.copy(alpha = 0.55f),
+                    0.6f to tint.copy(alpha = 0.18f),
+                    1f to Color.Transparent,
+                    start = androidx.compose.ui.geometry.Offset.Zero,
+                    end = androidx.compose.ui.geometry.Offset(1400f, 1000f),
+                ),
             ),
-            horizontalSpacing = PersonGridItemSpacing,
-            verticalSpacing = Spacing.sectionSpacing,
-            artworkAspectRatioForItem = ::personWorkCardAspectRatio,
-            header = {
-                // The chips live in this header and the flag belongs to the
-                // screen, so observe here: "focus is in the header" is the
-                // criterion the retries above are actually protecting.
-                Column(
-                    modifier = Modifier.onFocusChanged { filterRowHasFocus = it.hasFocus },
-                    verticalArrangement = Arrangement.spacedBy(24.dp),
-                ) {
-                    PersonHeader(person = person, bioFocusRequester = bioFocusRequester)
-                    FilmographyHeader(
-                        selected = state.selectedFilter,
-                        availableFilters = state.availableFilters,
-                        totalLoaded = state.items.size,
-                        totalItems = state.totalItems,
-                        hasMore = state.hasMore,
-                        selectedFilterFocusRequester = selectedFilterFocusRequester,
-                        onMoveUp = if (hasBio) focusBio else restoreHeaderTop,
-                        onSelect = onFilterSelected,
-                    )
-                    state.pagingError?.let { error ->
-                        Text(
-                            text = error,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontSize = 14.sp,
-                                lineHeight = 17.sp,
-                            ),
-                            color = Color.White.copy(alpha = 0.62f),
-                        )
-                        // A failed page-0 load leaves the grid with nothing
-                        // focusable below the chips. Keep retry in the scrolling
-                        // header instead of dead-ending on the empty state.
-                        run {
-                            Button(
-                                onClick = onRetryItems,
-                                contentPadding = PaddingValues(horizontal = 32.dp, vertical = 12.dp),
-                            ) {
-                                Text("Retry", style = MaterialTheme.typography.labelLarge)
-                            }
-                        }
-                    }
-                }
-            },
-            emptyState = {
-                TvCatalogEmptyState(message = "No titles found.")
-            },
         )
+        Box(
+            modifier = Modifier.fillMaxSize().background(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    0f to Color.Transparent,
+                    0.4f to Color.Transparent,
+                    0.75f to page,
+                    1f to page,
+                ),
+            ),
+        )
+        val pageScroll = rememberScrollState()
+        val pageScope = androidx.compose.runtime.rememberCoroutineScope()
+        androidx.compose.runtime.CompositionLocalProvider(
+            org.siloserver.silo.tv.ui.screens.detail.LocalTvPageScrollBy provides { dy: Float -> pageScope.launch { pageScroll.animateScrollBy(dy) } },
+        ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(pageScroll)
+                .padding(start = Spacing.safeArea, end = Spacing.safeArea, top = 40.dp, bottom = 48.dp),
+        ) {
+            // Focus on the "Read more" pill brings the whole header (portrait, name) back into view.
+            Box(modifier = Modifier.onFocusChanged { if (it.hasFocus) pageScope.launch { pageScroll.animateScrollTo(0) } }) {
+                PersonHeader(person = person, bioFocusRequester = bioFocusRequester)
+            }
+            TvPersonCredits(person = person, onOpenItemDetail = onOpenItemDetail, onOpenRequest = onOpenRequest)
+        }
+        }
     }
 }
 
@@ -385,56 +257,39 @@ private fun TvExpandablePersonBio(
     bio: String,
     focusRequester: FocusRequester,
 ) {
-    var showFullBio by remember(bio) { mutableStateOf(false) }
-    val interactionSource = remember { MutableInteractionSource() }
-    val isFocused by interactionSource.collectIsFocusedAsState()
-    val shape = RoundedCornerShape(4.dp)
-
+    var expanded by remember(bio) { mutableStateOf(false) }
+    var fullLines by remember(bio) { mutableStateOf(0) }
+    val style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 20.sp)
+    val overflows = fullLines > 7
     Column(
-        modifier = Modifier
-            .widthIn(max = 530.dp)
-            .then(
-                if (isFocused) {
-                    Modifier.background(
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
-                        shape = shape,
-                    )
-                } else {
-                    Modifier
-                },
-            )
-            .focusRequester(focusRequester)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-            ) { showFullBio = true }
-            .padding(vertical = 4.dp),
+        modifier = Modifier.widthIn(max = 530.dp).padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            text = bio,
-            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 20.sp),
-            color = PersonSecondaryText,
-            maxLines = 7,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-
-    if (showFullBio) {
-        TvPersonBioDialog(
-            bio = bio,
-            onDismiss = { showFullBio = false },
-        )
-        // Dismissing the focusable Popup drops window focus back on the page
-        // with no saved target; put it back on the bio the user launched from.
-        DisposableEffect(Unit) {
-            onDispose {
-                // Teardown: no scope left to retry in, but a dropped claim here
-                // leaves the page with nothing focused after the popup closes.
-                focusRequester.claimFocusOrReport(
-                    target = "person_bio",
-                    action = "popup_dismissed",
-                )
+        Box {
+            // Zero-size copy that counts lines with no height limit.
+            Box(
+                Modifier.layout { measurable, constraints ->
+                    measurable.measure(constraints.copy(minHeight = 0, maxHeight = androidx.compose.ui.unit.Constraints.Infinity))
+                    layout(0, 0) {}
+                },
+            ) {
+                Text(text = bio, style = style, onTextLayout = { fullLines = it.lineCount })
             }
+            // The bio expands where it stands and the rest of the page moves down.
+            Text(
+                text = bio,
+                style = style,
+                color = PersonSecondaryText,
+                maxLines = if (expanded) Int.MAX_VALUE else 7,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (overflows) {
+            org.siloserver.silo.tv.ui.screens.detail.TvReadMorePill(
+                expanded = expanded,
+                onClick = { expanded = !expanded },
+                focusRequester = focusRequester,
+            )
         }
     }
 }

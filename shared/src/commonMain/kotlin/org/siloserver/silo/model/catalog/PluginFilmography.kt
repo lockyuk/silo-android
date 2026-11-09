@@ -23,8 +23,34 @@ data class PluginCredit(
     val roleSummary: String get() = roles.joinToString(" · ")
 }
 
+/** Who the person is, from the same plugin answer, so a page can show details for someone not in the library. */
+data class PluginPersonProfile(
+    val tmdbId: String,
+    val name: String,
+    val biography: String?,
+    val birthday: String?,
+    val deathday: String?,
+    val birthplace: String?,
+    val photoUrl: String?,
+    val alsoKnownAs: List<String>,
+    /** The person's id in Silo, when the library has them. */
+    val siloPersonId: String?,
+) {
+    /** A [Person] for the shared person-page layouts. The id is 0 because there is no library record. */
+    fun toPerson(): Person = Person(
+        id = siloPersonId?.toLongOrNull() ?: 0L,
+        name = name,
+        bio = biography,
+        birthDate = birthday,
+        deathDate = deathday,
+        birthplace = birthplace,
+        photoUrl = photoUrl,
+        tmdbId = tmdbId,
+    )
+}
+
 /** Everything the plugin knows an actor worked on, newest first. */
-data class PluginFilmography(val credits: List<PluginCredit>)
+data class PluginFilmography(val credits: List<PluginCredit>, val profile: PluginPersonProfile? = null)
 
 enum class PluginLibraryFilter(val title: String) { All("Everything"), InLibrary("In library"), NotInLibrary("Not in library") }
 enum class PluginTypeFilter(val title: String) { All("Any type"), Movies("Movies"), Series("TV") }
@@ -52,6 +78,17 @@ data class PluginTitle(
     val episodes: Int?,
     val network: String?,
     val status: String?,
+    /** IMDb / TMDB / Rotten Tomatoes scores, when the plugin has an MDBList key. */
+    val ratings: List<DisplayRating> = emptyList(),
+    /** The title's clear logo, when the plugin returns one. */
+    val logoUrl: String? = null,
+    /** YouTube trailers, teasers, featurettes and clips, trailers first. */
+    val videos: List<ItemVideo> = emptyList(),
+    val budget: Long? = null,
+    val revenue: Long? = null,
+    val companies: List<String> = emptyList(),
+    val countries: List<String> = emptyList(),
+    val languages: List<String> = emptyList(),
 ) {
     val trailerUrl: String? get() = trailerKey?.let { "https://www.youtube.com/watch?v=$it" }
 }

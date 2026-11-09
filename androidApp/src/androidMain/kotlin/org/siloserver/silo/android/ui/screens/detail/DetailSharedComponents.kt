@@ -1124,14 +1124,14 @@ private fun OverviewBlock(
     reserveCollapsedSpace: Boolean = false,
 ) {
     var expanded by remember(text) { mutableStateOf(false) }
-    val canExpand = text.length > 140
+    var overflows by remember(text) { mutableStateOf(false) }
 
     // iOS overviewBlock: 15pt regular (0.78 alpha), lineSpacing 3, top pad 8.
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp)
-            .clickable(enabled = canExpand) { expanded = !expanded },
+            .padding(top = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
             text = text,
@@ -1143,6 +1143,31 @@ private fun OverviewBlock(
             maxLines = if (expanded) Int.MAX_VALUE else 3,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Start,
+            onTextLayout = { if (!expanded) overflows = it.hasVisualOverflow },
+        )
+        // Only when there is more to show (or something to hide again).
+        if (overflows || expanded) {
+            ReadMorePill(expanded = expanded, onClick = { expanded = !expanded })
+        }
+    }
+}
+
+/** "Read more" / "Show less" as a small pill. */
+@Composable
+internal fun ReadMorePill(expanded: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(Color.White.copy(alpha = 0.14f))
+            .border(1.dp, Color.White.copy(alpha = 0.30f), RoundedCornerShape(50))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+    ) {
+        Text(
+            text = if (expanded) "Show less" else "Read more",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White,
         )
     }
 }

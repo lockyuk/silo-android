@@ -81,7 +81,8 @@ fun CastCrewSection(
                 // Anyone else with a TMDB id opens the filmography sheet.
                 onClick = when {
                     member.personId != null -> ({ onPersonClick(member.personId!!) })
-                    onTitleClick != null && !member.tmdbId.isNullOrBlank() -> ({ sheetMember = member })
+                    // Without a TMDB id the sheet finds the person by name.
+                    onTitleClick != null -> ({ sheetMember = member })
                     else -> null
                 },
             )

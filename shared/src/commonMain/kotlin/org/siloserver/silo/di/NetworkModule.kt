@@ -57,7 +57,7 @@ val networkModule = module {
     single { CatalogV2Api(get(), get(), get()) }
     single { org.siloserver.silo.network.apiv2.ThemeMusicV2Api(get(), get(), get()) }
     single { PersonRefreshV2Api(get(), get(), get()) }
-    single { org.siloserver.silo.network.apiv2.FilmographyPluginApi(get(), get(), get()) }
+    single { org.siloserver.silo.network.apiv2.FilmographyPluginApi(get(), get(), get(), get()) }
     single { WatchDetailV2Api(get(), get(), get()) }
     single<org.siloserver.silo.playback.trickplay.TrickplayManifestSource> {
         org.siloserver.silo.network.apiv2.TrickplayV2Api(get(), get(), get())

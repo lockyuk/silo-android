@@ -1428,6 +1428,7 @@ fun TvAppNavigation(
                         )
                     }
                 },
+                onOpenPersonByTmdb = { tmdbId -> navController.navigate(TvRoute.PersonTmdb(tmdbId).route) },
                 onOpenPersonDetail = { personId ->
                     navController.navigate(TvRoute.PersonDetail(personId).route) {
                         launchSingleTop = true
@@ -1643,6 +1644,42 @@ fun TvAppNavigation(
                     navController.navigateToTvItemDetail(itemContentId)
                 },
                 onBack = { navController.popBackStack() },
+                onOpenRequest = { mediaType, tmdbId ->
+                    navController.navigate(TvRoute.PersonRequest(mediaType, tmdbId).route)
+                },
+            )
+        }
+
+        composable(
+            route = TvRoute.PersonTmdb.ROUTE,
+            arguments = listOf(navArgument(TvRoute.PersonTmdb.ARG_TMDB_ID) { type = NavType.StringType }),
+        ) { backStack ->
+            org.siloserver.silo.tv.ui.screens.people.TvTmdbPersonScreen(
+                tmdbId = backStack.arguments?.getString(TvRoute.PersonTmdb.ARG_TMDB_ID).orEmpty(),
+                onOpenItemDetail = { itemContentId -> navController.navigateToTvItemDetail(itemContentId) },
+                onOpenRequest = { mediaType, tmdbId ->
+                    navController.navigate(TvRoute.PersonRequest(mediaType, tmdbId).route)
+                },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = TvRoute.PersonRequest.ROUTE,
+            arguments = listOf(
+                navArgument(TvRoute.PersonRequest.ARG_MEDIA_TYPE) { type = NavType.StringType },
+                navArgument(TvRoute.PersonRequest.ARG_TMDB_ID) { type = NavType.IntType },
+            ),
+        ) { backStack ->
+            org.siloserver.silo.tv.ui.screens.requests.TvRequestDetailScreen(
+                mediaType = backStack.arguments?.getString(TvRoute.PersonRequest.ARG_MEDIA_TYPE).orEmpty(),
+                tmdbId = backStack.arguments?.getInt(TvRoute.PersonRequest.ARG_TMDB_ID) ?: 0,
+                onBack = { navController.popBackStack() },
+                onOpenLibraryItem = { itemContentId -> navController.navigateToTvItemDetail(itemContentId) },
+                onOpenRequestDetail = { mediaType, tmdbId ->
+                    navController.navigate(TvRoute.PersonRequest(mediaType, tmdbId).route)
+                },
+                onOpenPersonByTmdb = { tmdbId -> navController.navigate(TvRoute.PersonTmdb(tmdbId).route) },
             )
         }
 

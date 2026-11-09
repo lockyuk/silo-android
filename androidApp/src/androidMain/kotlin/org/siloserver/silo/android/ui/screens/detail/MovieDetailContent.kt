@@ -276,6 +276,11 @@ fun MovieDetailContent(
             }
         }
 
+        item(contentType = "detail-facts") {
+            DetailFactsSection(detail = detail)
+        }
+
+
         // Episode pages: season chips + this season's episodes as the first
         // below-fold section, mirroring iOS's episode detail. Tapping a
         // sibling navigates to its own detail page.
@@ -366,11 +371,6 @@ fun MovieDetailContent(
                     onSelect = onSimilarItemClick,
                 )
             }
-        }
-
-        item(contentType = "detail-facts") {
-            // Header renders inside DetailFactsList, gated on having facts.
-            DetailFactsList(detail = detail, runtimeMinutes = selectedRuntimeMinutes)
         }
 
         item(contentType = "detail-spacer") {

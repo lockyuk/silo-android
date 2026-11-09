@@ -1,5 +1,6 @@
 package org.siloserver.silo.android.ui.screens.detail
 
+import org.siloserver.silo.common.ui.rememberLibraryResolvedCredit
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -98,12 +99,14 @@ fun ActorFilmographySheet(
 ) {
     val api: FilmographyPluginApi = koinInject()
     val tokens: TokenManager = koinInject()
-    val load by produceState<FilmographyLoad>(FilmographyLoad.Loading, member.tmdbId) {
+    // A fresh load for every actor: keyed on the member, never reused from the last one tapped.
+    val load by produceState<FilmographyLoad>(FilmographyLoad.Loading, member.name, member.tmdbId) {
+        value = FilmographyLoad.Loading
         val owner = tokens.snapshotCurrentScope()
-        val tmdb = member.tmdbId
+        val tmdb = member.tmdbId?.takeIf { it.isNotBlank() } ?: owner?.let { api.findPersonTmdbId(member.name, it) }
         value = when {
             owner == null -> FilmographyLoad.Unavailable("Sign in to see this filmography.")
-            tmdb.isNullOrBlank() -> FilmographyLoad.Unavailable("This person has no TMDB id, so their filmography can't be listed.")
+            tmdb.isNullOrBlank() -> FilmographyLoad.Unavailable("Couldn't find ${member.name} on TMDB.")
             else -> when (val r = api.person(tmdb, owner)) {
                 is ApiResult.Success -> FilmographyLoad.Ready(r.data)
                 is ApiResult.Error -> FilmographyLoad.Unavailable(
@@ -114,97 +117,31 @@ fun ActorFilmographySheet(
             }
         }
     }
-    var type by remember { mutableStateOf(PluginTypeFilter.All) }
-    var library by remember { mutableStateOf(PluginLibraryFilter.All) }
-    var showSelf by remember { mutableStateOf(false) }
-    var preview by remember { mutableStateOf<PluginCredit?>(null) }
-    val openRequest = LocalOpenRequestDetail.current
+    var preview by remember(member.name, member.tmdbId) { mutableStateOf<PluginCredit?>(null) }
     preview?.let { TitlePreviewDialog(it, onDismiss = { preview = null }, onLibraryItem = { id -> preview = null; onItemClick(id) }) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
-        Column(modifier = Modifier.fillMaxSize().navigationBarsPadding()) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            ) {
-                Box(modifier = Modifier.size(56.dp).clip(CircleShape).background(SiloSurfaceElevated)) {
-                    ThumbhashImage(
-                        url = member.photoUrl,
-                        thumbhash = member.photoThumbhash,
-                        contentDescription = member.name,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(member.name, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = SiloOnSurface)
-                    val credits = (load as? FilmographyLoad.Ready)?.filmography?.credits.orEmpty()
-                    Text(
-                        text = when {
-                            credits.isNotEmpty() -> "${credits.size} titles · ${credits.count { it.inLibrary }} in your library"
-                            !member.character.isNullOrBlank() -> "as ${member.character}"
-                            else -> "Filmography"
-                        },
-                        fontSize = 13.sp,
-                        color = SiloSecondaryText,
-                    )
-                }
-            }
+        Box(modifier = Modifier.fillMaxSize().navigationBarsPadding()) {
             when (val state = load) {
                 FilmographyLoad.Loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
                 is FilmographyLoad.Unavailable -> Box(Modifier.fillMaxSize().padding(24.dp), Alignment.Center) {
                     Text(state.message, color = SiloSecondaryText, fontSize = 14.sp)
                 }
                 is FilmographyLoad.Ready -> {
-                    val all = state.filmography.credits
-                    val visible = remember(all, type, library, showSelf) { all.filterCredits(type, library, showSelf) }
-                    val hasSelf = remember(all) { all.any { it.isSelf } }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier
-                            .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                    ) {
-                        PluginLibraryFilter.entries.forEach { f -> FilterChip(f.title, f == library) { library = f } }
-                        PluginTypeFilter.entries.forEach { f -> FilterChip(f.title, f == type) { type = f } }
-                        if (hasSelf) FilterChip("As themselves", showSelf) { showSelf = !showSelf }
-                    }
-                    if (visible.isEmpty()) {
-                        Text("Nothing matches these filters.", color = SiloSecondaryText, fontSize = 14.sp, modifier = Modifier.padding(24.dp))
-                    }
-                    val groups = remember(visible) { visible.groupBy { it.yearLabel }.toList() }
-                    LazyColumn(
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                        modifier = Modifier.fillMaxSize(),
-                    ) {
-                        groups.forEach { (label, credits) ->
-                            stickyHeader(key = "year-$label") {
-                                Text(
-                                    text = label,
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF9CC4FF),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                                        .padding(top = 12.dp, bottom = 4.dp),
-                                )
-                            }
-                            items(credits, key = { "${if (it.isSeries) "tv" else "movie"}-${it.tmdbId}" }) { credit ->
-                                CreditLinkRow(credit) {
-                                    val id = credit.itemId
-                                    when {
-                                        id != null -> onItemClick(id)
-                                        openRequest != null -> { onDismiss(); openRequest(credit.requestMediaType(), credit.tmdbId) }
-                                        else -> preview = credit
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    val person = state.filmography.profile?.toPerson()
+                        ?: org.siloserver.silo.model.catalog.Person(
+                            id = 0L, name = member.name, photoUrl = member.photoUrl, tmdbId = member.tmdbId,
+                        )
+                    org.siloserver.silo.android.ui.screens.people.PersonFullFilmography(
+                        person = person,
+                        isRefreshingMetadata = false,
+                        credits = state.filmography.credits,
+                        onItemClick = onItemClick,
+                        onBeforeNavigate = onDismiss,
+                    )
                 }
             }
         }
@@ -216,7 +153,8 @@ private val MissingLink = Color(0xFF8FA3BF)
 
 /** One credit as a text link: the title, then its type and role. */
 @Composable
-private fun CreditLinkRow(credit: PluginCredit, onClick: () -> Unit) {
+private fun CreditLinkRow(rawCredit: PluginCredit, onClick: () -> Unit) {
+    val credit = rememberLibraryResolvedCredit(rawCredit)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -320,8 +258,9 @@ internal fun TitlePreviewDialog(credit: PluginCredit, onDismiss: () -> Unit, onL
                     fontSize = 14.sp,
                     color = SiloSecondaryText,
                 )
-                org.siloserver.silo.model.catalog.ExternalRatings.tmdb(credit.voteAverage)?.let {
-                    RatingGauges(listOf(it), Modifier.fillMaxWidth())
+                (info?.ratings?.takeIf { it.isNotEmpty() }
+                    ?: listOfNotNull(org.siloserver.silo.model.catalog.ExternalRatings.tmdb(credit.voteAverage))).let {
+                    if (it.isNotEmpty()) RatingGauges(it, Modifier.fillMaxWidth())
                 }
                 if (info != null && info.genres.isNotEmpty()) {
                     Text(info.genres.joinToString(", "), fontSize = 14.sp, color = SiloSecondaryText)

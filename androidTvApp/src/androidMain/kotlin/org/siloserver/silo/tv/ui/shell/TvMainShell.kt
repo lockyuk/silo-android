@@ -220,6 +220,7 @@ fun TvMainShell(
     // Plays the first pick of a shuffle started from a library screen.
     onPlayShuffle: (shuffle: org.siloserver.silo.model.shuffle.Shuffle, libraryId: Int?) -> Unit = { _, _ -> },
     onOpenPersonDetail: (personId: Long) -> Unit,
+    onOpenPersonByTmdb: (tmdbId: String) -> Unit = {},
     /** Open a movie box set: one TMDB collection's movies in one library. */
     onOpenBoxSet: (CatalogBoxSet) -> Unit = {},
 ) {
@@ -1515,6 +1516,7 @@ fun TvMainShell(
                         onBack = { if (nestedNav.previousBackStackEntry != null) nestedNav.popBackStack() },
                         onOpenLibraryItem = onOpenItemDetail,
                         onOpenRequestDetail = openRequestDetail,
+                        onOpenPersonByTmdb = onOpenPersonByTmdb,
                         // Back closes an open panel or profile menu first, as
                         // on every other screen; the shell's handler does that.
                         backEnabled = focusState.openPanel == null && !focusState.profileMenuOpen,

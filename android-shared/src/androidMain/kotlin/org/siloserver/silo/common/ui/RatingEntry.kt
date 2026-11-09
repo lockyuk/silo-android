@@ -63,7 +63,15 @@ fun RatingEntry(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (rating.source == ExternalRatings.SOURCE_TMDB) {
+        val mark = rating.markKind()
+        if (mark != null) {
+            val markHeight = with(LocalDensity.current) { (fontSize * 1.3f).toDp() }
+            when (mark) {
+                RatingMarkKind.Imdb -> ImdbMark(fontSize = fontSize * 0.85f)
+                RatingMarkKind.Tomato -> TomatoMark(fresh = rating.isFresh(), size = markHeight)
+                RatingMarkKind.Popcorn -> PopcornMark(fresh = rating.isFresh(), size = markHeight)
+            }
+        } else if (rating.source == ExternalRatings.SOURCE_TMDB) {
             val logoHeight = with(LocalDensity.current) { (fontSize * TmdbLogoCapHeight).toDp() }
             Image(
                 painter = painterResource(R.drawable.tmdb_logo),

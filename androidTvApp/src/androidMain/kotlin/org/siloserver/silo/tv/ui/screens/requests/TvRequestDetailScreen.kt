@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.screens.requests
 
+import androidx.compose.foundation.gestures.animateScrollBy
 import org.siloserver.silo.common.requests.rememberRequestRouter
 import org.siloserver.silo.model.request.RequestMediaResult
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -28,6 +29,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -59,6 +61,7 @@ import org.koin.core.parameter.parametersOf
 import org.siloserver.silo.common.requests.RequestRowCopy
 import org.siloserver.silo.common.requests.RequestStageTrack
 import org.siloserver.silo.model.catalog.ExternalRatings
+import org.siloserver.silo.tv.ui.screens.detail.TvCastCrewSection
 import org.siloserver.silo.model.request.RequestDisplayState
 import org.siloserver.silo.model.request.RequestMediaDetail
 import org.siloserver.silo.model.request.RequestMediaType
@@ -105,6 +108,8 @@ fun TvRequestDetailScreen(
     onBack: () -> Unit,
     onOpenLibraryItem: (contentId: String) -> Unit = {},
     onOpenRequestDetail: (mediaType: String, tmdbId: Int) -> Unit = { _, _ -> },
+    /** Opens a person page by TMDB id, for cast who are not in the library. */
+    onOpenPersonByTmdb: (tmdbId: String) -> Unit = {},
     /**
      * False while the shell has an overlay (a cascade panel or the profile
      * menu) that Back should close first. This handler registers after the
@@ -146,14 +151,19 @@ fun TvRequestDetailScreen(
     // focus is still in the page (or never got here). Observed on the action
     // itself: the synopsis above it is focusable too, and focus entering the
     // page first lands there.
+    val synopsisPillFocusRequester = remember { FocusRequester() }
+    var synopsisPillPresent by remember { mutableStateOf(false) }
     val claimOnArrival = remember(detailKey) { pageHasFocus || !pageHadFocus }
     LaunchedEffect(detailKey) {
         if (detailKey == null || !claimOnArrival) return@LaunchedEffect
         val result = requestFocusUntilObserved(
             maxAttempts = TvContentInitialFocusMaxAttempts,
             awaitAttempt = { withFrameNanos { } },
-            requestFocus = primaryActionFocusRequester::requestFocus,
-            isFocused = { primaryHasFocus },
+            // Start at the top of the page: on the synopsis "Read more" pill when there is one.
+            requestFocus = {
+                if (synopsisPillPresent) synopsisPillFocusRequester.requestFocus() else primaryActionFocusRequester.requestFocus()
+            },
+            isFocused = { primaryHasFocus || (synopsisPillPresent && pageHasFocus) },
         )
         if (result == TvObservedFocusResult.Focused) onInitialContentFocus()
     }
@@ -197,6 +207,8 @@ fun TvRequestDetailScreen(
                 state = state,
                 backdropUrl = backdropUrl,
                 primaryActionFocusRequester = primaryActionFocusRequester,
+                synopsisPillFocusRequester = synopsisPillFocusRequester,
+                onSynopsisPillPresent = { synopsisPillPresent = it },
                 onPrimaryFocusChanged = { primaryHasFocus = it },
                 onPrimary = {
                     when (val action = state.primaryAction) {
@@ -208,7 +220,7 @@ fun TvRequestDetailScreen(
                 onCancel = viewModel::cancel,
                 onToggleFollow = viewModel::toggleFollow,
                 actionFocusFallback = actionFocusFallback,
-                onOpenRecommendation = router::openResult,
+                onOpenPersonByTmdb = onOpenPersonByTmdb,
             )
             state.error != null -> TvErrorScreen(message = state.error.orEmpty(), onRetry = viewModel::load)
             else -> RequestDetailLoading(focusRequester = loadingFocusRequester)
@@ -233,38 +245,89 @@ private fun RequestDetailLoading(focusRequester: FocusRequester) {
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun RequestDetailContent(
     detail: RequestMediaDetail,
     state: RequestDetailUiState,
     backdropUrl: String?,
     primaryActionFocusRequester: FocusRequester,
+    synopsisPillFocusRequester: FocusRequester,
+    onSynopsisPillPresent: (Boolean) -> Unit,
     onPrimaryFocusChanged: (Boolean) -> Unit,
     onPrimary: () -> Unit,
     onCancel: () -> Unit,
     onToggleFollow: () -> Unit,
     actionFocusFallback: RequestActionFocusFallback,
-    onOpenRecommendation: (RequestMediaResult) -> Unit,
+    onOpenPersonByTmdb: (tmdbId: String) -> Unit,
 ) {
+    val castScope = androidx.compose.runtime.rememberCoroutineScope()
+    // IMDb / Rotten Tomatoes / TMDB scores and the cast come from the Filmography plugin when it is installed.
+    val pluginApi: org.siloserver.silo.network.apiv2.FilmographyPluginApi = org.koin.compose.koinInject()
+    val tokenManager: org.siloserver.silo.network.TokenManager = org.koin.compose.koinInject()
+    val extra by androidx.compose.runtime.produceState<org.siloserver.silo.model.catalog.PluginTitle?>(null, detail.tmdbId, detail.mediaType) {
+        val owner = tokenManager.snapshotCurrentScope() ?: return@produceState
+        value = (pluginApi.title(detail.mediaType == RequestMediaType.Series, detail.tmdbId, owner)
+            as? org.siloserver.silo.network.ApiResult.Success)?.data
+    }
+    val ratings = extra?.ratings?.takeIf { it.isNotEmpty() } ?: listOfNotNull(ExternalRatings.tmdb(detail.voteAverage))
+    val castMembers = remember(detail, extra) {
+        extra?.cast?.takeIf { it.isNotEmpty() }?.mapIndexed { i, c ->
+            org.siloserver.silo.model.catalog.CastMember(name = c.name, character = c.character, order = i, tmdbId = c.tmdbId, photoUrl = c.photoUrl)
+        } ?: detail.cast.mapIndexed { i, c ->
+            org.siloserver.silo.model.catalog.CastMember(
+                name = c.name,
+                character = c.character.takeIf { it.isNotBlank() },
+                order = i,
+                photoUrl = c.profilePath?.let { "https://image.tmdb.org/t/p/w185$it" },
+            )
+        }
+    }
     val progress = state.progress?.takeIf { state.showsStatus }
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    // Like the library title page: focus inside the hero never scrolls the page on its own (the
+    // default pushed the hero's top out of view); the body rails keep the smooth spec.
+    val heroHasFocus = remember { mutableStateOf(false) }
+    // Opening a title (from a filmography, say) always starts at the top of the page.
+    LaunchedEffect(detail.tmdbId, detail.mediaType) { listState.scrollToItem(0) }
+    val bringIntoViewSpec = remember {
+        object : androidx.compose.foundation.gestures.BringIntoViewSpec {
+            override val scrollAnimationSpec = org.siloserver.silo.tv.ui.theme.TvSmoothBringIntoViewSpec.scrollAnimationSpec
+            override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float =
+                if (heroHasFocus.value) 0f
+                else org.siloserver.silo.tv.ui.theme.TvSmoothBringIntoViewSpec.calculateScrollDistance(offset, size, containerSize)
+        }
+    }
+    androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides bringIntoViewSpec,
+        org.siloserver.silo.tv.ui.screens.detail.LocalTvPageScrollBy provides { dy: Float -> castScope.launch { listState.animateScrollBy(dy) } },
+    ) {
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 70.dp),
+        contentPadding = PaddingValues(bottom = 160.dp),
     ) {
         item(key = "hero", contentType = "detail-hero") {
             TvDetailHero(
+                // Focus anywhere in the hero brings the whole hero (logo included) back into view.
+                modifier = Modifier.onFocusChanged {
+                    heroHasFocus.value = it.hasFocus
+                    if (it.hasFocus) castScope.launch { listState.animateScrollToItem(0) }
+                },
                 title = detail.title,
                 seriesTitle = null,
-                logoUrl = null,
+                logoUrl = extra?.logoUrl,
                 backdropUrl = backdropUrl,
                 backdropThumbhash = null,
                 sourceTokens = detail.genres.take(3),
                 ratingChip = detail.contentRating.takeIf { it.isNotBlank() },
                 overview = detail.overview.takeIf { it.isNotBlank() },
                 tagline = detail.tagline.takeIf { it.isNotBlank() },
-                factsLine = detail.factTokens(),
+                factsLine = detail.factTokens(ratings),
                 directorText = detail.creditText(),
                 extraHeight = if (progress != null) StatusStripHeight else 0.dp,
+                synopsisPillFocusRequester = synopsisPillFocusRequester,
+                onSynopsisPillPresent = onSynopsisPillPresent,
                 playbackSummary = progress?.let { { RequestStatusStrip(progress = it, state = state) } },
                 actions = {
                     Row(
@@ -306,22 +369,64 @@ private fun RequestDetailContent(
                 },
             )
         }
-        val recommendations = state.recommendations
-        if (recommendations.isNotEmpty()) {
-            item(key = "more-like-this", contentType = "rail") {
-                Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                    TvDetailSectionHeader(title = "More like this", modifier = Modifier.padding(horizontal = TvDetailHorizontalInset))
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(20.dp),
-                        contentPadding = PaddingValues(horizontal = TvDetailHorizontalInset, vertical = 8.dp),
-                    ) {
-                        items(recommendations, key = { "${it.mediaType}:${it.tmdbId}" }) { result ->
-                            TvRequestCard(result = result, onClick = { onOpenRecommendation(result) })
+        if (castMembers.isNotEmpty()) {
+            item(key = "cast", contentType = "detail-cast") {
+                TvCastCrewSection(
+                    cast = castMembers,
+                    horizontalContentPadding = TvDetailHorizontalInset,
+                    modifier = Modifier.padding(top = 12.dp),
+                    onCastMemberClick = { _, member ->
+                        val known = member.tmdbId?.takeIf { it.isNotBlank() }
+                        if (known != null) {
+                            onOpenPersonByTmdb(known)
+                        } else {
+                            // Only a name: find the person on TMDB first.
+                            castScope.launch {
+                                val owner = tokenManager.snapshotCurrentScope() ?: return@launch
+                                pluginApi.findPersonTmdbId(member.name, owner)?.let(onOpenPersonByTmdb)
+                            }
                         }
-                    }
+                    },
+                )
+            }
+        }
+        val videoEntries = extra?.videos.orEmpty().map { org.siloserver.silo.model.catalog.TrailerRailEntry.Remote(it) }
+        if (videoEntries.isNotEmpty()) {
+            item(key = "videos", contentType = "detail-trailers") {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                org.siloserver.silo.tv.ui.screens.detail.TvDetailTrailersSection(
+                    entries = videoEntries,
+                    onSelectRemote = { video -> org.siloserver.silo.common.ui.openYoutubeTrailer(context, video) },
+                    onSelectLocal = {},
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
+        }
+        val facts = org.siloserver.silo.model.catalog.DetailFacts.fromRequest(
+            isSeries = detail.mediaType == RequestMediaType.Series,
+            releaseDate = if (detail.mediaType == RequestMediaType.Series) detail.firstAirDate ?: detail.releaseDate else detail.releaseDate,
+            year = detail.year,
+            runtimeMinutes = detail.runtime,
+            studios = detail.productionCompanies,
+            networks = detail.networks,
+            seasons = detail.numberOfSeasons,
+            extra = extra,
+        )
+        if (!facts.isEmpty) {
+            item(key = "details", contentType = "detail-facts") {
+                // Focusable so Down from the cast row scrolls the table fully into view.
+                Column(
+                    modifier = Modifier
+                        .padding(horizontal = TvDetailHorizontalInset, vertical = 24.dp)
+                        .focusable(),
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                ) {
+                    TvDetailSectionHeader(title = "Details")
+                    org.siloserver.silo.tv.ui.screens.detail.TvRequestFactsTable(facts)
                 }
             }
         }
+    }
     }
 }
 
@@ -529,14 +634,14 @@ private fun SummaryField(label: String, value: String, dot: Color? = null) {
 }
 
 /** `2026 · 2h 25m · TMDB 7.9`, with genres after it as source tokens. */
-private fun RequestMediaDetail.factTokens(): List<TvHeroFactToken> = buildList {
+private fun RequestMediaDetail.factTokens(ratings: List<org.siloserver.silo.model.catalog.DisplayRating>): List<TvHeroFactToken> = buildList {
     year?.takeIf { it > 0 }?.let { add(TvHeroFactToken.TextToken(it.toString())) }
     if (mediaType == RequestMediaType.Series) {
         numberOfSeasons?.takeIf { it > 0 }?.let { add(TvHeroFactToken.TextToken(if (it == 1) "1 season" else "$it seasons")) }
     } else {
         runtime?.takeIf { it > 0 }?.let { add(TvHeroFactToken.TextToken(if (it >= 60) "${it / 60}h ${it % 60}m" else "${it}m")) }
     }
-    ExternalRatings.tmdb(voteAverage)?.let { add(TvHeroFactToken.ExternalRating(it)) }
+    ratings.forEach { add(TvHeroFactToken.ExternalRating(it)) }
 }
 
 private fun RequestMediaDetail.creditText(): String? = when {

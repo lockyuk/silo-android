@@ -339,6 +339,23 @@ sealed class TvRoute(val route: String) {
     data object Watchlist : TvRoute("watchlist")
     data object History : TvRoute("history")
 
+    // --- Person page for someone who is not in the library (from TMDB, via the Filmography plugin) ---
+    data class PersonTmdb(val tmdbId: String) : TvRoute("person-tmdb/$tmdbId") {
+        companion object {
+            const val ROUTE = "person-tmdb/{tmdbId}"
+            const val ARG_TMDB_ID = "tmdbId"
+        }
+    }
+
+    // --- Request page opened from a person's credits (a title the library lacks) ---
+    data class PersonRequest(val mediaType: String, val tmdbId: Int) : TvRoute("person-request/$mediaType/$tmdbId") {
+        companion object {
+            const val ROUTE = "person-request/{mediaType}/{tmdbId}"
+            const val ARG_MEDIA_TYPE = "mediaType"
+            const val ARG_TMDB_ID = "tmdbId"
+        }
+    }
+
     // --- Person detail (immersive; opened from a cast/crew card) ---
     data class PersonDetail(val personId: Long) : TvRoute("person/$personId") {
         companion object {

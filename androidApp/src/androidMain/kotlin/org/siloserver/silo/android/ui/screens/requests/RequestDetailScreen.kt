@@ -60,7 +60,7 @@ import org.siloserver.silo.android.ui.components.ErrorView
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import org.siloserver.silo.android.ui.screens.detail.CastCrewSection
-import org.siloserver.silo.android.ui.screens.detail.DetailFactsList
+import org.siloserver.silo.android.ui.screens.detail.DetailFactsSection
 import org.siloserver.silo.android.ui.screens.detail.SectionHeader
 import org.siloserver.silo.android.ui.screens.detail.TrailersRail
 import org.siloserver.silo.model.catalog.CastMember
@@ -227,6 +227,11 @@ private fun RequestDetailContent(
                         },
                     )
                 }
+
+                item(key = "facts", contentType = "detail-facts") {
+                    DetailFactsSection(detail = itemDetail, preloaded = extra)
+                }
+
                 // The same sections, in the same order, as a library title's page.
                 if (itemDetail.cast.isNotEmpty()) {
                     item(key = "cast", contentType = "detail-cast") {
@@ -247,7 +252,7 @@ private fun RequestDetailContent(
                     }
                 }
                 val recommendations = state.recommendations
-                if (recommendations.isNotEmpty()) {
+                if (false && recommendations.isNotEmpty()) {
                     item(key = "more-like-this", contentType = "rail") {
                         Column(
                             modifier = Modifier.padding(bottom = 40.dp),
@@ -259,9 +264,6 @@ private fun RequestDetailContent(
                             }
                         }
                     }
-                }
-                item(key = "facts", contentType = "detail-facts") {
-                    DetailFactsList(detail = itemDetail, runtimeMinutes = itemDetail.runtime)
                 }
             }
         }
@@ -512,7 +514,7 @@ private fun RequestMediaDetail.toHeroDetail(extra: org.siloserver.silo.model.cat
     seasonCount = numberOfSeasons,
     posterUrl = requestPosterUrl(posterPath),
     backdropUrl = requestBackdropUrl(backdropPath) ?: requestPosterUrl(posterPath),
-    ratings = listOfNotNull(ExternalRatings.tmdb(voteAverage)),
+    ratings = extra?.ratings?.takeIf { it.isNotEmpty() } ?: listOfNotNull(ExternalRatings.tmdb(voteAverage)),
     studios = productionCompanies,
     networks = networks,
     releaseDate = releaseDate,
@@ -531,7 +533,9 @@ private fun RequestMediaDetail.toHeroDetail(extra: org.siloserver.silo.model.cat
             photoUrl = c.profilePath?.let { "https://image.tmdb.org/t/p/w185$it" },
         )
     },
-    videos = extra?.trailerKey?.let { listOf(ItemVideo(kind = "Trailer", site = "YouTube", siteKey = it, name = "Trailer", isOfficial = true)) },
+    logoUrl = extra?.logoUrl,
+    videos = extra?.videos?.takeIf { it.isNotEmpty() }
+        ?: extra?.trailerKey?.let { listOf(ItemVideo(kind = "Trailer", site = "YouTube", siteKey = it, name = "Trailer", isOfficial = true)) },
 )
 
 private fun RequestMediaDetail.creditText(): String? = when {

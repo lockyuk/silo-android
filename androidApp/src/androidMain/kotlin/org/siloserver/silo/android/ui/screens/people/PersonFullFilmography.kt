@@ -1,5 +1,6 @@
 package org.siloserver.silo.android.ui.screens.people
 
+import org.siloserver.silo.common.ui.rememberLibraryResolvedCredit
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,6 +10,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -16,6 +20,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -87,17 +96,29 @@ internal fun PersonFullFilmography(
     isRefreshingMetadata: Boolean,
     credits: List<PluginCredit>,
     onItemClick: (String) -> Unit,
+    isLoadingCredits: Boolean = false,
+    /** Called just before a credit opens another page, such as to close a sheet this list sits in. */
+    onBeforeNavigate: () -> Unit = {},
 ) {
     var type by remember { mutableStateOf(PluginTypeFilter.All) }
     var library by remember { mutableStateOf(PluginLibraryFilter.All) }
     var showSelf by remember { mutableStateOf(false) }
+    // Credits with no date (TBA / upcoming) stay hidden until this is switched on.
+    var showTba by remember { mutableStateOf(false) }
     var preview by remember { mutableStateOf<PluginCredit?>(null) }
     val openRequest = org.siloserver.silo.android.ui.screens.detail.LocalOpenRequestDetail.current
     preview?.let { TitlePreviewDialog(it, onDismiss = { preview = null }, onLibraryItem = { id -> preview = null; onItemClick(id) }) }
 
-    val visible = remember(credits, type, library, showSelf) { credits.filterCredits(type, library, showSelf) }
+    val visible = remember(credits, type, library, showSelf, showTba) {
+        credits.filterCredits(type, library, showSelf).filter { showTba || it.year != null }
+    }
+    val tbaCount = remember(credits) { credits.count { it.year == null } }
     val hasSelf = remember(credits) { credits.any { it.isSelf } }
 
+    Box(modifier = Modifier.fillMaxSize()) {
+    // The person's photo, darkened and faded into the page colour, so the page
+    // matches the title pages instead of sitting on plain black.
+    PersonBackdrop(person)
     LazyColumn(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
         modifier = Modifier.fillMaxSize(),
@@ -115,15 +136,18 @@ internal fun PersonFullFilmography(
                 ChipRow {
                     PluginLibraryFilter.entries.forEach { f -> Chip(f.title, f == library) { library = f } }
                     if (hasSelf) Chip("As themselves", showSelf) { showSelf = !showSelf }
+                    if (tbaCount > 0) Chip("Show TBA ($tbaCount)", showTba) { showTba = !showTba }
                 }
             }
         }
         if (visible.isEmpty()) {
-            item { Text("Nothing matches these filters.", color = SiloSecondaryText, fontSize = 14.sp, modifier = Modifier.padding(vertical = 24.dp)) }
+            item { Text(if (credits.isEmpty()) (if (isLoadingCredits) "Loading credits…" else "Credits are not available right now. Check that the Filmography plugin is installed and has its TMDB key.") else "Nothing matches these filters.", color = SiloSecondaryText, fontSize = 14.sp, modifier = Modifier.padding(vertical = 24.dp)) }
         }
-        items(visible, key = { "${if (it.isSeries) "tv" else "movie"}-${it.tmdbId}" }) { credit ->
-            CreditRow(credit) {
+        itemsIndexed(visible, key = { _, it -> "${if (it.isSeries) "tv" else "movie"}-${it.tmdbId}" }) { index, credit ->
+            val showYear = index == 0 || visible[index - 1].yearLabel != credit.yearLabel
+            CreditRow(credit, showYear = showYear, isFirst = index == 0, isLast = index == visible.lastIndex) {
                 val id = credit.itemId
+                onBeforeNavigate()
                 when {
                     id != null -> onItemClick(id)
                     openRequest != null -> openRequest(
@@ -134,6 +158,34 @@ internal fun PersonFullFilmography(
                 }
             }
         }
+    }
+    }
+}
+
+@Composable
+private fun PersonBackdrop(person: Person) {
+    val page = androidx.compose.material3.MaterialTheme.colorScheme.background
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (!person.photoUrl.isNullOrBlank()) {
+            ThumbhashImage(
+                url = person.photoUrl,
+                thumbhash = person.photoThumbhash,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth().height(420.dp).alpha(0.55f),
+            )
+        }
+        Box(
+            modifier = Modifier.fillMaxSize().background(
+                // Only fades the photo into the page colour at the bottom; no dark tint over it.
+                Brush.verticalGradient(
+                    0f to Color.Transparent,
+                    0.38f to Color.Transparent,
+                    0.62f to page,
+                    1f to page,
+                ),
+            ),
+        )
     }
 }
 
@@ -199,7 +251,8 @@ private fun PersonDetailsBlock(person: Person, credits: List<PluginCredit>, isRe
         }
         val bio = person.bio?.trim()?.takeIf { it.isNotBlank() }
         if (bio != null) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            var overflows by remember(bio) { mutableStateOf(false) }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     bio,
                     fontSize = 15.sp,
@@ -207,51 +260,73 @@ private fun PersonDetailsBlock(person: Person, credits: List<PluginCredit>, isRe
                     color = SiloOnSurface.copy(alpha = 0.88f),
                     maxLines = if (bioExpanded) Int.MAX_VALUE else 6,
                     overflow = TextOverflow.Ellipsis,
+                    onTextLayout = { if (!bioExpanded) overflows = it.hasVisualOverflow },
                 )
-                Text(
-                    if (bioExpanded) "Show less" else "Read more",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF7CC4FF),
-                    modifier = Modifier.clickable { bioExpanded = !bioExpanded }.padding(vertical = 4.dp),
-                )
+                if (overflows || bioExpanded) {
+                    org.siloserver.silo.android.ui.screens.detail.ReadMorePill(expanded = bioExpanded, onClick = { bioExpanded = !bioExpanded })
+                }
             }
         }
     }
 }
 
 /** One credit as plain text: year, title, "as" the character, then library status. No poster, no Request button. */
+/** One credit on the timeline: the year once per year on the left, a rail with a dot (green when in the library), then title and character. */
 @Composable
-private fun CreditRow(credit: PluginCredit, onClick: () -> Unit) {
+private fun CreditRow(rawCredit: PluginCredit, showYear: Boolean, isFirst: Boolean, isLast: Boolean, onClick: () -> Unit) {
+    val credit = rememberLibraryResolvedCredit(rawCredit)
     val inLib = credit.inLibrary
+    val rail = SiloSurfaceVariant
+    val dot = if (inLib) Color(0xFF4BE08A) else Color(0xFF55637A)
     Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.Top,
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp, horizontal = 4.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).height(IntrinsicSize.Min),
     ) {
         Text(
-            credit.year?.toString() ?: "TBA",
-            fontSize = 15.sp,
-            color = if (inLib) SiloSecondaryText else SiloSecondaryText.copy(alpha = 0.7f),
-            modifier = Modifier.width(48.dp).padding(top = 2.dp),
+            if (showYear) (credit.year?.toString() ?: "TBA") else "",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = SiloSecondaryText,
+            textAlign = TextAlign.End,
+            modifier = Modifier.width(40.dp).padding(top = 7.dp),
         )
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                credit.title,
-                fontSize = 19.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (inLib) SiloOnSurface else MissingTitle,
-            )
+        Box(
+            modifier = Modifier.width(14.dp).fillMaxHeight().drawBehind {
+                val x = size.width / 2
+                drawLine(rail, Offset(x, if (isFirst) 13.dp.toPx() else 0f), Offset(x, if (isLast) 13.dp.toPx() else size.height), strokeWidth = 2.dp.toPx())
+                drawCircle(Color(0xFF0E1116), radius = 6.dp.toPx(), center = Offset(x, 13.dp.toPx()))
+                drawCircle(dot, radius = 4.5.dp.toPx(), center = Offset(x, 13.dp.toPx()))
+            },
+        )
+        Row(
+            modifier = Modifier.weight(1f).padding(vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             val role = credit.roleSummary.takeIf { it.isNotBlank() }
             val kind = if (credit.isSeries) "TV series" else null
             val line = listOfNotNull(role?.let { if (credit.isActing || credit.isSelf) "as $it" else it }, kind).joinToString(" · ")
-            if (line.isNotBlank()) {
-                Text(line, fontSize = 16.sp, color = if (inLib) SiloOnSurface.copy(alpha = 0.8f) else MissingTitle.copy(alpha = 0.85f))
-            }
+            // Title and character on one line; in-library rows are bright with a tick, the rest dimmed.
+            Text(
+                text = androidx.compose.ui.text.buildAnnotatedString {
+                    append(credit.title)
+                    if (line.isNotBlank()) {
+                        addStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold, color = if (inLib) SiloOnSurface else MissingTitle), 0, credit.title.length)
+                        val start = length
+                        append("  ·  $line")
+                        addStyle(androidx.compose.ui.text.SpanStyle(fontSize = 14.sp, color = if (inLib) SiloOnSurface.copy(alpha = 0.75f) else MissingTitle.copy(alpha = 0.7f)), start, length)
+                    } else {
+                        addStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold, color = if (inLib) SiloOnSurface else MissingTitle), 0, credit.title.length)
+                    }
+                },
+                fontSize = 16.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
             if (inLib) {
-                Text("✓ In library", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF4BE08A))
-            } else {
-                Text("Not in library ›", fontSize = 14.sp, color = SiloSecondaryText)
+                Text("✓", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4BE08A))
             }
         }
     }

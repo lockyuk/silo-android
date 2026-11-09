@@ -497,6 +497,11 @@ fun SeriesDetailContent(
             }
         }
 
+        item(contentType = "detail-facts") {
+            DetailFactsSection(detail = detail)
+        }
+
+
         if (!isExpandedDetailLayout) {
             item(contentType = "detail-episodes") {
                 episodeSection(false)
@@ -521,11 +526,6 @@ fun SeriesDetailContent(
             item(contentType = "detail-trailers") {
                 TrailersRail(entries = trailerEntries, onPlayExtra = onPlayExtra)
             }
-        }
-
-        item(contentType = "detail-facts") {
-            // Header renders inside DetailFactsList, gated on having facts.
-            DetailFactsList(detail = detail)
         }
 
         item(contentType = "detail-similar") {

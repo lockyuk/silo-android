@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.getValue
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import org.siloserver.silo.model.catalog.CrewMember
@@ -34,7 +35,71 @@ internal fun TvDetailFactsTable(
     detail: ItemDetail,
     modifier: Modifier = Modifier,
 ) {
-    val facts = remember(detail) { detail.assembleFacts() }
+    // Budget, revenue and any studio / country / language gaps come from TMDB through the
+    // Filmography plugin; the table works without them.
+    val api: org.siloserver.silo.network.apiv2.FilmographyPluginApi = org.koin.compose.koinInject()
+    val tokens: org.siloserver.silo.network.TokenManager = org.koin.compose.koinInject()
+    val extra by androidx.compose.runtime.produceState<org.siloserver.silo.model.catalog.PluginTitle?>(null, detail.tmdbId, detail.type) {
+        val tmdb = detail.tmdbId?.toIntOrNull() ?: return@produceState
+        val owner = tokens.snapshotCurrentScope() ?: return@produceState
+        value = (api.title(detail.type == "series", tmdb, owner) as? org.siloserver.silo.network.ApiResult.Success)?.data
+    }
+    val facts = remember(detail, extra) { detail.assembleFacts().withPluginFacts(extra, detail) }
+    TvFactsGrid(facts, modifier)
+}
+
+/** The Details rows for a title that is not in the library, built from the request page's TMDB data. */
+@Composable
+internal fun TvRequestFactsTable(
+    facts: org.siloserver.silo.model.catalog.DetailFacts,
+    modifier: Modifier = Modifier,
+) {
+    val rows = remember(facts) { facts.toRows() }
+    TvFactsGrid(rows, modifier)
+}
+
+internal fun org.siloserver.silo.model.catalog.DetailFacts.hasRows(): Boolean = toRows().isNotEmpty()
+
+private fun org.siloserver.silo.model.catalog.DetailFacts.toRows(): List<FactRow> = buildList {
+    releaseDate?.let { formattedDate(it) }?.let { add(FactRow(if (isSeries) "First Aired" else "Released", it)) }
+    runtimeMinutes?.takeIf { it > 0 }?.let { add(FactRow(if (isSeries) "Episode length" else "Runtime", if (it >= 60) "${it / 60}h ${it % 60}m" else "${it}m")) }
+    seasons?.takeIf { isSeries && it > 0 }?.let { add(FactRow("Seasons", it.toString())) }
+    budget?.takeIf { it > 0 }?.let { add(FactRow("Budget", org.siloserver.silo.model.catalog.formatMoney(it))) }
+    revenue?.takeIf { it > 0 }?.let { rev ->
+        val multiple = org.siloserver.silo.model.catalog.revenueMultiple(budget, rev)
+        add(FactRow("Revenue", org.siloserver.silo.model.catalog.formatMoney(rev) + (multiple?.let { "  (${org.siloserver.silo.model.catalog.ExternalRatings.formatOneDecimal(it)}× the budget)" } ?: "")))
+    }
+    studios.takeIf { it.isNotEmpty() }?.let { add(FactRow("Studio", it.take(3).joinToString(", "))) }
+    networks.takeIf { it.isNotEmpty() }?.let { add(FactRow("Network", it.take(3).joinToString(", "))) }
+    countries.takeIf { it.isNotEmpty() }?.let { add(FactRow("Country", it.take(3).joinToString(", "))) }
+    language?.let { add(FactRow("Language", it)) }
+    status?.let { add(FactRow("Status", it)) }
+}
+
+private fun List<FactRow>.withPluginFacts(extra: org.siloserver.silo.model.catalog.PluginTitle?, detail: ItemDetail): List<FactRow> {
+    if (extra == null) return this
+    val out = toMutableList()
+    fun insertAfter(label: String, row: FactRow) {
+        val at = out.indexOfFirst { it.label == label }
+        if (at >= 0) out.add(at + 1, row) else out.add(row)
+    }
+    if (out.none { it.label == "Studio" } && extra.companies.isNotEmpty()) {
+        insertAfter("Written by", FactRow("Studio", extra.companies.take(3).joinToString(", ")))
+    }
+    if (out.none { it.label == "Country" } && extra.countries.isNotEmpty()) {
+        out += FactRow("Country", extra.countries.take(3).joinToString(", "))
+    }
+    extra.budget?.takeIf { it > 0 }?.let { out += FactRow("Budget", org.siloserver.silo.model.catalog.formatMoney(it)) }
+    extra.revenue?.takeIf { it > 0 }?.let { rev ->
+        val multiple = org.siloserver.silo.model.catalog.revenueMultiple(extra.budget, rev)
+        out += FactRow("Revenue", org.siloserver.silo.model.catalog.formatMoney(rev) + (multiple?.let { "  (${org.siloserver.silo.model.catalog.ExternalRatings.formatOneDecimal(it)}× the budget)" } ?: ""))
+    }
+    extra.languages.firstOrNull()?.let { out += FactRow("Language", it) }
+    return out
+}
+
+@Composable
+private fun TvFactsGrid(facts: List<FactRow>, modifier: Modifier) {
     if (facts.isEmpty()) return
 
     Column(

@@ -111,28 +111,11 @@ fun PersonDetailScreen(
                     modifier = Modifier.fillMaxSize(),
                 ) {
                 val credits by rememberPluginCredits(state.person!!)
-                val full = credits
-                if (full != null && full.isNotEmpty()) {
-                    PersonFullFilmography(
-                        person = state.person!!,
-                        isRefreshingMetadata = state.isRefreshingMetadata,
-                        credits = full,
-                        onItemClick = onItemClick,
-                    )
-                } else
-                PersonDetailContent(
+                PersonFullFilmography(
                     person = state.person!!,
                     isRefreshingMetadata = state.isRefreshingMetadata,
-                    items = state.items,
-                    isLoadingItems = state.isLoadingItems,
-                    selectedFilter = state.selectedFilter,
-                    availableFilters = state.availableFilters,
-                    totalItems = state.totalItems,
-                    hasMore = state.hasMore,
-                    pagingError = state.pagingError,
-                    onFilterSelected = { viewModel.applyFilter(it) },
-                    onLoadMore = viewModel::loadMoreIfNeeded,
-                    onRetryItems = viewModel::retryItems,
+                    credits = credits.orEmpty(),
+                    isLoadingCredits = credits == null && !state.person!!.tmdbId.isNullOrBlank(),
                     onItemClick = onItemClick,
                 )
                 }
@@ -156,125 +139,6 @@ fun PersonDetailScreen(
                 tint = Color.White,
             )
         }
-    }
-}
-
-@Composable
-private fun PersonDetailContent(
-    person: Person,
-    isRefreshingMetadata: Boolean,
-    items: List<BrowseItem>,
-    isLoadingItems: Boolean,
-    selectedFilter: PersonMediaFilter,
-    availableFilters: List<PersonMediaFilter>,
-    totalItems: Int,
-    hasMore: Boolean,
-    pagingError: String?,
-    onFilterSelected: (PersonMediaFilter) -> Unit,
-    onLoadMore: () -> Unit,
-    onRetryItems: () -> Unit,
-    onItemClick: (String) -> Unit,
-) {
-    val gridState = rememberLazyGridState()
-    DeferImagePresentationWhileScrolling(gridState) {
-    LazyVerticalGrid(
-        // Filmography cards only — the person portrait keeps its fixed size.
-        columns = GridCells.Adaptive(
-            minSize = 110.dp * LocalCardPresentation.current.posterSize.posterScale,
-        ),
-        state = gridState,
-        contentPadding = PaddingValues(
-            start = SafePadding,
-            end = SafePadding,
-            top = 0.dp,
-            bottom = LargePadding,
-        ),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(top = 56.dp, bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-            ) {
-                PersonHeader(person = person, isRefreshingMetadata = isRefreshingMetadata)
-                FilmographyHeader(
-                    selected = selectedFilter,
-                    availableFilters = availableFilters,
-                    totalLoaded = items.size,
-                    totalItems = totalItems,
-                    hasMore = hasMore,
-                    onSelect = onFilterSelected,
-                )
-            }
-        }
-
-        if (items.isEmpty() && isLoadingItems) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(
-                        color = SiloOnSurface,
-                    )
-                }
-            }
-        } else if (items.isEmpty()) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(260.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    EmptyStateView(
-                        title = "No titles found",
-                        subtitle = "There are no works linked to this person yet.",
-                        icon = Icons.Outlined.Movie,
-                    )
-                }
-            }
-        } else {
-            items(items, key = { it.contentId }) { item ->
-                val (actions, userState) = rememberBrowseItemCardActions(item)
-                MediaCard(
-                    title = item.title,
-                    posterUrl = item.posterUrl,
-                    posterThumbhash = item.posterThumbhash,
-                    detailBackdropUrl = item.backdropUrl,
-                    detailBackdropThumbhash = item.backdropThumbhash,
-                    year = item.year.takeIf { it > 0 },
-                    type = item.type,
-                    userState = userState,
-                    onClick = { onItemClick(item.contentId) },
-                    modifier = Modifier.fillMaxWidth(),
-                    artworkAspectRatio = personWorkCardAspectRatio(item),
-                    overlay = org.siloserver.silo.overlays.OverlayDataExtractor.fromBrowseItem(item),
-                    actions = actions,
-                )
-            }
-
-            if (hasMore || isLoadingItems || pagingError != null) {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    LaunchedEffect(items.size, hasMore) {
-                        if (hasMore && !isLoadingItems) onLoadMore()
-                    }
-                    PagingFooter(
-                        isLoading = isLoadingItems,
-                        error = pagingError,
-                        onRetry = onRetryItems,
-                    )
-                }
-            }
-        }
-    }
     }
 }
 
