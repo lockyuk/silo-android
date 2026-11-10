@@ -45,6 +45,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.runtime.Composable
+import org.siloserver.silo.common.update.summary
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -2271,6 +2272,38 @@ private fun TvServerSettingsPane(
                 SettingsInfoRow(
                     label = "App Version",
                     value = clientVersionLabel(BuildConfig.VERSION_NAME, BuildConfig.BUILD_NUMBER),
+                )
+                val updateContext = LocalContext.current
+                val updateScope = rememberCoroutineScope()
+                val updater = remember {
+                    org.siloserver.silo.common.update.AppUpdateController(
+                        updateContext.applicationContext,
+                        updateScope,
+                        org.siloserver.silo.common.update.AppUpdater.TvVariant,
+                    )
+                }
+                val updateState by updater.state.collectAsState()
+                SettingsInfoRow(
+                    label = "App Update",
+                    value = updateState.summary(),
+                    singleLine = false,
+                )
+                SettingsActionRow(
+                    label = if (updateState is org.siloserver.silo.common.update.AppUpdateUi.Available) {
+                        "Download and install"
+                    } else {
+                        "Check for updates"
+                    },
+                    onClick = {
+                        if (updateState is org.siloserver.silo.common.update.AppUpdateUi.Available) {
+                            updater.downloadAndInstall()
+                        } else {
+                            updater.check(state.serverUrl)
+                        }
+                    },
+                    enabled = state.serverUrl.isNotBlank() &&
+                        updateState !is org.siloserver.silo.common.update.AppUpdateUi.Downloading &&
+                        updateState !is org.siloserver.silo.common.update.AppUpdateUi.Checking,
                 )
                 // tvOS About: the policy as a QR code, for a device with a browser.
                 SettingsActionRow(

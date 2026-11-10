@@ -28,6 +28,8 @@
     </queries>
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Self-update: installs a newer signed build from the user's own Silo host. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" android:maxSdkVersion="30" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />

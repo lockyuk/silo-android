@@ -139,12 +139,19 @@ fun TvHomeScreen(
                 onInitialContentFocus = onInitialContentFocus,
             )
         else -> key(homeSectionPreferenceState.layoutRevision) {
-            // The first section of the user's order becomes the hero; the rows
-            // start at the next one, so nothing shows twice.
-            val heroSection = visibleSections.firstOrNull()
-                ?.takeIf { it.items.isNotEmpty() && visibleSections.size > 1 }
+            // The hero is fed by the row the user picked in Settings (the first
+            // visible row by default) and is off if they turned it off. The
+            // rows start without that row, so nothing shows twice.
+            val heroLayout = homeSectionPreferenceState.layout
+            val heroSection = if (!heroLayout.heroEnabled) {
+                null
+            } else {
+                (heroLayout.heroSectionId?.let { id -> visibleSections.firstOrNull { it.id == id } }
+                    ?: visibleSections.firstOrNull())
+                    ?.takeIf { it.items.isNotEmpty() && visibleSections.size > 1 }
+            }
             TvHomeContent(
-                sections = if (heroSection != null) visibleSections.drop(1) else visibleSections,
+                sections = if (heroSection != null) visibleSections.filterNot { it.id == heroSection.id } else visibleSections,
                 heroSection = heroSection,
                 sectionsFullyResolved = state.sectionsFullyResolved,
                 onItemClick = onItemClick,

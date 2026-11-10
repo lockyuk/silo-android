@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.SwitchAccount
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import org.siloserver.silo.common.update.summary
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -400,6 +401,28 @@ fun SettingsScreen(
                             label = "Version",
                             icon = Icons.Filled.Info,
                             value = versionLabel,
+                        )
+                        val updateContext = androidx.compose.ui.platform.LocalContext.current
+                        val updateScope = androidx.compose.runtime.rememberCoroutineScope()
+                        val updater = remember {
+                            org.siloserver.silo.common.update.AppUpdateController(
+                                updateContext.applicationContext,
+                                updateScope,
+                                org.siloserver.silo.common.update.AppUpdater.PhoneVariant,
+                            )
+                        }
+                        val updateState by updater.state.collectAsState()
+                        val updateAvailable = updateState is org.siloserver.silo.common.update.AppUpdateUi.Available
+                        SettingsNavigationRow(
+                            label = if (updateAvailable) "Download and install update" else "Check for updates",
+                            icon = Icons.Filled.Info,
+                            description = updateState.summary(),
+                            enabled = state.serverUrl.isNotBlank() &&
+                                updateState !is org.siloserver.silo.common.update.AppUpdateUi.Downloading &&
+                                updateState !is org.siloserver.silo.common.update.AppUpdateUi.Checking,
+                            onClick = {
+                                if (updateAvailable) updater.downloadAndInstall() else updater.check(state.serverUrl)
+                            },
                         )
                         SettingsNavigationRow(
                             label = "Privacy Policy",

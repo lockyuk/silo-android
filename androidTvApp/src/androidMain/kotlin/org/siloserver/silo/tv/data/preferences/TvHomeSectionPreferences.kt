@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -22,6 +23,10 @@ import org.siloserver.silo.network.TokenManager
 data class TvHomeSectionLayout(
     val orderedSectionIds: List<String> = emptyList(),
     val hiddenSectionIds: Set<String> = emptySet(),
+    /** Whether Home shows the billboard hero above the rows. */
+    val heroEnabled: Boolean = true,
+    /** The row that feeds the hero; null means the first visible row. */
+    val heroSectionId: String? = null,
 )
 
 data class TvHomeSectionPreferenceState(
@@ -93,6 +98,31 @@ class TvHomeSectionPreferences(
         }
     }
 
+    /** Turn the Home hero on or off for this server/profile. */
+    suspend fun setHeroEnabled(enabled: Boolean) {
+        val authority = activeAuthority() ?: return
+        mutex.withLock {
+            val current = currentLayout(authority)
+            if (current.heroEnabled == enabled) return
+            val updated = current.copy(heroEnabled = enabled)
+            persist(authority, updated)
+            publish(authority.identity, updated)
+        }
+    }
+
+    /** Choose which row feeds the hero; null follows the first visible row. */
+    suspend fun setHeroSection(sectionId: String?) {
+        val authority = activeAuthority() ?: return
+        mutex.withLock {
+            val current = currentLayout(authority)
+            val target = sectionId?.takeIf(String::isNotBlank)
+            if (current.heroSectionId == target && current.heroEnabled) return
+            val updated = current.copy(heroSectionId = target, heroEnabled = true)
+            persist(authority, updated)
+            publish(authority.identity, updated)
+        }
+    }
+
     /**
      * Replace the order of currently-known rows while retaining remembered
      * rows that are temporarily absent (for example empty Continue Watching).
@@ -134,6 +164,8 @@ class TvHomeSectionPreferences(
         return TvHomeSectionLayout(
             orderedSectionIds = unique(decodeIds(preferences[orderKey(authority.serverId)])),
             hiddenSectionIds = preferences[hiddenKey(authority.serverId)].orEmpty(),
+            heroEnabled = preferences[heroEnabledKey(authority.serverId)] ?: true,
+            heroSectionId = preferences[heroSectionKey(authority.serverId)]?.takeIf(String::isNotBlank),
         )
     }
 
@@ -141,6 +173,8 @@ class TvHomeSectionPreferences(
         storeFor(authority).edit { preferences ->
             preferences[orderKey(authority.serverId)] = encodeIds(layout.orderedSectionIds)
             preferences[hiddenKey(authority.serverId)] = layout.hiddenSectionIds
+            preferences[heroEnabledKey(authority.serverId)] = layout.heroEnabled
+            preferences[heroSectionKey(authority.serverId)] = layout.heroSectionId.orEmpty()
         }
     }
 
@@ -201,6 +235,12 @@ class TvHomeSectionPreferences(
 
         private fun orderKey(serverId: String) =
             stringPreferencesKey("home_section_order_${serverHash(serverId)}")
+
+        private fun heroEnabledKey(serverId: String) =
+            booleanPreferencesKey("home_hero_enabled_${serverHash(serverId)}")
+
+        private fun heroSectionKey(serverId: String) =
+            stringPreferencesKey("home_hero_section_${serverHash(serverId)}")
 
         private fun hiddenKey(serverId: String) =
             stringSetPreferencesKey("home_section_hidden_${serverHash(serverId)}")

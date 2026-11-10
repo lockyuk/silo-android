@@ -247,6 +247,62 @@ internal fun TvHomeSectionsEditor(
                     }
                 }
 
+                // The billboard above the rows: off, the first row, or a row of
+                // the user's choosing. One press steps to the next choice.
+                val heroLayout = preferenceState.layout
+                val heroChoices = remember(arrangedSections) {
+                    listOf<String?>(null) + arrangedSections.map { it.id } + listOf("\u0000off")
+                }
+                val heroCurrent = when {
+                    !heroLayout.heroEnabled -> "\u0000off"
+                    else -> heroLayout.heroSectionId?.takeIf { id -> arrangedSections.any { it.id == id } }
+                }
+                val heroLabel = when (heroCurrent) {
+                    "\u0000off" -> "Off"
+                    null -> "First row"
+                    else -> arrangedSections.firstOrNull { it.id == heroCurrent }?.title ?: "First row"
+                }
+                HomeSectionsCard {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Text(
+                                text = "Home Hero",
+                                style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp, lineHeight = 18.sp),
+                                fontWeight = FontWeight.Medium,
+                                color = Color.White,
+                            )
+                            Text(
+                                text = "The big banner above your rows. Pick which row feeds it, or turn it off.",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 17.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        HomeSectionsControlButton(
+                            label = heroLabel,
+                            onClick = {
+                                val next = heroChoices[(heroChoices.indexOf(heroCurrent) + 1) % heroChoices.size]
+                                scope.launch {
+                                    if (next == "\u0000off") {
+                                        preferences.setHeroEnabled(false)
+                                    } else {
+                                        preferences.setHeroSection(next)
+                                    }
+                                }
+                            },
+                            enabled = arrangedSections.isNotEmpty(),
+                        )
+                    }
+                }
+
                 when {
                     arrangedSections.isEmpty() && homeState.isLoading -> {
                         HomeSectionsMessage("Loading Home sections…")

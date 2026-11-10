@@ -1019,10 +1019,17 @@ fun TvSkylineSectionFeed(
             // crossfades. Detail enrichment stays independent, mirroring tvOS:
             // its line fades into reserved space and episode art may upgrade,
             // but neither event replays/reflows the whole marquee.
-            TvRootHeroBackdrop(
-                content = activeBackdrop,
-                modifier = Modifier.fillMaxSize(),
-            )
+            if (heroZone) {
+                TvHeroBillboardBackdrop(
+                    content = activeBackdrop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                TvRootHeroBackdrop(
+                    content = activeBackdrop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
             // While the hero shows, the first row's header sits at the mockup's
             // position: the band drops to it.
             val bandNormalTop = maxHeight - bandHeight + contentVerticalOffset
@@ -1062,7 +1069,8 @@ fun TvSkylineSectionFeed(
                 TvHomeHeroDots(
                     count = heroItems.size,
                     current = heroIndex,
-                    modifier = Modifier.offset(x = TvHeroLeft, y = TvHeroDotsTop),
+                    running = heroFocused,
+                    modifier = Modifier.offset(y = TvHeroDotsTop),
                 )
             }
             if (!heroZone) TvFocusMarquee(

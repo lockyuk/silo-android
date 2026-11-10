@@ -1,6 +1,8 @@
 package org.siloserver.silo.tv.ui.components
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -27,6 +30,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,6 +41,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -51,6 +56,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Icon
+import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import org.siloserver.silo.common.settings.titleLogoUrl
 import org.siloserver.silo.common.ui.components.ThumbhashImage
@@ -75,10 +81,11 @@ internal const val TvHeroMaxItems = 4
 /** How long each hero item shows before the next one. */
 internal const val TvHeroRotateMs = 7_000L
 
-// Metrics are the mockup's 1920x1080 pixels halved: the TV layout is 960x540dp.
+// The billboard sits on the 960x540dp TV layout: information bottom-left over a
+// full-bleed backdrop, the rows starting beneath it.
 internal val TvHeroLeft = 47.dp
-internal val TvHeroTop = 59.5.dp
-internal val TvHeroDotsTop = 371.dp
+internal val TvHeroTop = 84.dp
+internal val TvHeroDotsTop = 338.dp
 
 /** Where the first row's header sits while the hero shows. */
 internal val TvHeroRowHeaderTop = 390.dp
@@ -95,7 +102,7 @@ private val HeroChipBorder = Color(0xFF8A93A6)
 private val HeroInk = Color(0xFF0B0D12)
 
 /** Height of everything above the buttons, so crossfading between items never moves them. */
-private val HeroInfoHeight = 248.dp
+private val HeroInfoHeight = 212.dp
 
 /**
  * The hero's content for [content]: eyebrow, clear logo, meta line, synopsis
@@ -118,8 +125,8 @@ internal fun TvHomeHeroPanel(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.widthIn(max = 410.dp),
-        verticalArrangement = Arrangement.spacedBy(11.dp),
+        modifier = modifier.widthIn(max = 420.dp),
+        verticalArrangement = Arrangement.spacedBy(9.dp),
     ) {
         Box(modifier = Modifier.fillMaxWidth().height(HeroInfoHeight)) {
             Crossfade(
@@ -169,7 +176,7 @@ internal fun TvHomeHeroPanel(
 @Composable
 private fun HeroInfo(content: TvMarqueeContent, eyebrow: String) {
     val item = content.source
-    Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Eyebrow: the source section's name.
         Row(
             horizontalArrangement = Arrangement.spacedBy(7.dp),
@@ -195,9 +202,9 @@ private fun HeroInfo(content: TvMarqueeContent, eyebrow: String) {
                 color = HeroSynopsis,
                 fontSize = 15.sp,
                 lineHeight = 21.sp,
-                maxLines = 3,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 380.dp),
+                modifier = Modifier.widthIn(max = 400.dp),
             )
         }
 
@@ -211,7 +218,7 @@ private fun HeroLogo(content: TvMarqueeContent) {
     val logoUrl = titleLogoUrl(content.logoUrl)
     var failed by remember(logoUrl) { mutableStateOf(false) }
     Box(
-        modifier = Modifier.width(320.dp).height(95.dp),
+        modifier = Modifier.width(340.dp).height(84.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
         if (logoUrl.isNullOrBlank() || failed) {
@@ -234,7 +241,7 @@ private fun HeroLogo(content: TvMarqueeContent) {
                 crossfadeMillis = 0,
                 onSuccess = {},
                 onError = { failed = true },
-                modifier = Modifier.fillMaxHeight().widthIn(max = 320.dp),
+                modifier = Modifier.fillMaxHeight().widthIn(max = 340.dp),
             )
         }
     }
@@ -333,13 +340,13 @@ private fun HeroPill(
             )
             .onFocusChanged { focused = it.isFocused }
             .clickable(onClick = onClick)
-            .padding(horizontal = 22.dp, vertical = 10.dp),
+            .padding(horizontal = if (primary) 28.dp else 22.dp, vertical = 11.dp),
     ) {
-        Icon(icon, contentDescription = null, tint = if (light) HeroInk else HeroText, modifier = Modifier.size(17.dp))
+        Icon(icon, contentDescription = null, tint = if (light) HeroInk else HeroText, modifier = Modifier.size(19.dp))
         Text(
             text = label,
             color = if (light) HeroInk else HeroText,
-            fontSize = 16.sp,
+            fontSize = 17.sp,
             fontWeight = if (primary) FontWeight.Bold else FontWeight.SemiBold,
             maxLines = 1,
         )
@@ -353,7 +360,7 @@ private fun HeroCircle(icon: ImageVector, description: String, onClick: () -> Un
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .size(36.dp)
+            .size(40.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .then(if (focused) Modifier.border(3.dp, HeroAccent.copy(alpha = 0.55f), CircleShape) else Modifier)
             .background(if (focused) HeroText else Color.White.copy(alpha = 0.16f), CircleShape)
@@ -364,23 +371,113 @@ private fun HeroCircle(icon: ImageVector, description: String, onClick: () -> Un
     }
 }
 
-/** The pager dots: the current item's is a long accent pill, the others short and dim. */
+/**
+ * The pager: one segment per item, right-aligned under the artwork. The current
+ * segment fills over [TvHeroRotateMs] while the hero is rotating, so the next
+ * change is visible before it happens.
+ */
 @Composable
-internal fun TvHomeHeroDots(count: Int, current: Int, modifier: Modifier = Modifier) {
+internal fun TvHomeHeroDots(
+    count: Int,
+    current: Int,
+    running: Boolean,
+    modifier: Modifier = Modifier,
+) {
     if (count <= 1) return
     Row(
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier,
+        modifier = modifier.fillMaxWidth().padding(end = TvHeroLeft),
     ) {
         repeat(count) { index ->
-            val active = index == current
-            val width by animateDpAsState(if (active) 22.dp else 7.dp, label = "heroDotWidth")
+            val fill = remember(index) { Animatable(0f) }
+            LaunchedEffect(current, running) {
+                when {
+                    index < current -> fill.snapTo(1f)
+                    index > current -> fill.snapTo(0f)
+                    running -> {
+                        fill.snapTo(0f)
+                        fill.animateTo(1f, tween(TvHeroRotateMs.toInt(), easing = LinearEasing))
+                    }
+                    else -> fill.snapTo(0f)
+                }
+            }
             Box(
                 Modifier
-                    .size(width = width, height = 3.dp)
-                    .background(if (active) HeroAccent else Color.White.copy(alpha = 0.35f), RoundedCornerShape(2.dp)),
-            )
+                    .size(width = 30.dp, height = 4.dp)
+                    .background(Color.White.copy(alpha = 0.28f), RoundedCornerShape(2.dp)),
+            ) {
+                val active = index == current
+                Box(
+                    Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(if (active || index < current) fill.value else 0f)
+                        .background(if (active) HeroAccent else Color.White.copy(alpha = 0.8f), RoundedCornerShape(2.dp)),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The hero's backdrop: the artwork runs edge to edge across the top three
+ * quarters of the screen at full brightness, with only a left scrim for the
+ * text and a fade into the page below, so the picture does the talking.
+ */
+@Composable
+internal fun TvHeroBillboardBackdrop(content: TvMarqueeContent?, modifier: Modifier = Modifier) {
+    val page = MaterialTheme.colorScheme.background
+    Box(modifier = modifier.fillMaxSize().background(page)) {
+        Crossfade(
+            targetState = content?.heroBackdropUrl to content?.heroBackdropThumbhash,
+            animationSpec = tween(500),
+            label = "tvHeroBillboardArt",
+        ) { (url, thumbhash) ->
+            if (url != null) {
+                Box(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.8f)) {
+                    ThumbhashImage(
+                        url = url,
+                        thumbhash = thumbhash,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        alignment = Alignment.TopCenter,
+                        transparent = true,
+                        crossfadeMillis = 0,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    // Left scrim: text sits on near-solid page colour that
+                    // opens out to the picture by the middle of the screen.
+                    Box(
+                        Modifier.fillMaxSize().background(
+                            Brush.horizontalGradient(
+                                0.00f to page.copy(alpha = 0.96f),
+                                0.30f to page.copy(alpha = 0.80f),
+                                0.55f to page.copy(alpha = 0.25f),
+                                0.80f to Color.Transparent,
+                            ),
+                        ),
+                    )
+                    // Bottom fade into the rows.
+                    Box(
+                        Modifier.fillMaxSize().background(
+                            Brush.verticalGradient(
+                                0.00f to Color.Transparent,
+                                0.62f to Color.Transparent,
+                                1.00f to page,
+                            ),
+                        ),
+                    )
+                    // A light top shade keeps the menu legible on bright art.
+                    Box(
+                        Modifier.fillMaxWidth().height(90.dp).background(
+                            Brush.verticalGradient(
+                                0.0f to page.copy(alpha = 0.65f),
+                                1.0f to Color.Transparent,
+                            ),
+                        ),
+                    )
+                }
+            }
         }
     }
 }
