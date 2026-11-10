@@ -78,10 +78,10 @@ class TvHomeHeroFeed(
 )
 
 /** How many of the section's items the hero rotates through (one pager dot each). */
-internal const val TvHeroMaxItems = 4
+internal const val TvHeroMaxItems = 10
 
 /** How long each hero item shows before the next one. */
-internal const val TvHeroRotateMs = 5_000L
+internal const val TvHeroRotateMs = 7_000L
 
 // The billboard sits on the 960x540dp TV layout: information bottom-left over a
 // full-bleed backdrop, the rows starting beneath it.
@@ -160,26 +160,41 @@ internal fun TvHomeHeroPanel(
                     }
                 },
         ) {
+            // Previous and Next are cues, not buttons: focus is only ever on Resume
+            // or More info. Left from Resume steps back; Right from More info
+            // steps forward.
+            if (onPrevious != null) HeroCue(icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft)
             HeroPill(
                 label = playLabel,
                 icon = Icons.Filled.PlayArrow,
                 primary = true,
                 onClick = onPlay,
-                modifier = Modifier.focusRequester(playFocusRequester),
+                modifier = Modifier
+                    .focusRequester(playFocusRequester)
+                    .onPreviewKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft && onPrevious != null) {
+                            onPrevious()
+                            true
+                        } else {
+                            false
+                        }
+                    },
             )
-            HeroPill(label = "More info", icon = Icons.Outlined.Info, primary = false, onClick = onMoreInfo)
-            HeroCircle(
-                icon = if (inWatchlist) Icons.Filled.Check else Icons.Filled.Add,
-                description = if (inWatchlist) "Remove from watchlist" else "Add to watchlist",
-                onClick = onToggleWatchlist,
+            HeroPill(
+                label = "More info",
+                icon = Icons.Outlined.Info,
+                primary = false,
+                onClick = onMoreInfo,
+                modifier = Modifier.onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight && onNext != null) {
+                        onNext()
+                        true
+                    } else {
+                        false
+                    }
+                },
             )
-            // Step through the billboard by hand; the timer starts over.
-            if (onPrevious != null) {
-                HeroCircle(icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft, description = "Previous", onClick = onPrevious)
-            }
-            if (onNext != null) {
-                HeroCircle(icon = Icons.AutoMirrored.Filled.KeyboardArrowRight, description = "Next", onClick = onNext)
-            }
+            if (onNext != null) HeroCue(icon = Icons.AutoMirrored.Filled.KeyboardArrowRight)
         }
     }
 }
@@ -322,6 +337,17 @@ private fun HeroResume(item: SectionItem) {
     }
 }
 
+/** A round arrow that shows where Left or Right will go; it never takes focus. */
+@Composable
+private fun HeroCue(icon: ImageVector) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.size(40.dp).background(Color.White.copy(alpha = 0.16f), CircleShape),
+    ) {
+        Icon(icon, contentDescription = null, tint = HeroText, modifier = Modifier.size(22.dp))
+    }
+}
+
 /** A hero pill: Resume/Play (white) or More info (translucent); focus brightens it and adds the accent ring. */
 @Composable
 private fun HeroPill(
@@ -361,24 +387,6 @@ private fun HeroPill(
             fontWeight = if (primary) FontWeight.Bold else FontWeight.SemiBold,
             maxLines = 1,
         )
-    }
-}
-
-@Composable
-private fun HeroCircle(icon: ImageVector, description: String, onClick: () -> Unit) {
-    var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.06f else 1f, label = "heroCircleScale")
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .size(40.dp)
-            .graphicsLayer { scaleX = scale; scaleY = scale }
-            .then(if (focused) Modifier.border(3.dp, HeroAccent.copy(alpha = 0.55f), CircleShape) else Modifier)
-            .background(if (focused) HeroText else Color.White.copy(alpha = 0.16f), CircleShape)
-            .onFocusChanged { focused = it.isFocused }
-            .clickable(onClick = onClick),
-    ) {
-        Icon(icon, contentDescription = description, tint = if (focused) HeroInk else HeroText, modifier = Modifier.size(17.dp))
     }
 }
 

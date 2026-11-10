@@ -609,9 +609,9 @@ fun TvSkylineSectionFeed(
         val section = hero?.section ?: return@LaunchedEffect
         if (!heroSeeded.value) {
             heroSeeded.value = true
-            heroMarquee.seedInitialPreview(item, section.title, section.id)
+            heroMarquee.seedInitialPreview(item.forHero(), section.title, section.id)
         } else {
-            heroMarquee.preview(item, section.title, section.id)
+            heroMarquee.preview(item.forHero(), section.title, section.id)
         }
     }
     // Five seconds on each item for as long as the billboard is on screen, whether
@@ -1077,7 +1077,7 @@ fun TvSkylineSectionFeed(
                 TvHomeHeroDots(
                     count = heroItems.size,
                     current = heroIndex,
-                    running = heroFocused,
+                    running = heroZone,
                     modifier = Modifier.offset(y = TvHeroDotsTop),
                 )
             }
@@ -1306,3 +1306,27 @@ internal val TvSkylineBringIntoViewSpec: BringIntoViewSpec = object : BringIntoV
 
 /** Frames to wait for a relocated row to lay out before moving focus into it. */
 private const val RelocationLayoutFrameBudget = 12
+
+
+/**
+ * The billboard shows an episode's own picture, not its show's backdrop; only a
+ * film keeps the generic art. The card's series backdrop is what normally wins
+ * for an episode, so dropping it lets the episode's still (the card's own
+ * backdrop) through. An episode with no still keeps the show's art.
+ */
+internal fun SectionItem.forHero(): SectionItem {
+    if (!type.equals("episode", ignoreCase = true)) return this
+    return when {
+        !backdropUrl.isNullOrBlank() && backdropIsEpisodeStill == true ->
+            copy(seriesBackdropUrl = null, seriesBackdropThumbhash = null)
+        !posterUrl.isNullOrBlank() && posterIsEpisodeStill == true ->
+            copy(
+                backdropUrl = posterUrl,
+                backdropThumbhash = posterThumbhash,
+                backdropIsEpisodeStill = true,
+                seriesBackdropUrl = null,
+                seriesBackdropThumbhash = null,
+            )
+        else -> this
+    }
+}

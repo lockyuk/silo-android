@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,6 +76,7 @@ internal fun TvHomeSectionsEditor(
     onDismiss: () -> Unit,
     viewModel: HomeViewModel = koinViewModel(),
     preferences: TvHomeSectionPreferences = koinInject(),
+    personalData: org.siloserver.silo.repository.PersonalDataRepository = koinInject(),
 ) {
     val homeState by viewModel.uiState.collectAsState()
     val preferenceState by preferences.state.collectAsState()
@@ -300,6 +302,55 @@ internal fun TvHomeSectionsEditor(
                             },
                             enabled = arrangedSections.isNotEmpty(),
                         )
+                    }
+                }
+
+                // Which libraries the hero draws from; none ticked means all of them.
+                val heroLibraries by produceState<List<org.siloserver.silo.model.personal.UserLibrary>>(emptyList()) {
+                    val result = personalData.listUserLibraries()
+                    if (result is org.siloserver.silo.network.ApiResult.Success) {
+                        value = result.data.filter { it.type.equals("movie", true) || it.type.equals("series", true) || it.type.equals("mixed", true) }
+                    }
+                }
+                if (heroLibraries.size > 1) {
+                    HomeSectionsCard {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Text(
+                                text = "Hero Libraries",
+                                style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp, lineHeight = 18.sp),
+                                fontWeight = FontWeight.Medium,
+                                color = Color.White,
+                            )
+                            Text(
+                                text = "Which libraries the hero shows. Pick none to show them all.",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 17.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                HomeSectionsControlButton(
+                                    label = if (heroLayout.heroLibraryIds.isEmpty()) "\u2713 All libraries" else "All libraries",
+                                    onClick = { scope.launch { preferences.setHeroLibraries(emptySet()) } },
+                                )
+                                heroLibraries.forEach { library ->
+                                    val id = library.id.toString()
+                                    val on = id in heroLayout.heroLibraryIds
+                                    HomeSectionsControlButton(
+                                        label = if (on) "\u2713 ${library.name}" else library.name,
+                                        onClick = {
+                                            scope.launch {
+                                                val next = if (on) heroLayout.heroLibraryIds - id else heroLayout.heroLibraryIds + id
+                                                preferences.setHeroLibraries(next)
+                                            }
+                                        },
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 

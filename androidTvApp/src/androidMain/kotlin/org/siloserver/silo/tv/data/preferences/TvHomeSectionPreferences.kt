@@ -27,6 +27,8 @@ data class TvHomeSectionLayout(
     val heroEnabled: Boolean = true,
     /** The row that feeds the hero; null means the first visible row. */
     val heroSectionId: String? = null,
+    /** Libraries the hero draws from; empty means every library. */
+    val heroLibraryIds: Set<String> = emptySet(),
 )
 
 data class TvHomeSectionPreferenceState(
@@ -123,6 +125,18 @@ class TvHomeSectionPreferences(
         }
     }
 
+    /** Choose which libraries feed the hero; an empty set means all of them. */
+    suspend fun setHeroLibraries(libraryIds: Set<String>) {
+        val authority = activeAuthority() ?: return
+        mutex.withLock {
+            val current = currentLayout(authority)
+            if (current.heroLibraryIds == libraryIds) return
+            val updated = current.copy(heroLibraryIds = libraryIds)
+            persist(authority, updated)
+            publish(authority.identity, updated)
+        }
+    }
+
     /**
      * Replace the order of currently-known rows while retaining remembered
      * rows that are temporarily absent (for example empty Continue Watching).
@@ -166,6 +180,7 @@ class TvHomeSectionPreferences(
             hiddenSectionIds = preferences[hiddenKey(authority.serverId)].orEmpty(),
             heroEnabled = preferences[heroEnabledKey(authority.serverId)] ?: true,
             heroSectionId = preferences[heroSectionKey(authority.serverId)]?.takeIf(String::isNotBlank),
+            heroLibraryIds = preferences[heroLibrariesKey(authority.serverId)].orEmpty(),
         )
     }
 
@@ -175,6 +190,7 @@ class TvHomeSectionPreferences(
             preferences[hiddenKey(authority.serverId)] = layout.hiddenSectionIds
             preferences[heroEnabledKey(authority.serverId)] = layout.heroEnabled
             preferences[heroSectionKey(authority.serverId)] = layout.heroSectionId.orEmpty()
+            preferences[heroLibrariesKey(authority.serverId)] = layout.heroLibraryIds
         }
     }
 
@@ -241,6 +257,9 @@ class TvHomeSectionPreferences(
 
         private fun heroSectionKey(serverId: String) =
             stringPreferencesKey("home_hero_section_${serverHash(serverId)}")
+
+        private fun heroLibrariesKey(serverId: String) =
+            stringSetPreferencesKey("home_hero_libraries_${serverHash(serverId)}")
 
         private fun hiddenKey(serverId: String) =
             stringSetPreferencesKey("home_section_hidden_${serverHash(serverId)}")

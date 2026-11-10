@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -143,13 +144,46 @@ fun TvHomeScreen(
             // visible row by default) and is off if they turned it off. The
             // rows start without that row, so nothing shows twice.
             val heroLayout = homeSectionPreferenceState.layout
-            val heroSection = if (!heroLayout.heroEnabled) {
+            val baseHeroSection = if (!heroLayout.heroEnabled) {
                 null
             } else {
                 (heroLayout.heroSectionId?.let { id -> visibleSections.firstOrNull { it.id == id } }
                     ?: visibleSections.firstOrNull())
                     ?.takeIf { it.items.isNotEmpty() && visibleSections.size > 1 }
             }
+            // With libraries picked in Settings, the hero shows that row as each
+            // chosen library has it, merged, newest first. A library without
+            // such a row leaves the row unfiltered rather than empty.
+            val sectionRepository: org.siloserver.silo.repository.SectionRepository = koinInject()
+            val libraryItems by produceState<List<SectionItem>?>(
+                initialValue = null,
+                baseHeroSection?.id,
+                baseHeroSection?.items?.map { it.contentId },
+                heroLayout.heroLibraryIds,
+            ) {
+                value = null
+                val base = baseHeroSection
+                val ids = heroLayout.heroLibraryIds.mapNotNull { it.toIntOrNull() }
+                if (base == null || ids.isEmpty()) return@produceState
+                val owner = sectionRepository.captureLibrarySectionAuthority() ?: return@produceState
+                val merged = LinkedHashMap<String, SectionItem>()
+                var matched = false
+                for (id in ids) {
+                    val result = sectionRepository.getLibrarySections(id, owner)
+                    if (result !is org.siloserver.silo.network.ApiResult.Success) continue
+                    val match = result.data.sections.firstOrNull { it.sectionType == base.sectionType } ?: continue
+                    matched = true
+                    match.items.forEach { merged.putIfAbsent(it.contentId, it) }
+                }
+                if (matched) {
+                    value = merged.values
+                        .sortedByDescending { it.progressUpdatedAt.orEmpty() }
+                        .take(org.siloserver.silo.tv.ui.components.TvHeroMaxItems)
+                }
+            }
+            val heroSection = baseHeroSection?.let { base ->
+                libraryItems?.let { items -> base.copy(items = items) } ?: base
+            }?.takeIf { it.items.isNotEmpty() }
             TvHomeContent(
                 sections = if (heroSection != null) visibleSections.filterNot { it.id == heroSection.id } else visibleSections,
                 heroSection = heroSection,
