@@ -87,10 +87,10 @@ internal const val TvHeroRotateMs = 7_000L
 // full-bleed backdrop, the rows starting beneath it.
 internal val TvHeroLeft = 47.dp
 internal val TvHeroTop = 84.dp
-internal val TvHeroDotsTop = 338.dp
+internal val TvHeroDotsTop = 392.dp
 
 /** Where the first row's header sits while the hero shows. */
-internal val TvHeroRowHeaderTop = 390.dp
+internal val TvHeroRowHeaderTop = 462.dp
 
 /** How far below the row band's top edge a row's header text starts. */
 internal val TvHeroRowHeaderInset = 8.dp
@@ -160,41 +160,21 @@ internal fun TvHomeHeroPanel(
                     }
                 },
         ) {
-            // Previous and Next are cues, not buttons: focus is only ever on Resume
-            // or More info. Left from Resume steps back; Right from More info
-            // steps forward.
-            if (onPrevious != null) HeroCue(icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft)
             HeroPill(
                 label = playLabel,
                 icon = Icons.Filled.PlayArrow,
                 primary = true,
                 onClick = onPlay,
-                modifier = Modifier
-                    .focusRequester(playFocusRequester)
-                    .onPreviewKeyEvent { event ->
-                        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft && onPrevious != null) {
-                            onPrevious()
-                            true
-                        } else {
-                            false
-                        }
-                    },
+                modifier = Modifier.focusRequester(playFocusRequester),
             )
-            HeroPill(
-                label = "More info",
-                icon = Icons.Outlined.Info,
-                primary = false,
-                onClick = onMoreInfo,
-                modifier = Modifier.onPreviewKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight && onNext != null) {
-                        onNext()
-                        true
-                    } else {
-                        false
-                    }
-                },
-            )
-            if (onNext != null) HeroCue(icon = Icons.AutoMirrored.Filled.KeyboardArrowRight)
+            HeroPill(label = "More info", icon = Icons.Outlined.Info, primary = false, onClick = onMoreInfo)
+            // Previous and Next sit after More info; Right from it reaches them.
+            if (onPrevious != null) {
+                HeroCircle(icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft, description = "Previous", onClick = onPrevious)
+            }
+            if (onNext != null) {
+                HeroCircle(icon = Icons.AutoMirrored.Filled.KeyboardArrowRight, description = "Next", onClick = onNext)
+            }
         }
     }
 }
@@ -337,14 +317,22 @@ private fun HeroResume(item: SectionItem) {
     }
 }
 
-/** A round arrow that shows where Left or Right will go; it never takes focus. */
+/** A round hero button: Previous or Next. Focus fills it and adds the accent ring. */
 @Composable
-private fun HeroCue(icon: ImageVector) {
+private fun HeroCircle(icon: ImageVector, description: String, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (focused) 1.06f else 1f, label = "heroCircleScale")
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.size(40.dp).background(Color.White.copy(alpha = 0.16f), CircleShape),
+        modifier = Modifier
+            .size(40.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .then(if (focused) Modifier.border(3.dp, HeroAccent.copy(alpha = 0.55f), CircleShape) else Modifier)
+            .background(if (focused) HeroText else Color.White.copy(alpha = 0.16f), CircleShape)
+            .onFocusChanged { focused = it.isFocused }
+            .clickable(onClick = onClick),
     ) {
-        Icon(icon, contentDescription = null, tint = HeroText, modifier = Modifier.size(22.dp))
+        Icon(icon, contentDescription = description, tint = if (focused) HeroInk else HeroText, modifier = Modifier.size(22.dp))
     }
 }
 
@@ -404,9 +392,9 @@ internal fun TvHomeHeroDots(
 ) {
     if (count <= 1) return
     Row(
-        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.Start),
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier.fillMaxWidth().padding(end = TvHeroLeft),
+        modifier = modifier.fillMaxWidth().padding(start = TvHeroLeft),
     ) {
         repeat(count) { index ->
             val fill = remember(index) { Animatable(0f) }

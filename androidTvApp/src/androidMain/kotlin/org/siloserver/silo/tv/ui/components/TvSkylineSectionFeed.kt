@@ -1037,7 +1037,7 @@ fun TvSkylineSectionFeed(
             val bandNormalTop = maxHeight - bandHeight + contentVerticalOffset
             val heroBandShift by animateDpAsState(
                 targetValue = if (heroZone) {
-                    (TvHeroRowHeaderTop - TvHeroRowHeaderInset - bandNormalTop).coerceIn(0.dp, 90.dp)
+                    (TvHeroRowHeaderTop - TvHeroRowHeaderInset - bandNormalTop).coerceIn(0.dp, 170.dp)
                 } else {
                     0.dp
                 },
