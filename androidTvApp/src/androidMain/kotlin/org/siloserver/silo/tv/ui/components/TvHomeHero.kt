@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -54,6 +55,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -89,6 +91,7 @@ internal val TvHeroLeft = 47.dp
 internal val TvHeroTop = 84.dp
 internal val TvHeroDotsTop = 392.dp
 
+
 /** Where the first row's header sits while the hero shows. */
 internal val TvHeroRowHeaderTop = 462.dp
 
@@ -104,7 +107,7 @@ private val HeroChipBorder = Color(0xFF8A93A6)
 private val HeroInk = Color(0xFF0B0D12)
 
 /** Height of everything above the buttons, so crossfading between items never moves them. */
-private val HeroInfoHeight = 212.dp
+private val HeroInfoHeight = 244.dp
 
 /**
  * The hero's content for [content]: eyebrow, clear logo, meta line, synopsis
@@ -160,21 +163,39 @@ internal fun TvHomeHeroPanel(
                     }
                 },
         ) {
+            // Focus is only ever on Resume or More info. Left from Resume goes to
+            // the previous item and Right from More info to the next one; the
+            // arrows at the screen edges show where each goes.
             HeroPill(
                 label = playLabel,
                 icon = Icons.Filled.PlayArrow,
                 primary = true,
                 onClick = onPlay,
-                modifier = Modifier.focusRequester(playFocusRequester),
+                modifier = Modifier
+                    .focusRequester(playFocusRequester)
+                    .onPreviewKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft && onPrevious != null) {
+                            onPrevious()
+                            true
+                        } else {
+                            false
+                        }
+                    },
             )
-            HeroPill(label = "More info", icon = Icons.Outlined.Info, primary = false, onClick = onMoreInfo)
-            // Previous and Next sit after More info; Right from it reaches them.
-            if (onPrevious != null) {
-                HeroCircle(icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft, description = "Previous", onClick = onPrevious)
-            }
-            if (onNext != null) {
-                HeroCircle(icon = Icons.AutoMirrored.Filled.KeyboardArrowRight, description = "Next", onClick = onNext)
-            }
+            HeroPill(
+                label = "More info",
+                icon = Icons.Outlined.Info,
+                primary = false,
+                onClick = onMoreInfo,
+                modifier = Modifier.onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight && onNext != null) {
+                        onNext()
+                        true
+                    } else {
+                        false
+                    }
+                },
+            )
         }
     }
 }
@@ -215,6 +236,7 @@ private fun HeroInfo(content: TvMarqueeContent, eyebrow: String) {
         }
 
         HeroResume(item)
+        HeroRatings(item)
     }
 }
 
@@ -268,7 +290,6 @@ private fun HeroMeta(content: TvMarqueeContent, item: SectionItem) {
         horizontalArrangement = Arrangement.spacedBy(9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ratingLabel?.let { Text(it, color = HeroRating, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1) }
         item.year.takeIf { it > 0 }?.let { Text(it.toString(), color = HeroMuted, fontSize = 13.sp, maxLines = 1) }
         certificate?.let { HeroChip(it) }
         length?.let { Text(it, color = HeroMuted, fontSize = 13.sp, maxLines = 1) }
@@ -317,25 +338,6 @@ private fun HeroResume(item: SectionItem) {
     }
 }
 
-/** A round hero button: Previous or Next. Focus fills it and adds the accent ring. */
-@Composable
-private fun HeroCircle(icon: ImageVector, description: String, onClick: () -> Unit) {
-    var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.06f else 1f, label = "heroCircleScale")
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .size(40.dp)
-            .graphicsLayer { scaleX = scale; scaleY = scale }
-            .then(if (focused) Modifier.border(3.dp, HeroAccent.copy(alpha = 0.55f), CircleShape) else Modifier)
-            .background(if (focused) HeroText else Color.White.copy(alpha = 0.16f), CircleShape)
-            .onFocusChanged { focused = it.isFocused }
-            .clickable(onClick = onClick),
-    ) {
-        Icon(icon, contentDescription = description, tint = if (focused) HeroInk else HeroText, modifier = Modifier.size(22.dp))
-    }
-}
-
 /** A hero pill: Resume/Play (white) or More info (translucent); focus brightens it and adds the accent ring. */
 @Composable
 private fun HeroPill(
@@ -379,47 +381,126 @@ private fun HeroPill(
 }
 
 /**
- * The pager: one segment per item, right-aligned under the artwork. The current
- * segment fills over [TvHeroRotateMs] while the hero is rotating, so the next
- * change is visible before it happens.
+ * Graphical user ratings: one ring per source that has a score (IMDb out of 10,
+ * TMDB out of 10, critics out of 100), filled to the score and coloured by it.
  */
 @Composable
-internal fun TvHomeHeroDots(
-    count: Int,
+private fun HeroRatings(item: SectionItem) {
+    val rings = listOfNotNull(
+        item.ratingImdb?.let { Triple("IMDb", String.format("%.1f", it), (it / 10.0).toFloat()) },
+        item.ratingTmdb?.let { Triple("TMDB", String.format("%.1f", it), (it / 10.0).toFloat()) },
+        item.ratingRtCritic?.let { Triple("Critics", it.toString(), it / 100f) },
+    )
+    if (rings.isEmpty()) return
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(top = 2.dp),
+    ) {
+        rings.forEach { (label, value, fraction) ->
+            val color = when {
+                fraction >= 0.75f -> Color(0xFF4ADE80)
+                fraction >= 0.60f -> Color(0xFFFACC15)
+                else -> Color(0xFFF87171)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(30.dp)) {
+                    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                        val stroke = 3.dp.toPx()
+                        val inset = stroke / 2
+                        val arcSize = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke)
+                        val topLeft = androidx.compose.ui.geometry.Offset(inset, inset)
+                        drawArc(
+                            color = Color.White.copy(alpha = 0.16f), startAngle = 0f, sweepAngle = 360f, useCenter = false,
+                            topLeft = topLeft, size = arcSize,
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(stroke),
+                        )
+                        drawArc(
+                            color = color, startAngle = -90f, sweepAngle = 360f * fraction.coerceIn(0f, 1f), useCenter = false,
+                            topLeft = topLeft, size = arcSize,
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round),
+                        )
+                    }
+                    Text(value, color = HeroText, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+                }
+                Text(label, color = HeroMuted, fontSize = 10.sp, letterSpacing = 0.6.sp, maxLines = 1)
+            }
+        }
+    }
+}
+
+/**
+ * The strip along the bottom right of the hero: a small picture and title for
+ * each item (an episode shows its own picture), the current one a little
+ * larger and ringed, with a bar across it that fills over [TvHeroRotateMs] so
+ * the next change is visible before it happens.
+ */
+@Composable
+internal fun TvHomeHeroStrip(
+    items: List<SectionItem>,
     current: Int,
     running: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    if (count <= 1) return
+    if (items.size <= 1) return
+    val fill = remember { Animatable(0f) }
+    LaunchedEffect(current, running) {
+        fill.snapTo(0f)
+        if (running) fill.animateTo(1f, tween(TvHeroRotateMs.toInt(), easing = LinearEasing))
+    }
     Row(
-        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.Start),
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier.fillMaxWidth().padding(start = TvHeroLeft),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+        verticalAlignment = Alignment.Bottom,
+        modifier = modifier.fillMaxWidth().padding(end = TvHeroLeft),
     ) {
-        repeat(count) { index ->
-            val fill = remember(index) { Animatable(0f) }
-            LaunchedEffect(current, running) {
-                when {
-                    index < current -> fill.snapTo(1f)
-                    index > current -> fill.snapTo(0f)
-                    running -> {
-                        fill.snapTo(0f)
-                        fill.animateTo(1f, tween(TvHeroRotateMs.toInt(), easing = LinearEasing))
-                    }
-                    else -> fill.snapTo(0f)
-                }
-            }
-            Box(
-                Modifier
-                    .size(width = 30.dp, height = 4.dp)
-                    .background(Color.White.copy(alpha = 0.28f), RoundedCornerShape(2.dp)),
+        items.forEachIndexed { index, item ->
+            val selected = index == current
+            val hero = item.forHero()
+            val url = hero.backdropUrl?.takeIf { it.isNotBlank() } ?: hero.posterUrl
+            val thumbhash = if (hero.backdropUrl.isNullOrBlank()) hero.posterThumbhash else hero.backdropThumbhash
+            val title = if (item.type.equals("episode", ignoreCase = true)) (item.seriesTitle ?: item.title) else item.title
+            val scale by animateFloatAsState(if (selected) 1.2f else 1f, label = "heroStripScale")
+            Column(
+                modifier = Modifier
+                    .width(64.dp)
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 1f)
+                    },
             ) {
-                val active = index == current
                 Box(
-                    Modifier
-                        .fillMaxHeight()
-                        .fillMaxWidth(if (active || index < current) fill.value else 0f)
-                        .background(if (active) HeroAccent else Color.White.copy(alpha = 0.8f), RoundedCornerShape(2.dp)),
+                    modifier = Modifier
+                        .size(width = 64.dp, height = 36.dp)
+                        .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                        .then(if (selected) Modifier.border(1.5.dp, Color.White, RoundedCornerShape(4.dp)) else Modifier)
+                        .clip(RoundedCornerShape(4.dp)),
+                ) {
+                    ThumbhashImage(
+                        url = url,
+                        thumbhash = thumbhash,
+                        contentDescription = title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize().graphicsLayer { alpha = if (selected) 1f else 0.7f },
+                    )
+                    if (selected) {
+                        Box(
+                            Modifier
+                                .align(Alignment.BottomStart)
+                                .fillMaxWidth(fill.value)
+                                .height(3.dp)
+                                .background(HeroAccent),
+                        )
+                    }
+                }
+                Text(
+                    text = title,
+                    color = if (selected) HeroText else HeroMuted,
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 3.dp),
                 )
             }
         }

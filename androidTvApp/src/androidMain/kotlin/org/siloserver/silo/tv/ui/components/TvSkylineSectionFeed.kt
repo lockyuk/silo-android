@@ -1074,8 +1074,8 @@ fun TvSkylineSectionFeed(
                     } else null,
                     modifier = Modifier.offset(x = TvHeroLeft, y = TvHeroTop),
                 )
-                TvHomeHeroDots(
-                    count = heroItems.size,
+                TvHomeHeroStrip(
+                    items = heroItems,
                     current = heroIndex,
                     running = heroZone,
                     modifier = Modifier.offset(y = TvHeroDotsTop),
