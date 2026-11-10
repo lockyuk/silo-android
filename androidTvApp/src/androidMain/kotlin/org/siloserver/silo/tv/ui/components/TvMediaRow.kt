@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.components
 
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -140,6 +141,11 @@ fun TvMediaRow(
     cardActions: (SectionItem) -> TvMediaCardActions = { TvMediaCardActions() },
     /** Optional direct long-press action. Null keeps the card's context menu. */
     longClickAction: (SectionItem) -> (() -> Unit)? = { null },
+    /**
+     * Fills a thin bar along the bottom of the focused card from 0 to 1 (an
+     * auto-advancing row's countdown). Null draws nothing.
+     */
+    focusTimerProgress: (() -> Float)? = null,
     /**
      * Ends the row with an "Explore all" card that opens the row's full page.
      * It is an ordinary focusable item after the last card. In the restore
@@ -388,6 +394,22 @@ fun TvMediaRow(
                 val itemFocusRequester = firstItemFocusRequester.takeIf { index == 0 }
                 val appliedCardModifier = itemCardModifier.then(
                     if (index == 0) firstItemCardModifier else Modifier,
+                ).then(
+                    if (focusTimerProgress != null) {
+                        Modifier.drawWithContent {
+                            drawContent()
+                            if (focusedAs.value == item.contentId) {
+                                val bar = 4.dp.toPx()
+                                drawRect(
+                                    color = androidx.compose.ui.graphics.Color(0xFF3AA0FF),
+                                    topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - bar),
+                                    size = androidx.compose.ui.geometry.Size(size.width * focusTimerProgress().coerceIn(0f, 1f), bar),
+                                )
+                            }
+                        }
+                    } else {
+                        Modifier
+                    },
                 ).then(
                     slotFocusModifier(index, isRestoreFocusTarget),
                 )

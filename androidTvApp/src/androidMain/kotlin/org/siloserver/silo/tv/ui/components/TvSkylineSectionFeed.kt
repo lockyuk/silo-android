@@ -28,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
@@ -170,6 +171,15 @@ fun TvSkylineSectionFeed(
      * billboard. Null for every feed without one.
      */
     hero: TvHomeHeroFeed? = null,
+    /**
+     * The first row acts as the page's hero: its selection moves along by
+     * itself every [TvHeroRotateMs] while focus rests on it, Select on a card
+     * plays it at once (asking whether to resume when it is part played), and
+     * holding Select opens the item in the library. [onPlayFirstRowItem]
+     * starts playback at a position in seconds (null from the start).
+     */
+    autoAdvanceFirstRow: Boolean = false,
+    onPlayFirstRowItem: ((SectionItem, Double?) -> Unit)? = null,
     /**
      * Optional high-priority cache warmer for cards whose Select target needs
      * more than the card's own marquee detail. It starts on raw focus (and for
@@ -589,6 +599,36 @@ fun TvSkylineSectionFeed(
 
     val fallbackFirstRowFocusRequester = remember { FocusRequester() }
     val resolvedFirstRowFocusRequester = firstRowFocusRequester ?: fallbackFirstRowFocusRequester
+
+    // Opens an item's page, remembering where to come back to.
+    val openDetail: (ResolvedSection, Int, String) -> Unit = { section, rowIndex, contentId ->
+        val item = section.items.firstOrNull { it.contentId == contentId }
+        returnTarget = TvReturnTarget(
+            sectionId = section.id,
+            itemId = item?.let { section.tvReturnItemId(it) } ?: contentId,
+            sectionIndex = rowIndex,
+            itemIndex = section.items.indexOfFirst { it.contentId == contentId },
+        )
+        returnGeneration++
+        detailReturnPending = true
+        item?.let { clickActionForSection(section, it) }?.invoke() ?: onItemClick(contentId)
+    }
+
+    // The first row as the page's hero: a countdown that moves the selection
+    // along, and a resume choice for part-played items.
+    var feedHasFocus by remember { mutableStateOf(false) }
+    var rowFocusRevision by remember { mutableIntStateOf(0) }
+    var resumePrompt by remember { mutableStateOf<SectionItem?>(null) }
+    val rowTimer = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(rowFocusRevision, autoAdvanceFirstRow, feedHasFocus, focusedRowIndex, resumePrompt) {
+        rowTimer.snapTo(0f)
+        if (!autoAdvanceFirstRow || !feedHasFocus || focusedRowIndex != 0 || resumePrompt != null) return@LaunchedEffect
+        rowTimer.animateTo(1f, tween(TvHeroRotateMs.toInt(), easing = androidx.compose.animation.core.LinearEasing))
+        // Past the last card the selection wraps to the first.
+        if (!focusManager.moveFocus(FocusDirection.Right)) {
+            runCatching { resolvedFirstRowFocusRequester.requestFocus() }
+        }
+    }
 
     // The hero rotates through the first items of its section. It is in charge
     // of the top of the screen while focus is on its buttons or on the first
@@ -1106,7 +1146,8 @@ fun TvSkylineSectionFeed(
                     .height(bandHeight)
                     .align(Alignment.BottomStart)
                     .offset(y = contentVerticalOffset + heroBandShift)
-                    .clipToBounds(),
+                    .clipToBounds()
+                    .onFocusChanged { feedHasFocus = it.hasFocus },
             ) {
                 LazyColumn(
                     state = rowBandState,
@@ -1130,17 +1171,18 @@ fun TvSkylineSectionFeed(
                             items = section.items,
                             onItemClick = { contentId ->
                                 val item = section.items.firstOrNull { it.contentId == contentId }
-                                returnTarget = TvReturnTarget(
-                                    sectionId = section.id,
-                                    itemId = item?.let { section.tvReturnItemId(it) } ?: contentId,
-                                    sectionIndex = rowIndex,
-                                    itemIndex = section.items
-                                        .indexOfFirst { it.contentId == contentId },
-                                )
-                                returnGeneration++
-                                detailReturnPending = true
-                                item?.let { clickActionForSection(section, it) }?.invoke()
-                                    ?: onItemClick(contentId)
+                                if (autoAdvanceFirstRow && isFirstRow && onPlayFirstRowItem != null &&
+                                    item != null && item.isPlayableOnSelect()
+                                ) {
+                                    // Select plays at once; a part-played item asks first.
+                                    if ((item.positionSeconds ?: 0.0) > 0.0) {
+                                        resumePrompt = item
+                                    } else {
+                                        onPlayFirstRowItem(item, null)
+                                    }
+                                } else {
+                                    openDetail(section, rowIndex, contentId)
+                                }
                             },
                             icon = iconForSection(section),
                             onSeeAllClick = onSeeAllClickForSection(section),
@@ -1189,10 +1231,21 @@ fun TvSkylineSectionFeed(
                                 .takeIf { isReturnRow },
                             onItemFocusedAtIndex = { item, itemIndex ->
                                 onItemFocused(item, section, rowIndex, itemIndex)
+                                if (isFirstRow) rowFocusRevision++
                             },
                             cardActions = { item -> cardActions(section, item) },
                             longClickAction = { item ->
-                                longClickActionForSection(section, item)
+                                if (autoAdvanceFirstRow && isFirstRow && onPlayFirstRowItem != null) {
+                                    // Holding Select opens the item in the library.
+                                    { openDetail(section, rowIndex, item.contentId) }
+                                } else {
+                                    longClickActionForSection(section, item)
+                                }
+                            },
+                            focusTimerProgress = if (autoAdvanceFirstRow && isFirstRow) {
+                                { rowTimer.value }
+                            } else {
+                                null
                             },
                             onExploreAllClick = onExploreAllForSection
                                 ?.takeIf { section.showsExploreAll() }
@@ -1211,6 +1264,46 @@ fun TvSkylineSectionFeed(
 
         }
     }
+
+    resumePrompt?.let { item ->
+        val at = item.positionSeconds ?: 0.0
+        val clock = heroClock(at)
+        TvDialog(
+            title = if (item.type.equals("episode", ignoreCase = true)) (item.seriesTitle ?: item.title) else item.title,
+            message = "You stopped at $clock.",
+            onDismissRequest = { resumePrompt = null },
+            actions = listOf(
+                TvDialogAction(
+                    label = "Resume from $clock",
+                    onClick = {
+                        resumePrompt = null
+                        onPlayFirstRowItem?.invoke(item, at)
+                    },
+                    style = TvDialogActionStyle.Primary,
+                ),
+                TvDialogAction(
+                    label = "Start from the beginning",
+                    onClick = {
+                        resumePrompt = null
+                        onPlayFirstRowItem?.invoke(item, null)
+                    },
+                ),
+            ),
+            initialFocusIndex = 0,
+        )
+    }
+}
+
+/** Films and episodes play straight from the row; shows, collections and the like open their page. */
+private fun SectionItem.isPlayableOnSelect(): Boolean =
+    type.equals("movie", ignoreCase = true) || type.equals("episode", ignoreCase = true)
+
+private fun heroClock(seconds: Double): String {
+    val total = seconds.toLong().coerceAtLeast(0)
+    val h = total / 3600
+    val m = (total % 3600) / 60
+    val sec = total % 60
+    return if (h > 0) String.format("%d:%02d:%02d", h, m, sec) else String.format("%d:%02d", m, sec)
 }
 
 fun ResolvedSection.isTvProgressRow(): Boolean {

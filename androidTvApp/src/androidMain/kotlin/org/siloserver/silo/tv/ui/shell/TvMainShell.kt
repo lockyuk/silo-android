@@ -1411,6 +1411,7 @@ fun TvMainShell(
                         onInitialContentFocus = { focusState.closeProfileMenuForContent() },
                         onContentUpFallbackChanged = onContentUpFallback,
                         onPlayShuffle = onPlayShuffle,
+                        onPlayItem = onPlayItem,
                     )
                 }
                 shellComposable(TvMainRoute.Series.route) {
@@ -1430,6 +1431,7 @@ fun TvMainShell(
                         onInitialContentFocus = { focusState.closeProfileMenuForContent() },
                         onContentUpFallbackChanged = onContentUpFallback,
                         onPlayShuffle = onPlayShuffle,
+                        onPlayItem = onPlayItem,
                     )
                 }
                 shellComposable(TvMainRoute.Music.route) {
@@ -1449,6 +1451,7 @@ fun TvMainShell(
                         onInitialContentFocus = { focusState.closeProfileMenuForContent() },
                         onContentUpFallbackChanged = onContentUpFallback,
                         onPlayShuffle = onPlayShuffle,
+                        onPlayItem = onPlayItem,
                     )
                 }
                 shellComposable(TvMainRoute.Audiobooks.route) {
@@ -1468,6 +1471,7 @@ fun TvMainShell(
                         onInitialContentFocus = { focusState.closeProfileMenuForContent() },
                         onContentUpFallbackChanged = onContentUpFallback,
                         onPlayShuffle = onPlayShuffle,
+                        onPlayItem = onPlayItem,
                     )
                 }
                 shellComposable(TvMainRoute.ForYou.route) {
@@ -1863,6 +1867,7 @@ private fun TvLibraryTypeContent(
     onInitialContentFocus: () -> Unit,
     onContentUpFallbackChanged: ((((Boolean) -> Boolean)?) -> Unit)? = null,
     onPlayShuffle: (shuffle: org.siloserver.silo.model.shuffle.Shuffle, libraryId: Int?) -> Unit = { _, _ -> },
+    onPlayItem: ((contentId: String, type: String?, resumePositionSeconds: Double?) -> Unit)? = null,
 ) {
     if (library == null) {
         // Only assert "no libraries" once loading has settled AND this type
@@ -1896,6 +1901,7 @@ private fun TvLibraryTypeContent(
             libraryType = library.type,
             mediaScope = type.mediaScope(library),
             onItemClick = onItemClick,
+            onPlayItem = onPlayItem,
             onCollectionClick = { collectionId, title, isUserCollection ->
                 val scope = type.mediaScope(library)
                 if (scope != null) {

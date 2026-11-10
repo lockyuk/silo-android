@@ -107,6 +107,8 @@ fun TvLibraryDetailScreen(
     libraryType: String,
     mediaScope: String? = null,
     onItemClick: (contentId: String) -> Unit,
+    /** Plays a title straight from the page's first row; null leaves Select opening the item. */
+    onPlayItem: ((contentId: String, type: String?, resumePositionSeconds: Double?) -> Unit)? = null,
     onCollectionClick: (collectionId: String, title: String, isUserCollection: Boolean) -> Unit,
     /** Opens a Recommended row's full page from its "Explore all" card. */
     onExploreSection: ((ResolvedSection) -> Unit)? = null,
@@ -167,6 +169,7 @@ fun TvLibraryDetailScreen(
                 surfaceKey = "library-$libraryId-${mediaScope.orEmpty()}",
                 state = state,
                 onItemClick = onItemClick,
+                onPlayItem = onPlayItem,
                 onRetry = viewModel::retryRecommended,
                 onInitialContentFocus = onInitialContentFocus,
                 focusRequest = sectionRequestNonce,
@@ -288,6 +291,7 @@ private fun RecommendedTab(
     surfaceKey: String,
     state: TvLibraryDetailViewModel.UiState,
     onItemClick: (String) -> Unit,
+    onPlayItem: ((contentId: String, type: String?, resumePositionSeconds: Double?) -> Unit)?,
     onRetry: () -> Unit,
     onInitialContentFocus: () -> Unit,
     focusRequest: Int,
@@ -327,6 +331,8 @@ private fun RecommendedTab(
                     surfaceKey = surfaceKey,
                     sections = rows,
                     onItemClick = onItemClick,
+                    autoAdvanceFirstRow = onPlayItem != null,
+                    onPlayFirstRowItem = { item, at -> onPlayItem?.invoke(item.contentId, item.type, at) },
                     focusRequest = focusRequest,
                     onInitialContentFocus = onInitialContentFocus,
                     onContentUpFallbackChanged = onContentUpFallbackChanged,
