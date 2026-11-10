@@ -614,9 +614,11 @@ fun TvSkylineSectionFeed(
             heroMarquee.preview(item, section.title, section.id)
         }
     }
-    // Seven seconds on each item while the billboard has focus.
-    LaunchedEffect(heroIndex, heroFocused, heroItems.size) {
-        if (heroFocused && heroItems.size > 1) {
+    // Five seconds on each item for as long as the billboard is on screen, whether
+    // focus is on its buttons, the menu above it or the first row below it. A
+    // manual step changes heroIndex, which starts the five seconds over.
+    LaunchedEffect(heroIndex, heroZone, heroItems.size) {
+        if (heroZone && heroItems.size > 1) {
             delay(TvHeroRotateMs)
             heroIndex = (heroIndex + 1) % heroItems.size
         }
@@ -1064,6 +1066,12 @@ fun TvSkylineSectionFeed(
                             runCatching { firstRowContainerFocusRequester.requestFocus() }
                         }
                     },
+                    onPrevious = if (heroItems.size > 1) {
+                        { heroIndex = (heroIndex - 1 + heroItems.size) % heroItems.size }
+                    } else null,
+                    onNext = if (heroItems.size > 1) {
+                        { heroIndex = (heroIndex + 1) % heroItems.size }
+                    } else null,
                     modifier = Modifier.offset(x = TvHeroLeft, y = TvHeroTop),
                 )
                 TvHomeHeroDots(

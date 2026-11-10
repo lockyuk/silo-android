@@ -28,6 +28,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -79,7 +81,7 @@ class TvHomeHeroFeed(
 internal const val TvHeroMaxItems = 4
 
 /** How long each hero item shows before the next one. */
-internal const val TvHeroRotateMs = 7_000L
+internal const val TvHeroRotateMs = 5_000L
 
 // The billboard sits on the 960x540dp TV layout: information bottom-left over a
 // full-bleed backdrop, the rows starting beneath it.
@@ -122,6 +124,8 @@ internal fun TvHomeHeroPanel(
     onMoreInfo: () -> Unit,
     onToggleWatchlist: () -> Unit,
     onDown: () -> Unit,
+    onPrevious: (() -> Unit)? = null,
+    onNext: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -169,6 +173,13 @@ internal fun TvHomeHeroPanel(
                 description = if (inWatchlist) "Remove from watchlist" else "Add to watchlist",
                 onClick = onToggleWatchlist,
             )
+            // Step through the billboard by hand; the timer starts over.
+            if (onPrevious != null) {
+                HeroCircle(icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft, description = "Previous", onClick = onPrevious)
+            }
+            if (onNext != null) {
+                HeroCircle(icon = Icons.AutoMirrored.Filled.KeyboardArrowRight, description = "Next", onClick = onNext)
+            }
         }
     }
 }
