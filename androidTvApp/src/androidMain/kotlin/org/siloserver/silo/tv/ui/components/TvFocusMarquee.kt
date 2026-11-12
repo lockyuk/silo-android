@@ -246,16 +246,32 @@ private fun TvMarqueeBlock(
         val machineTranslated = !translating && synopsisText != null &&
             (translation?.machineTranslated ?: hasMachineTranslatedOverview(content.source.machineTranslatedFields))
 
-        // Badge + meta line.
-        if (content.badges.isNotEmpty() || content.metaParts.isNotEmpty() || machineTranslated) {
+        // Row 1: the certificate badge, then the ratings as logos (IMDb, TMDB, Rotten Tomatoes
+        // critics). Row 2: the episode number and name (or year, length and genre).
+        val src = content.source
+        val showRatings = src.ratingImdb != null || src.ratingTmdb != null || src.ratingRtCritic != null
+        val metaTokens = if (showRatings) {
+            content.metaParts.filterNot { it is TvHeroFactToken.ExternalRating }
+        } else {
+            content.metaParts
+        }
+        if (content.badges.isNotEmpty() || showRatings) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 content.badges.forEach { badge -> MarqueeBadge(badge) }
-                if (content.metaParts.isNotEmpty()) {
+                if (showRatings) HeroRatings(src, compact = true)
+            }
+        }
+        if (metaTokens.isNotEmpty() || machineTranslated) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (metaTokens.isNotEmpty()) {
                     TvFactsRow(
-                        tokens = content.metaParts,
+                        tokens = metaTokens,
                         style = LocalTextStyle.current.merge(
                             TextStyle(
                                 color = SiloSecondaryText,
@@ -299,44 +315,12 @@ private fun TvMarqueeBlock(
                 color = SiloSecondaryText,
                 fontSize = MarqueeSynopsisSize,
                 lineHeight = MarqueeSynopsisSize * 1.35f,
-                maxLines = if (titleLineCount > 1) 1 else 2,
+                maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .widthIn(max = MarqueeSynopsisMaxWidth)
                     .drawAlpha { pulse?.value ?: 1f },
             )
-        }
-
-        // Reserve the detail row before the async item-detail response lands.
-        // The real line fades over this fixed slot, so the bottom-anchored
-        // title/meta/synopsis never jump upward on a cold first focus.
-        // The lift sits on the slot, not the Text: Crossfade draws each line
-        // in an alpha layer clipped to its bounds, which would cut the top
-        // off a Text shifted above them for the whole fade.
-        Box(
-            modifier = Modifier
-                .offset(y = (-4).dp)
-                .height(MarqueeDetailLineHeight)
-                .widthIn(max = MarqueeSynopsisMaxWidth),
-            contentAlignment = Alignment.TopStart,
-        ) {
-            Crossfade(
-                targetState = detailLine?.takeIf { it.isNotBlank() },
-                animationSpec = tween(TvMarqueeCrossfadeMs, easing = TvMarqueeEasing),
-                label = "tvMarqueeDetailLine",
-            ) { line ->
-                if (line != null) {
-                    Text(
-                        text = line,
-                        color = SiloOnSurface.copy(alpha = 0.7f),
-                        fontSize = MarqueeDetailSize,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = MarqueeSynopsisMaxWidth),
-                    )
-                }
-            }
         }
 
         // tvOS keeps resolution, dynamic range and audio as separate outlined
@@ -349,7 +333,6 @@ private fun TvMarqueeBlock(
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(7.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.offset(y = (-6).dp),
                 ) {
                     badges.forEach { badge -> MarqueeBadge(badge.uppercase()) }
                 }

@@ -390,21 +390,21 @@ private fun HeroPill(
  * full popcorn bucket (60% and over) or a spilled one. A source with no score is left out.
  */
 @Composable
-private fun HeroRatings(item: SectionItem) {
+internal fun HeroRatings(item: SectionItem, compact: Boolean = false) {
     val imdb = item.ratingImdb
     val tmdb = item.ratingTmdb
     val critic = item.ratingRtCritic
     val audience = item.ratingRtAudience
-    if (imdb == null && tmdb == null && critic == null && audience == null) return
+    if (imdb == null && tmdb == null && critic == null && (compact || audience == null)) return
     Row(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(top = 2.dp),
+        modifier = if (compact) Modifier else Modifier.padding(top = 2.dp),
     ) {
         imdb?.let { HeroScoreChip(badge = "IMDb", badgeColor = Color(0xFFF5C518), value = String.format("%.1f", it)) }
         tmdb?.let { HeroScoreChip(badge = "TMDB", badgeColor = Color(0xFF01B4E4), value = "${Math.round(it * 10)}%") }
-        critic?.let { HeroScoreChip(icon = if (it >= 60) HeroScoreIcon.Tomato else HeroScoreIcon.Splat, value = "$it%", caption = "Critics") }
-        audience?.let { HeroScoreChip(icon = if (it >= 60) HeroScoreIcon.Popcorn else HeroScoreIcon.Spilled, value = "$it%", caption = "Audience") }
+        critic?.let { HeroScoreChip(icon = if (it >= 60) HeroScoreIcon.Tomato else HeroScoreIcon.Splat, value = "$it%", caption = if (compact) null else "Critics") }
+        if (!compact) audience?.let { HeroScoreChip(icon = if (it >= 60) HeroScoreIcon.Popcorn else HeroScoreIcon.Spilled, value = "$it%", caption = "Audience") }
     }
 }
 

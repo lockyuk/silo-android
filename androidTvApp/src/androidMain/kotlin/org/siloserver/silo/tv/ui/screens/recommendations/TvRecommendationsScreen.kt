@@ -267,7 +267,7 @@ fun TvRecommendationsScreen(
             }
             else -> {
                 // Same hero as Home and the libraries: the first section is the billboard.
-                val heroSection = visibleSections.firstOrNull()
+                val heroSection: org.siloserver.silo.model.section.ResolvedSection? = null
                 val feedSections = if (heroSection != null) visibleSections.drop(1) else visibleSections
                 val hero = remember(heroSection) {
                     heroSection?.let { section ->

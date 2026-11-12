@@ -303,7 +303,8 @@ private fun RecommendedTab(
         state.sections.filter { !it.featured && it.items.isNotEmpty() }
     }
     // Like Home, the first section is the billboard and the rows start at the next.
-    val heroSection = if (onPlayItem != null) allRows.firstOrNull() else null
+    // Same hero as Home: the first row is the hero, no separate billboard.
+    val heroSection: ResolvedSection? = null
     val rows = if (heroSection != null) allRows.drop(1) else allRows
     val hero = remember(heroSection) {
         heroSection?.let { section ->

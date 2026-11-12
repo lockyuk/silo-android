@@ -146,13 +146,9 @@ fun TvHomeScreen(
             val heroLayout = homeSectionPreferenceState.layout
             // Like the library pages, the first row is the billboard hero and the
             // rows start at the next one, so nothing shows twice.
-            val heroSection: ResolvedSection? = if (!heroLayout.heroEnabled) {
-                null
-            } else {
-                (heroLayout.heroSectionId?.let { id -> visibleSections.firstOrNull { it.id == id && it.items.isNotEmpty() } }
-                    ?: visibleSections.firstOrNull { it.items.isNotEmpty() })
-                    ?.takeIf { visibleSections.size > 1 }
-            }
+            // Build 30's hero: the first row is the hero. It moves along by itself, Select plays
+            // and holding Select opens the item. Movies, Series and For You use the same.
+            val heroSection: ResolvedSection? = null
             TvHomeContent(
                 sections = if (heroSection != null) visibleSections.filterNot { it.id == heroSection.id } else visibleSections,
                 heroSection = heroSection,

@@ -23,8 +23,9 @@ import org.siloserver.silo.model.personal.UserLibrary
  * (`movies`/`music`) tvOS itself special-cases.
  */
 enum class TvLibraryTabType {
-    Movies,
+    // Declaration order is the top-bar tab order: Series comes before Movies.
     Series,
+    Movies,
     Music,
     Audiobooks;
 

@@ -1075,6 +1075,12 @@ fun TvSkylineSectionFeed(
             val bandHeight = tvSkylineRowBandHeight(presentation)
                 .coerceAtMost(maxHeight * TvSkylineRowBandMaxFraction)
             val trailingPreviewPadding = (bandHeight - TvSkylineRowBandBottomInset).coerceAtLeast(0.dp)
+            // The hero text and the first row's header are placed from the Medium card size with
+            // no card text, whatever the Card size and Card text settings are, so the hero's
+            // proportions never change. A bigger or smaller band is shifted to keep its top there.
+            val refBandHeight = tvSkylineReferenceBandHeight()
+                .coerceAtMost(maxHeight * TvSkylineRowBandMaxFraction)
+            val bandAnchorShift = bandHeight - refBandHeight
 
             // Base content changes drive matching 240 ms backdrop and copy
             // crossfades. Detail enrichment stays independent, mirroring tvOS:
@@ -1159,7 +1165,7 @@ fun TvSkylineSectionFeed(
                 // bottom-anchored and grows upward, and the raised typography
                 // floors made it tall enough to collide with the bar.
                 topPadding = TvSkyline.barTopInset + TvSkyline.barHeight,
-                bottomPadding = bandHeight + TvSkylineMarqueeBottomGap,
+                bottomPadding = refBandHeight + TvSkylineMarqueeBottomGap + TvSkylineHeroTextRaise,
                 modifier = Modifier
                     .fillMaxSize()
                     .offset(y = contentVerticalOffset + TvSkylineContentDrop),
@@ -1170,7 +1176,7 @@ fun TvSkylineSectionFeed(
                     .fillMaxWidth()
                     .height(bandHeight)
                     .align(Alignment.BottomStart)
-                    .offset(y = contentVerticalOffset + heroBandShift + TvSkylineContentDrop)
+                    .offset(y = contentVerticalOffset + heroBandShift + TvSkylineContentDrop + bandAnchorShift)
                     .clipToBounds()
                     .drawWithContent {
                         clipRect(bottom = heroBandReveal.toPx()) { this@drawWithContent.drawContent() }
@@ -1430,6 +1436,17 @@ internal fun tvSkylineRowBandHeight(presentation: CardPresentation): Dp {
         TvSkylineRowCardVerticalPadding * 2 + cardHeight + captionHeight +
         TvSkylineRowPreviewSpacing + TvSkylineRowPreviewPeek
 }
+
+/** The band height at Medium cards with no card text (how the hero has looked so far): the fixed reference for the hero's layout. */
+internal fun tvSkylineReferenceBandHeight(): Dp {
+    val cardHeight = RowDimens.DensePosterWidth * 3f / 2f
+    return TvSkylineRowHeaderHeight + TvSkylineRowHeaderGap +
+        TvSkylineRowCardVerticalPadding * 2 + cardHeight +
+        TvSkylineRowPreviewSpacing + TvSkylineRowPreviewPeek
+}
+
+/** The hero text block sits this much higher than the bottom-anchored default (70px on a 1080p screen). */
+internal val TvSkylineHeroTextRaise = 35.dp
 
 /** The marquee text and the rows sit this much lower on screen. */
 internal val TvSkylineContentDrop = 8.dp

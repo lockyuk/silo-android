@@ -168,8 +168,8 @@ data class TvMarqueeContent(
 
             // An episode's hero is its series backdrop when the card carries
             // one; it is never a still, so spoiler protection keeps it.
-            // The episode's own still is the backdrop when the card carries one (in
-            // its backdrop or poster slot); the series art is the fallback.
+            // Only when the card has no series art does the episode's own still
+            // (in its backdrop or poster slot) stand in as the backdrop.
             val still: Pair<String, String?>? = if (!isEpisode) null else when {
                 !item.backdropUrl.isNullOrBlank() && item.backdropIsEpisodeStill == true ->
                     item.backdropUrl!! to item.backdropThumbhash
@@ -177,7 +177,8 @@ data class TvMarqueeContent(
                     item.posterUrl!! to item.posterThumbhash
                 else -> null
             }
-            val seriesBackdrop = if (still != null) null else item.seriesHeroBackdrop()
+            // The hero's backdrop is the show's main image; the episode's own still stays on its card.
+            val seriesBackdrop = item.seriesHeroBackdrop()
             val hidesBackdrop = seriesBackdrop == null &&
                 spoilers.hidesImage(unwatchedEpisode, if (still != null) true else item.backdropIsEpisodeStill)
             val hidesPoster = spoilers.hidesImage(unwatchedEpisode, item.posterIsEpisodeStill)
