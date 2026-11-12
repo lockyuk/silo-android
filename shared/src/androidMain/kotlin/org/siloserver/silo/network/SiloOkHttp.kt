@@ -58,6 +58,19 @@ object SiloOkHttp {
             .dispatcher(newDispatcher())
             .connectionPool(connectionPool)
             .localRoute()
+            // Artwork is cached on disk for a week regardless of the server's
+            // revalidation headers, so repeat views never wait on the network.
+            .addNetworkInterceptor { chain ->
+                val response = chain.proceed(chain.request())
+                if (response.isSuccessful) {
+                    response.newBuilder()
+                        .removeHeader("Pragma")
+                        .header("Cache-Control", "max-age=604800")
+                        .build()
+                } else {
+                    response
+                }
+            }
             .build()
     }
 }

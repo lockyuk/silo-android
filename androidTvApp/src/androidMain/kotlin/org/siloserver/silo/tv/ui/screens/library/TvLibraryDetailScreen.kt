@@ -73,6 +73,7 @@ import org.siloserver.silo.tv.ui.components.TvCatalogEmptyState
 import org.siloserver.silo.tv.ui.components.TvErrorScreen
 import org.siloserver.silo.tv.ui.components.TvFilterChip
 import org.siloserver.silo.tv.ui.components.TvMediaCard
+import org.siloserver.silo.tv.ui.components.TvHomeHeroFeed
 import org.siloserver.silo.tv.ui.components.TvSkylineSectionFeed
 import org.siloserver.silo.tv.ui.shell.TvTopMenuLayout
 import org.siloserver.silo.tv.ui.theme.Spacing
@@ -298,8 +299,21 @@ private fun RecommendedTab(
     onContentUpFallbackChanged: ((((Boolean) -> Boolean)?) -> Unit)?,
     onExploreSection: ((ResolvedSection) -> Unit)?,
 ) {
-    val rows = remember(state.sections) {
+    val allRows = remember(state.sections) {
         state.sections.filter { !it.featured && it.items.isNotEmpty() }
+    }
+    // Like Home, the first section is the billboard and the rows start at the next.
+    val heroSection = if (onPlayItem != null) allRows.firstOrNull() else null
+    val rows = if (heroSection != null) allRows.drop(1) else allRows
+    val hero = remember(heroSection) {
+        heroSection?.let { section ->
+            TvHomeHeroFeed(
+                section = section,
+                onPlay = { item -> onPlayItem?.invoke(item.contentId, item.type, item.positionSeconds) },
+                onMoreInfo = { item -> onItemClick(item.contentId) },
+                onToggleWatchlist = { _, _ -> },
+            )
+        }
     }
 
     when {
@@ -319,7 +333,7 @@ private fun RecommendedTab(
                 ),
             )
         }
-        rows.isEmpty() -> {
+        allRows.isEmpty() -> {
             TvCatalogEmptyState(
                 message = "${state.title} is empty.",
                 modifier = Modifier.fillMaxSize(),
@@ -330,6 +344,8 @@ private fun RecommendedTab(
                 TvSkylineSectionFeed(
                     surfaceKey = surfaceKey,
                     sections = rows,
+                    hero = hero,
+                    contentVerticalOffset = 28.dp,
                     onItemClick = onItemClick,
                     autoAdvanceFirstRow = onPlayItem != null,
                     onPlayFirstRowItem = { item, at -> onPlayItem?.invoke(item.contentId, item.type, at) },

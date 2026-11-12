@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -46,6 +47,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
@@ -88,12 +90,16 @@ internal const val TvHeroRotateMs = 7_000L
 // The billboard sits on the 960x540dp TV layout: information bottom-left over a
 // full-bleed backdrop, the rows starting beneath it.
 internal val TvHeroLeft = 47.dp
-internal val TvHeroTop = 84.dp
-internal val TvHeroDotsTop = 392.dp
+internal val TvHeroTop = 114.dp
+internal val TvHeroDotsTop = 422.dp
 
 
-/** Where the first row's header sits while the hero shows. */
-internal val TvHeroRowHeaderTop = 462.dp
+/**
+ * Where the first row's header sits while the hero shows: low enough that only
+ * its title text is on screen and its cards are below the bottom edge. Fixed,
+ * so every library's hero sits in the same place whatever its card size.
+ */
+internal val TvHeroRowHeaderTop = 496.dp
 
 /** How far below the row band's top edge a row's header text starts. */
 internal val TvHeroRowHeaderInset = 8.dp
@@ -131,24 +137,22 @@ internal fun TvHomeHeroPanel(
     onNext: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier.widthIn(max = 420.dp),
-        verticalArrangement = Arrangement.spacedBy(9.dp),
-    ) {
-        Box(modifier = Modifier.fillMaxWidth().height(HeroInfoHeight)) {
-            Crossfade(
-                targetState = content,
-                animationSpec = tween(350),
-                label = "tvHomeHero",
-            ) { value ->
-                if (value != null) HeroInfo(value, eyebrow)
-            }
+    // Every part sits at fixed screen coordinates (dp on the 960 x 540 layout), the same
+    // on Home, For You and every library, so nothing moves between pages or items.
+    Box(modifier = modifier.fillMaxSize()) {
+        Crossfade(
+            targetState = content,
+            animationSpec = tween(350),
+            label = "tvHomeHero",
+            modifier = Modifier.fillMaxSize(),
+        ) { value ->
+            if (value != null) HeroInfo(value, eyebrow)
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .padding(top = 5.dp)
+                .offset(x = 47.dp, y = 366.dp)
                 // Entering the buttons from the menu or the row always lands on
                 // Play, whichever button is nearest.
                 .focusProperties { enter = { playFocusRequester } }
@@ -203,11 +207,12 @@ internal fun TvHomeHeroPanel(
 @Composable
 private fun HeroInfo(content: TvMarqueeContent, eyebrow: String) {
     val item = content.source
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Box(Modifier.fillMaxSize()) {
         // Eyebrow: the source section's name.
         Row(
             horizontalArrangement = Arrangement.spacedBy(7.dp),
             verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.offset(x = 47.dp, y = 85.dp),
         ) {
             Box(Modifier.size(width = 3.dp, height = 13.dp).background(HeroAccent, RoundedCornerShape(2.dp)))
             Text(
@@ -219,9 +224,9 @@ private fun HeroInfo(content: TvMarqueeContent, eyebrow: String) {
             )
         }
 
-        HeroLogo(content)
+        Box(Modifier.offset(x = 49.dp, y = 102.dp)) { HeroLogo(content) }
 
-        HeroMeta(content, item)
+        Box(Modifier.offset(x = 48.dp, y = 172.dp)) { HeroRatings(item) }
 
         content.synopsis?.takeIf { it.isNotBlank() }?.let { synopsis ->
             Text(
@@ -229,14 +234,13 @@ private fun HeroInfo(content: TvMarqueeContent, eyebrow: String) {
                 color = HeroSynopsis,
                 fontSize = 15.sp,
                 lineHeight = 21.sp,
-                maxLines = 2,
+                maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 400.dp),
+                modifier = Modifier.offset(x = 49.dp, y = 220.dp).widthIn(max = 400.dp),
             )
         }
 
-        HeroResume(item)
-        HeroRatings(item)
+        Box(Modifier.offset(x = 47.dp, y = 298.dp)) { HeroResume(item) }
     }
 }
 
@@ -246,7 +250,7 @@ private fun HeroLogo(content: TvMarqueeContent) {
     val logoUrl = titleLogoUrl(content.logoUrl)
     var failed by remember(logoUrl) { mutableStateOf(false) }
     Box(
-        modifier = Modifier.width(340.dp).height(84.dp),
+        modifier = Modifier.width(272.dp).height(67.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
         if (logoUrl.isNullOrBlank() || failed) {
@@ -254,7 +258,7 @@ private fun HeroLogo(content: TvMarqueeContent) {
                 text = content.title,
                 color = Color.White,
                 fontWeight = FontWeight.Black,
-                fontSize = 40.sp,
+                fontSize = 32.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -269,7 +273,7 @@ private fun HeroLogo(content: TvMarqueeContent) {
                 crossfadeMillis = 0,
                 onSuccess = {},
                 onError = { failed = true },
-                modifier = Modifier.fillMaxHeight().widthIn(max = 340.dp),
+                modifier = Modifier.fillMaxHeight().widthIn(max = 272.dp),
             )
         }
     }
@@ -381,59 +385,127 @@ private fun HeroPill(
 }
 
 /**
- * Graphical user ratings: one ring per source that has a score (IMDb out of 10,
- * TMDB out of 10, critics out of 100), filled to the score and coloured by it.
+ * Individual scores on one line: IMDb and TMDB as badges, Rotten Tomatoes critics
+ * as a fresh tomato (60% and over) or a green splat, and the audience score as a
+ * full popcorn bucket (60% and over) or a spilled one. A source with no score is left out.
  */
 @Composable
 private fun HeroRatings(item: SectionItem) {
-    val rings = listOfNotNull(
-        item.ratingImdb?.let { Triple("IMDb", String.format("%.1f", it), (it / 10.0).toFloat()) },
-        item.ratingTmdb?.let { Triple("TMDB", String.format("%.1f", it), (it / 10.0).toFloat()) },
-        item.ratingRtCritic?.let { Triple("Critics", it.toString(), it / 100f) },
-    )
-    if (rings.isEmpty()) return
+    val imdb = item.ratingImdb
+    val tmdb = item.ratingTmdb
+    val critic = item.ratingRtCritic
+    val audience = item.ratingRtAudience
+    if (imdb == null && tmdb == null && critic == null && audience == null) return
     Row(
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(top = 2.dp),
     ) {
-        rings.forEach { (label, value, fraction) ->
-            val color = when {
-                fraction >= 0.75f -> Color(0xFF4ADE80)
-                fraction >= 0.60f -> Color(0xFFFACC15)
-                else -> Color(0xFFF87171)
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(30.dp)) {
-                    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-                        val stroke = 3.dp.toPx()
-                        val inset = stroke / 2
-                        val arcSize = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke)
-                        val topLeft = androidx.compose.ui.geometry.Offset(inset, inset)
-                        drawArc(
-                            color = Color.White.copy(alpha = 0.16f), startAngle = 0f, sweepAngle = 360f, useCenter = false,
-                            topLeft = topLeft, size = arcSize,
-                            style = androidx.compose.ui.graphics.drawscope.Stroke(stroke),
-                        )
-                        drawArc(
-                            color = color, startAngle = -90f, sweepAngle = 360f * fraction.coerceIn(0f, 1f), useCenter = false,
-                            topLeft = topLeft, size = arcSize,
-                            style = androidx.compose.ui.graphics.drawscope.Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round),
-                        )
-                    }
-                    Text(value, color = HeroText, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+        imdb?.let { HeroScoreChip(badge = "IMDb", badgeColor = Color(0xFFF5C518), value = String.format("%.1f", it)) }
+        tmdb?.let { HeroScoreChip(badge = "TMDB", badgeColor = Color(0xFF01B4E4), value = "${Math.round(it * 10)}%") }
+        critic?.let { HeroScoreChip(icon = if (it >= 60) HeroScoreIcon.Tomato else HeroScoreIcon.Splat, value = "$it%", caption = "Critics") }
+        audience?.let { HeroScoreChip(icon = if (it >= 60) HeroScoreIcon.Popcorn else HeroScoreIcon.Spilled, value = "$it%", caption = "Audience") }
+    }
+}
+
+private enum class HeroScoreIcon { Tomato, Splat, Popcorn, Spilled }
+
+@Composable
+private fun HeroScoreChip(
+    value: String,
+    badge: String? = null,
+    badgeColor: Color = Color.Unspecified,
+    icon: HeroScoreIcon? = null,
+    caption: String? = null,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(5.dp))
+            .padding(horizontal = 7.dp, vertical = 3.dp),
+    ) {
+        if (badge != null) {
+            Text(
+                text = badge,
+                color = Color(0xFF10151C),
+                fontSize = 8.sp,
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1,
+                modifier = Modifier.background(badgeColor, RoundedCornerShape(2.dp)).padding(horizontal = 3.dp, vertical = 1.dp),
+            )
+        }
+        if (icon != null) HeroScoreGlyph(icon)
+        Text(value, color = HeroText, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        caption?.let { Text(it, color = HeroMuted, fontSize = 8.sp, maxLines = 1) }
+    }
+}
+
+@Composable
+private fun HeroScoreGlyph(icon: HeroScoreIcon) {
+    androidx.compose.foundation.Canvas(Modifier.size(15.dp)) {
+        val w = size.width
+        val h = size.height
+        val red = Color(0xFFFA320A)
+        val green = Color(0xFF3FA535)
+        when (icon) {
+            HeroScoreIcon.Tomato -> {
+                drawCircle(red, radius = w * 0.36f, center = androidx.compose.ui.geometry.Offset(w * 0.5f, h * 0.58f))
+                val leaf = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(w * 0.5f, h * 0.26f); lineTo(w * 0.38f, h * 0.1f); lineTo(w * 0.42f, h * 0.28f)
+                    lineTo(w * 0.27f, h * 0.3f); lineTo(w * 0.42f, h * 0.38f); lineTo(w * 0.5f, h * 0.34f)
+                    lineTo(w * 0.58f, h * 0.38f); lineTo(w * 0.73f, h * 0.3f); lineTo(w * 0.58f, h * 0.28f)
+                    lineTo(w * 0.62f, h * 0.1f); close()
                 }
-                Text(label, color = HeroMuted, fontSize = 10.sp, letterSpacing = 0.6.sp, maxLines = 1)
+                drawPath(leaf, green)
+            }
+            HeroScoreIcon.Splat -> {
+                val splat = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(w * 0.5f, h * 0.08f); lineTo(w * 0.6f, h * 0.28f); lineTo(w * 0.78f, h * 0.17f)
+                    lineTo(w * 0.74f, h * 0.38f); lineTo(w * 0.95f, h * 0.35f); lineTo(w * 0.8f, h * 0.52f)
+                    lineTo(w * 0.93f, h * 0.68f); lineTo(w * 0.72f, h * 0.7f); lineTo(w * 0.78f, h * 0.9f)
+                    lineTo(w * 0.58f, h * 0.8f); lineTo(w * 0.5f, h * 0.95f); lineTo(w * 0.4f, h * 0.8f)
+                    lineTo(w * 0.2f, h * 0.9f); lineTo(w * 0.26f, h * 0.7f); lineTo(w * 0.07f, h * 0.68f)
+                    lineTo(w * 0.2f, h * 0.52f); lineTo(w * 0.05f, h * 0.35f); lineTo(w * 0.26f, h * 0.38f)
+                    lineTo(w * 0.22f, h * 0.17f); lineTo(w * 0.4f, h * 0.28f); close()
+                }
+                drawPath(splat, Color(0xFF6FBF4A))
+                drawCircle(Color(0xFF2D6A1F), radius = w * 0.045f, center = androidx.compose.ui.geometry.Offset(w * 0.4f, h * 0.48f))
+                drawCircle(Color(0xFF2D6A1F), radius = w * 0.045f, center = androidx.compose.ui.geometry.Offset(w * 0.6f, h * 0.48f))
+            }
+            HeroScoreIcon.Popcorn -> {
+                listOf(0.31f to 0.3f, 0.5f to 0.22f, 0.69f to 0.3f, 0.41f to 0.38f, 0.59f to 0.38f).forEach { (x, y) ->
+                    drawCircle(Color.White, radius = w * 0.13f, center = androidx.compose.ui.geometry.Offset(w * x, h * y))
+                }
+                val bucket = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(w * 0.23f, h * 0.4f); lineTo(w * 0.77f, h * 0.4f); lineTo(w * 0.7f, h * 0.93f); lineTo(w * 0.3f, h * 0.93f); close()
+                }
+                drawPath(bucket, red)
+                listOf(0.38f, 0.5f, 0.62f).forEach { x ->
+                    drawLine(Color.White, androidx.compose.ui.geometry.Offset(w * x, h * 0.42f), androidx.compose.ui.geometry.Offset(w * x, h * 0.92f), strokeWidth = w * 0.06f)
+                }
+            }
+            HeroScoreIcon.Spilled -> {
+                listOf(0.2f to 0.8f, 0.37f to 0.85f, 0.54f to 0.83f, 0.29f to 0.68f).forEach { (x, y) ->
+                    drawCircle(Color.White, radius = w * 0.09f, center = androidx.compose.ui.geometry.Offset(w * x, h * y))
+                }
+                rotate(-62f, androidx.compose.ui.geometry.Offset(w * 0.62f, h * 0.42f)) {
+                    val bucket = androidx.compose.ui.graphics.Path().apply {
+                        moveTo(w * 0.42f, h * 0.2f); lineTo(w * 0.83f, h * 0.2f); lineTo(w * 0.77f, h * 0.67f); lineTo(w * 0.48f, h * 0.67f); close()
+                    }
+                    drawPath(bucket, red)
+                    listOf(0.55f, 0.62f, 0.7f).forEach { x ->
+                        drawLine(Color.White, androidx.compose.ui.geometry.Offset(w * x, h * 0.22f), androidx.compose.ui.geometry.Offset(w * x, h * 0.66f), strokeWidth = w * 0.05f)
+                    }
+                }
             }
         }
     }
 }
 
 /**
- * The strip along the bottom right of the hero: a small picture and title for
- * each item (an episode shows its own picture), the current one a little
- * larger and ringed, with a bar across it that fills over [TvHeroRotateMs] so
- * the next change is visible before it happens.
+ * The billboard hero's position indicator: the same bar as the first row's,
+ * driven by its own timer that runs while [running].
  */
 @Composable
 internal fun TvHomeHeroStrip(
@@ -448,62 +520,84 @@ internal fun TvHomeHeroStrip(
         fill.snapTo(0f)
         if (running) fill.animateTo(1f, tween(TvHeroRotateMs.toInt(), easing = LinearEasing))
     }
+    TvHeroPositionBar(
+        count = items.size,
+        current = current,
+        progress = { fill.value },
+        modifier = modifier.fillMaxWidth().padding(horizontal = TvHeroLeft),
+    )
+}
+
+/**
+ * A "4 / 10" counter, a Previous cue, one bar segment per item and a Next cue.
+ * An item that has been left shows a full segment (whether the timer ran out
+ * or the viewer stepped away), the current one fills with [progress] (0..1),
+ * items not yet visited are empty. Stepping back clears the segments from the
+ * item landed on onwards, and looping from the last item back to the first
+ * clears them all.
+ */
+@Composable
+internal fun TvHeroPositionBar(
+    count: Int,
+    current: Int,
+    progress: () -> Float,
+    modifier: Modifier = Modifier,
+) {
+    if (count <= 1) return
+    val seen = remember(count) { androidx.compose.runtime.mutableStateListOf<Boolean>().apply { repeat(count) { add(it < current) } } }
+    var previous by remember(count) { androidx.compose.runtime.mutableIntStateOf(current) }
+    LaunchedEffect(current) {
+        if (current != previous) {
+            val loopedForward = current == 0 && previous == count - 1
+            val steppedBack = (current < previous && !loopedForward) || (previous == 0 && current == count - 1)
+            if (loopedForward) {
+                for (i in seen.indices) seen[i] = false
+            } else if (steppedBack) {
+                for (i in current until count) seen[i] = false
+            } else if (previous in seen.indices) {
+                seen[previous] = true
+            }
+            previous = current
+        }
+        if (current in seen.indices) seen[current] = false
+    }
     Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-        verticalAlignment = Alignment.Bottom,
-        modifier = modifier.fillMaxWidth().padding(end = TvHeroLeft),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier,
     ) {
-        items.forEachIndexed { index, item ->
-            val selected = index == current
-            val hero = item.forHero()
-            val url = hero.backdropUrl?.takeIf { it.isNotBlank() } ?: hero.posterUrl
-            val thumbhash = if (hero.backdropUrl.isNullOrBlank()) hero.posterThumbhash else hero.backdropThumbhash
-            val title = if (item.type.equals("episode", ignoreCase = true)) (item.seriesTitle ?: item.title) else item.title
-            val scale by animateFloatAsState(if (selected) 1.2f else 1f, label = "heroStripScale")
-            Column(
-                modifier = Modifier
-                    .width(64.dp)
-                    .graphicsLayer {
-                        scaleX = scale
-                        scaleY = scale
-                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 1f)
-                    },
-            ) {
+        Text(
+            text = "${current + 1} / $count",
+            color = HeroText,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            modifier = Modifier.width(44.dp),
+        )
+        Text("\u2039", color = HeroText, fontSize = 18.sp, maxLines = 1)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.weight(1f),
+        ) {
+            for (index in 0 until count) {
                 Box(
-                    modifier = Modifier
-                        .size(width = 64.dp, height = 36.dp)
-                        .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
-                        .then(if (selected) Modifier.border(1.5.dp, Color.White, RoundedCornerShape(4.dp)) else Modifier)
-                        .clip(RoundedCornerShape(4.dp)),
+                    Modifier
+                        .weight(1f)
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Color.White.copy(alpha = 0.28f)),
                 ) {
-                    ThumbhashImage(
-                        url = url,
-                        thumbhash = thumbhash,
-                        contentDescription = title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize().graphicsLayer { alpha = if (selected) 1f else 0.7f },
+                    Box(
+                        Modifier
+                            .fillMaxHeight()
+                            .graphicsLayer { scaleX = if (index == current) progress().coerceIn(0f, 1f) else if (seen.getOrElse(index) { false }) 1f else 0f; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f) }
+                            .fillMaxWidth()
+                            .background(HeroAccent),
                     )
-                    if (selected) {
-                        Box(
-                            Modifier
-                                .align(Alignment.BottomStart)
-                                .fillMaxWidth(fill.value)
-                                .height(3.dp)
-                                .background(HeroAccent),
-                        )
-                    }
                 }
-                Text(
-                    text = title,
-                    color = if (selected) HeroText else HeroMuted,
-                    fontSize = 8.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 3.dp),
-                )
             }
         }
+        Text("\u203a", color = HeroText, fontSize = 18.sp, maxLines = 1)
     }
 }
 

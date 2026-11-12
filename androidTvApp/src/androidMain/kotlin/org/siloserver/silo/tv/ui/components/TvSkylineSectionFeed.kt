@@ -11,12 +11,18 @@ import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -40,6 +46,8 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -203,11 +211,19 @@ fun TvSkylineSectionFeed(
     onMarqueeTranslated: () -> Unit = {},
 ) {
     val exploresRows = onExploreAllForSection != null
-    val rows = remember(sections, exploresRows) {
+    val rows = remember(sections, exploresRows, autoAdvanceFirstRow) {
         sections.filter { it.items.isNotEmpty() }
             .let { nonEmpty -> if (exploresRows) nonEmpty.map { it.cappedForRow() } else nonEmpty }
+            .let { capped ->
+                // The first row is the hero: it shows at most TvHeroMaxItems cards, then restarts.
+                if (autoAdvanceFirstRow && capped.isNotEmpty() && capped[0].items.size > TvHeroMaxItems) {
+                    listOf(capped[0].copy(items = capped[0].items.take(TvHeroMaxItems))) + capped.drop(1)
+                } else capped
+            }
     }
-    fun ResolvedSection.showsExploreAll() = exploresRows && offersExploreAll
+    // The hero row ends at its last card so the loop goes straight back to the first.
+    fun ResolvedSection.showsExploreAll() =
+        exploresRows && offersExploreAll && !(autoAdvanceFirstRow && id == rows.firstOrNull()?.id)
     val diagnosticsSurface = when {
         surfaceKey == "home" -> DiagnosticsListSurface.TV_HOME
         surfaceKey == "for_you" -> DiagnosticsListSurface.TV_FOR_YOU
@@ -619,14 +635,17 @@ fun TvSkylineSectionFeed(
     var feedHasFocus by remember { mutableStateOf(false) }
     var rowFocusRevision by remember { mutableIntStateOf(0) }
     var resumePrompt by remember { mutableStateOf<SectionItem?>(null) }
+    var firstRowFocusRequest by remember { mutableIntStateOf(0) }
+    var lastRowFocusRequest by remember { mutableIntStateOf(0) }
     val rowTimer = remember { androidx.compose.animation.core.Animatable(0f) }
     LaunchedEffect(rowFocusRevision, autoAdvanceFirstRow, feedHasFocus, focusedRowIndex, resumePrompt) {
         rowTimer.snapTo(0f)
         if (!autoAdvanceFirstRow || !feedHasFocus || focusedRowIndex != 0 || resumePrompt != null) return@LaunchedEffect
         rowTimer.animateTo(1f, tween(TvHeroRotateMs.toInt(), easing = androidx.compose.animation.core.LinearEasing))
-        // Past the last card the selection wraps to the first.
-        if (!focusManager.moveFocus(FocusDirection.Right)) {
-            runCatching { resolvedFirstRowFocusRequester.requestFocus() }
+        // Past the last card the selection wraps to the first, scrolling back to it.
+        val lastIndex = (rows.firstOrNull()?.items?.size ?: 1) - 1
+        if (focusedItemIndex >= lastIndex || !focusManager.moveFocus(FocusDirection.Right)) {
+            firstRowFocusRequest++
         }
     }
 
@@ -757,7 +776,6 @@ fun TvSkylineSectionFeed(
     // both first-card effects after focusRestorer has correctly restored the
     // previously entered card.
     var initialFocusRequested by rememberSaveable { mutableStateOf(false) }
-    var firstRowFocusRequest by remember { mutableIntStateOf(0) }
     // Where the launch card is NOW. Resolved against the rows this feed
     // actually renders — Skyline drops empty rows before layout, so a
     // projection taken from further upstream would put these indices in a
@@ -1053,6 +1071,7 @@ fun TvSkylineSectionFeed(
                 .background(MaterialTheme.colorScheme.background),
         ) {
             val presentation = LocalCardPresentation.current
+            TvCardText.ensureLoaded(androidx.compose.ui.platform.LocalContext.current)
             val bandHeight = tvSkylineRowBandHeight(presentation)
                 .coerceAtMost(maxHeight * TvSkylineRowBandMaxFraction)
             val trailingPreviewPadding = (bandHeight - TvSkylineRowBandBottomInset).coerceAtLeast(0.dp)
@@ -1077,11 +1096,17 @@ fun TvSkylineSectionFeed(
             val bandNormalTop = maxHeight - bandHeight + contentVerticalOffset
             val heroBandShift by animateDpAsState(
                 targetValue = if (heroZone) {
-                    (TvHeroRowHeaderTop - TvHeroRowHeaderInset - bandNormalTop).coerceIn(0.dp, 170.dp)
+                    (TvHeroRowHeaderTop - TvHeroRowHeaderInset - bandNormalTop).coerceAtLeast(0.dp)
                 } else {
                     0.dp
                 },
                 label = "heroBandShift",
+            )
+            // Under the hero only the first row's title shows: nothing of its
+            // cards is drawn below the header, wherever the band sits.
+            val heroBandReveal by animateDpAsState(
+                targetValue = if (heroZone) TvHeroRowHeaderInset + TvSkylineRowHeaderHeight else bandHeight + 400.dp,
+                label = "heroBandReveal",
             )
             if (heroZone && hero != null) {
                 val item = heroItem
@@ -1112,7 +1137,7 @@ fun TvSkylineSectionFeed(
                     onNext = if (heroItems.size > 1) {
                         { heroIndex = (heroIndex + 1) % heroItems.size }
                     } else null,
-                    modifier = Modifier.offset(x = TvHeroLeft, y = TvHeroTop),
+                    modifier = Modifier,
                 )
                 TvHomeHeroStrip(
                     items = heroItems,
@@ -1137,7 +1162,7 @@ fun TvSkylineSectionFeed(
                 bottomPadding = bandHeight + TvSkylineMarqueeBottomGap,
                 modifier = Modifier
                     .fillMaxSize()
-                    .offset(y = contentVerticalOffset),
+                    .offset(y = contentVerticalOffset + TvSkylineContentDrop),
             )
 
             Box(
@@ -1145,9 +1170,31 @@ fun TvSkylineSectionFeed(
                     .fillMaxWidth()
                     .height(bandHeight)
                     .align(Alignment.BottomStart)
-                    .offset(y = contentVerticalOffset + heroBandShift)
+                    .offset(y = contentVerticalOffset + heroBandShift + TvSkylineContentDrop)
                     .clipToBounds()
-                    .onFocusChanged { feedHasFocus = it.hasFocus },
+                    .drawWithContent {
+                        clipRect(bottom = heroBandReveal.toPx()) { this@drawWithContent.drawContent() }
+                    }
+                    .onFocusChanged { feedHasFocus = it.hasFocus }
+                    .onPreviewKeyEvent { event ->
+                        // Left on the first hero card jumps to the last.
+                        if (autoAdvanceFirstRow && focusedRowIndex == 0 && focusedItemIndex == 0 &&
+                            (rows.firstOrNull()?.items?.size ?: 0) > 1 &&
+                            event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft
+                        ) {
+                            lastRowFocusRequest++
+                            return@onPreviewKeyEvent true
+                        }
+                        // Right on the last hero card goes back to the first.
+                        val lastHeroIndex = (rows.firstOrNull()?.items?.size ?: 0) - 1
+                        if (autoAdvanceFirstRow && focusedRowIndex == 0 && lastHeroIndex > 0 &&
+                            focusedItemIndex >= lastHeroIndex &&
+                            event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight
+                        ) {
+                            firstRowFocusRequest++
+                            true
+                        } else false
+                    },
             ) {
                 LazyColumn(
                     state = rowBandState,
@@ -1166,23 +1213,19 @@ fun TvSkylineSectionFeed(
                         val isFirstRow = section.id == firstRowId
                         val showProgress = showProgressForSection(section)
                         val isReturnRow = locatedReturn?.sectionIndex == rowIndex
+                        // Rows below the one in use show only their title at the bottom edge.
+                        val railAlpha by androidx.compose.animation.core.animateFloatAsState(
+                            targetValue = if (rowIndex > focusedRowIndex.coerceAtLeast(0)) 0f else 1f,
+                            animationSpec = tween(200),
+                            label = "railAlpha",
+                        )
                         TvMediaRow(
+                            railAlpha = railAlpha,
                             title = section.title,
                             items = section.items,
                             onItemClick = { contentId ->
-                                val item = section.items.firstOrNull { it.contentId == contentId }
-                                if (autoAdvanceFirstRow && isFirstRow && onPlayFirstRowItem != null &&
-                                    item != null && item.isPlayableOnSelect()
-                                ) {
-                                    // Select plays at once; a part-played item asks first.
-                                    if ((item.positionSeconds ?: 0.0) > 0.0) {
-                                        resumePrompt = item
-                                    } else {
-                                        onPlayFirstRowItem(item, null)
-                                    }
-                                } else {
-                                    openDetail(section, rowIndex, contentId)
-                                }
+                                // Select opens the item in the library, as on every other row.
+                                openDetail(section, rowIndex, contentId)
                             },
                             icon = iconForSection(section),
                             onSeeAllClick = onSeeAllClickForSection(section),
@@ -1203,6 +1246,7 @@ fun TvSkylineSectionFeed(
                                 else -> null
                             },
                             firstItemFocusRequest = if (isFirstRow) firstRowFocusRequest else 0,
+                            lastItemFocusRequest = if (isFirstRow) lastRowFocusRequest else 0,
                             restoreFocusIndex = if (isReturnRow) {
                                 locatedReturn?.itemIndex ?: -1
                             } else {
@@ -1242,11 +1286,8 @@ fun TvSkylineSectionFeed(
                                     longClickActionForSection(section, item)
                                 }
                             },
-                            focusTimerProgress = if (autoAdvanceFirstRow && isFirstRow) {
-                                { rowTimer.value }
-                            } else {
-                                null
-                            },
+                            // The counter and bar above the row show the timer now; no bar on the card.
+                            focusTimerProgress = null,
                             onExploreAllClick = onExploreAllForSection
                                 ?.takeIf { section.showsExploreAll() }
                                 ?.let { open ->
@@ -1259,6 +1300,19 @@ fun TvSkylineSectionFeed(
                             keyEpisodesBySeries = section.isTvProgressRow(),
                         )
                     }
+                }
+                val heroRowCount = rows.firstOrNull()?.items?.size ?: 0
+                if (autoAdvanceFirstRow && focusedRowIndex == 0 && heroRowCount > 1) {
+                    TvHeroPositionBar(
+                        count = heroRowCount,
+                        current = focusedItemIndex.coerceIn(0, heroRowCount - 1),
+                        progress = { rowTimer.value },
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(start = 330.dp, end = TvHeroLeft, top = 2.dp)
+                            .height(18.dp)
+                            .fillMaxWidth(),
+                    )
                 }
             }
 
@@ -1353,7 +1407,7 @@ internal val TvSkylineRowBandBottomInset = 10.dp
 // plus a peek of the next section. The previous fixed 0.50 fraction clipped
 // `large` cards against the marquee. At the standard poster size this
 // derivation reproduces the old 270dp band on a 540dp-tall layout.
-private val TvSkylineRowHeaderHeight = 26.dp // TvSectionHeader: 22sp title line + 4dp bottom pad
+internal val TvSkylineRowHeaderHeight = 26.dp // TvSectionHeader: 22sp title line + 4dp bottom pad
 private val TvSkylineRowHeaderGap = 12.dp // TvMediaRow header→rail spacing
 private val TvSkylineCaptionTitleHeight = 30.dp // TvMediaCard: 11dp spacer + 18.5sp title line
 private val TvSkylineCaptionMetadataHeight = 18.dp // TvMediaCard: 18sp year line
@@ -1364,11 +1418,21 @@ internal const val TvSkylineRowBandMaxFraction = 0.58f
 
 internal fun tvSkylineRowBandHeight(presentation: CardPresentation): Dp {
     val cardHeight = RowDimens.DensePosterWidth * presentation.posterSize.posterScale * 3f / 2f
-    val captionHeight = TvSkylineCaptionTitleHeight + TvSkylineCaptionMetadataHeight
+    // The text under each card follows the Card text settings, so the band shrinks with it
+    // and the next section's pictures stay below the edge instead of riding up.
+    val hasMeta = TvCardText.showYear || TvCardText.showEpisodeNumber || TvCardText.showEpisodeTitle
+    val captionHeight = when {
+        !TvCardText.showText -> 0.dp
+        else -> (if (TvCardText.showName) TvSkylineCaptionTitleHeight else 11.dp) +
+            (if (hasMeta) TvSkylineCaptionMetadataHeight else 0.dp)
+    }
     return TvSkylineRowHeaderHeight + TvSkylineRowHeaderGap +
         TvSkylineRowCardVerticalPadding * 2 + cardHeight + captionHeight +
         TvSkylineRowPreviewSpacing + TvSkylineRowPreviewPeek
 }
+
+/** The marquee text and the rows sit this much lower on screen. */
+internal val TvSkylineContentDrop = 8.dp
 
 /** Gap between the marquee block and the top of the row band. */
 internal val TvSkylineMarqueeBottomGap = 4.dp

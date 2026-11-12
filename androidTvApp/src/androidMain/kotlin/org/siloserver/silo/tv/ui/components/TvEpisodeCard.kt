@@ -179,14 +179,15 @@ fun TvEpisodeCard(
             }
         }
 
-        Column(
+        TvCardText.ensureLoaded(androidx.compose.ui.platform.LocalContext.current)
+        if (TvCardText.showText) Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 7.dp),
             horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text(
+            if (TvCardText.showName) Text(
                 text = seriesTitle ?: title,
                 style = MaterialTheme.typography.titleSmall.copy(
                     fontSize = 15.5.sp,
@@ -201,9 +202,17 @@ fun TvEpisodeCard(
             // With the series on the line above, the episode number is what
             // separates two same-named episodes in a rail, so it leads.
             val secondaryLine = when {
-                seriesTitle != null -> tvEpisodeTitleLine(seasonNumber, episodeNumber, title)
-                episodeTag != null -> episodeTag
-                else -> year?.toString()
+                seriesTitle != null -> {
+                    val tag = episodeTag.takeIf { TvCardText.showEpisodeNumber }
+                    val name = title.takeIf { TvCardText.showEpisodeTitle && it.isNotBlank() }
+                    when {
+                        tag == null -> name
+                        name == null -> tag
+                        else -> "$tag \u2022 ${bidiIsolated(name)}"
+                    }
+                }
+                episodeTag != null -> episodeTag.takeIf { TvCardText.showEpisodeNumber }
+                else -> year?.toString()?.takeIf { TvCardText.showYear }
             }
             if (secondaryLine != null) {
                 Text(

@@ -128,6 +128,7 @@ import org.siloserver.silo.model.settings.SubtitleFontSizePreset
 import org.siloserver.silo.model.settings.SubtitlePositionPreset
 import org.siloserver.silo.model.settings.pointSize
 import org.siloserver.silo.tv.BuildConfig
+import org.siloserver.silo.tv.ui.components.TvCardText
 import org.siloserver.silo.tv.R
 import org.siloserver.silo.common.R as CommonR
 import org.siloserver.silo.tv.ui.screens.settings.diagnostics.TvPrivacyPolicyDialog
@@ -1098,6 +1099,9 @@ private fun TvGeneralSettingsPane(
                     )
                 }
             }
+        }
+        item {
+            TvCardTextSettingsGroup()
         }
         item {
             TvTitleArtSettingsGroup(store = titleArtStore)
@@ -3175,5 +3179,45 @@ private fun TvTitleArtSettingsGroup(store: TitleArtStore) {
             },
         )
         saveError?.let { SettingsFooterText(text = it) }
+    }
+}
+
+
+/** Settings > General > Card Text: what shows under each picture, on this TV only. */
+@Composable
+private fun TvCardTextSettingsGroup() {
+    val context = LocalContext.current
+    TvCardText.ensureLoaded(context)
+    SettingsGroup(title = "Card Text") {
+        SettingsToggleRow(
+            label = "Show text under images",
+            checked = TvCardText.showText,
+            onCheckedChange = { TvCardText.set(context, "showText", it) },
+        )
+        SettingsToggleRow(
+            label = "Show or film name",
+            checked = TvCardText.showName,
+            onCheckedChange = { TvCardText.set(context, "showName", it) },
+            enabled = TvCardText.showText,
+        )
+        SettingsToggleRow(
+            label = "Season and episode number",
+            checked = TvCardText.showEpisodeNumber,
+            onCheckedChange = { TvCardText.set(context, "showEpisodeNumber", it) },
+            enabled = TvCardText.showText,
+        )
+        SettingsToggleRow(
+            label = "Episode title",
+            checked = TvCardText.showEpisodeTitle,
+            onCheckedChange = { TvCardText.set(context, "showEpisodeTitle", it) },
+            enabled = TvCardText.showText,
+        )
+        SettingsToggleRow(
+            label = "Year",
+            checked = TvCardText.showYear,
+            onCheckedChange = { TvCardText.set(context, "showYear", it) },
+            enabled = TvCardText.showText,
+        )
+        SettingsFooterText(text = "Chooses the text under pictures in every row. Applies to this TV only.")
     }
 }

@@ -265,10 +265,28 @@ fun TvRecommendationsScreen(
                     }
                 }
             }
-            else -> TvSkylineSectionFeed(
+            else -> {
+                // Same hero as Home and the libraries: the first section is the billboard.
+                val heroSection = visibleSections.firstOrNull()
+                val feedSections = if (heroSection != null) visibleSections.drop(1) else visibleSections
+                val hero = remember(heroSection) {
+                    heroSection?.let { section ->
+                        org.siloserver.silo.tv.ui.components.TvHomeHeroFeed(
+                            section = section,
+                            onPlay = { item -> onRecommendationItemClick(item.contentId) },
+                            onMoreInfo = { item -> onRecommendationItemClick(item.contentId) },
+                            onToggleWatchlist = { _, _ -> },
+                        )
+                    }
+                }
+                TvSkylineSectionFeed(
+                hero = hero,
+                autoAdvanceFirstRow = true,
+                onPlayFirstRowItem = { item, _ -> onRecommendationItemClick(item.contentId) },
+                contentVerticalOffset = 28.dp,
                 surfaceKey = "for_you",
                 onMarqueeTranslated = viewModel::refresh,
-                sections = visibleSections,
+                sections = feedSections,
                 onItemClick = onRecommendationItemClick,
                 // Both tokens are monotonic, so their sum is too — which is all
                 // the feed's "did this request already apply" guard needs.
@@ -283,7 +301,8 @@ fun TvRecommendationsScreen(
                 // progress bars, and the VM exposes no watched/favorite toggles.
                 styleForSection = { TvRowStyle.Poster },
                 showProgressForSection = { false },
-            )
+                )
+            }
         }
 
         if (showFallbackCaption) {

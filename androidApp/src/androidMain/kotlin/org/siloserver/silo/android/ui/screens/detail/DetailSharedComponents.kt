@@ -1123,10 +1123,7 @@ private fun OverviewBlock(
     text: String,
     reserveCollapsedSpace: Boolean = false,
 ) {
-    var expanded by remember(text) { mutableStateOf(false) }
-    var overflows by remember(text) { mutableStateOf(false) }
-
-    // iOS overviewBlock: 15pt regular (0.78 alpha), lineSpacing 3, top pad 8.
+    // The whole synopsis always shows: no clamp, no Read more / Show less.
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1139,16 +1136,9 @@ private fun OverviewBlock(
             lineHeight = 21.sp,
             fontWeight = FontWeight.Normal,
             color = DetailPrimaryText.copy(alpha = 0.78f),
-            minLines = if (reserveCollapsedSpace && !expanded) 3 else 1,
-            maxLines = if (expanded) Int.MAX_VALUE else 3,
-            overflow = TextOverflow.Ellipsis,
+            minLines = if (reserveCollapsedSpace) 3 else 1,
             textAlign = TextAlign.Start,
-            onTextLayout = { if (!expanded) overflows = it.hasVisualOverflow },
         )
-        // Only when there is more to show (or something to hide again).
-        if (overflows || expanded) {
-            ReadMorePill(expanded = expanded, onClick = { expanded = !expanded })
-        }
     }
 }
 

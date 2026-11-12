@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -78,6 +79,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.zIndex
@@ -2383,6 +2385,8 @@ fun TvPlayerScreen(
                     TvPlayerIdleOverlay(
                         title = state.title,
                         eyebrow = tvPlayerEyebrow(state),
+                        logoUrl = state.titleLogoUrl,
+                        episodeCode = org.siloserver.silo.tv.ui.components.tvEpisodeTag(state.seasonNumber, state.episodeNumber),
                         subtitlesValue = subtitlePresentation.rows
                             .firstOrNull { row -> row.checked }
                             ?.let { row -> tvSubtitleRowParts(row.label).title }
@@ -3059,6 +3063,10 @@ private fun TvPlayerIdleOverlay(
     title: String,
     // "MOVIE · 2026" or "SEVERANCE · S2:E4" above the title.
     eyebrow: String?,
+    // The title's (or series') clear logo for the top-left corner; null draws nothing.
+    logoUrl: String?,
+    // "S02E03" for an episode; with the show's logo up it leads the title line instead of the show name.
+    episodeCode: String?,
     // What the Subtitles button says when focused ("English", "Off").
     subtitlesValue: String?,
     positionSec: Double,
@@ -3202,6 +3210,41 @@ private fun TvPlayerIdleOverlay(
                 ),
         )
 
+        // Top scrim and the title's clear logo, small, in the top-left corner.
+        val cornerLogo = org.siloserver.silo.common.settings.titleLogoUrl(logoUrl)
+        var logoFailed by remember(cornerLogo) { mutableStateOf(false) }
+        val logoShown = !cornerLogo.isNullOrBlank() && !logoFailed
+        if (logoShown) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(110.dp)
+                    .align(Alignment.TopCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            0.0f to Color.Black.copy(alpha = 0.55f),
+                            1.0f to Color.Transparent,
+                        ),
+                    ),
+            )
+            ThumbhashImage(
+                url = cornerLogo!!,
+                thumbhash = null,
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                alignment = Alignment.CenterStart,
+                transparent = true,
+                crossfadeMillis = 0,
+                onSuccess = {},
+                onError = { logoFailed = true },
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = TvPlayerChrome.SideInset, top = 28.dp)
+                    .height(44.dp)
+                    .widthIn(max = 220.dp),
+            )
+        }
+
         // Bottom-up: 26dp inset, 44dp transport, 16dp, scrubber (28dp bar
         // + 8dp + clock row), 16dp, then the eyebrow and title. The skip
         // indicator and the subtitle lift below are placed from these numbers.
@@ -3215,20 +3258,25 @@ private fun TvPlayerIdleOverlay(
                     bottom = TvPlayerChrome.BottomInset,
                 ),
         ) {
+            // The episode line sits just above the scrub bar. With the show's logo
+            // in the corner the show name is not repeated: an episode reads
+            // "S02E03 · Episode title" on its own.
             if (title.isNotBlank()) {
-                if (!eyebrow.isNullOrBlank()) {
+                val episodeOnly = logoShown && !episodeCode.isNullOrBlank()
+                if (!episodeOnly && !eyebrow.isNullOrBlank()) {
                     androidx.tv.material3.Text(
                         text = eyebrow.uppercase(),
                         style = TvPlayerType.Eyebrow,
                         maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     )
                 }
                 androidx.tv.material3.Text(
-                    text = title,
-                    style = TvPlayerType.Title,
+                    text = if (episodeOnly) "$episodeCode \u00B7 $title" else title,
+                    style = TvPlayerType.Title.copy(fontSize = 17.sp, lineHeight = 21.sp),
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
+                    modifier = Modifier.padding(top = 2.dp, bottom = 6.dp),
                 )
             }
 

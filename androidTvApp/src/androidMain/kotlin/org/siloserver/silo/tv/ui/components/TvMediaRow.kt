@@ -15,6 +15,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -94,6 +95,8 @@ fun TvMediaRow(
      */
     unwatchedById: Map<String, Boolean>? = null,
     style: TvRowStyle = TvRowStyle.Poster,
+    /** 0 hides the cards (their title stays); a row peeking at the bottom shows only its title. */
+    railAlpha: Float = 1f,
     cardLayout: TvRowCardLayout = TvRowCardLayout.Default,
     horizontalPadding: androidx.compose.ui.unit.Dp = Spacing.safeArea,
     startPadding: androidx.compose.ui.unit.Dp = horizontalPadding,
@@ -111,6 +114,8 @@ fun TvMediaRow(
     onDirectionUp: (() -> Boolean)? = null,
     firstItemFocusRequester: FocusRequester? = null,
     firstItemFocusRequest: Int = 0,
+    /** Bumped to move focus to the row's last card (Left from the first card). */
+    lastItemFocusRequest: Int = 0,
     /** Targets the LazyRow GROUP itself (not a card). Programmatic requests
      *  that cross this row's focusRestorer toward a descendant card are
      *  cancelled by its `enter` interception; a request on the group is
@@ -190,19 +195,22 @@ fun TvMediaRow(
         distinctItems.mapIndexed { index, item ->
             val unwatchedEpisode = item.type.equals("episode", ignoreCase = true) &&
                 (unwatchedById?.get(item.contentId) ?: EpisodeSpoilers.isUnwatched(item))
+            // An episode's card shows its own episode picture when the server has one
+            // (in the backdrop or the poster slot), not the show's art.
+            val art = item.forHero()
             TvMediaRowItemModel(
                 item = item,
                 slotKey = slotKeys[index],
                 progress = if (showProgress) item.progressFraction() else null,
                 remainingMinutes = if (showProgress) item.remainingMinutes() else null,
-                backdropUrl = item.bestBackdropUrl(),
-                backdropThumbhash = item.bestBackdropThumbhash(),
+                backdropUrl = art.bestBackdropUrl(),
+                backdropThumbhash = art.bestBackdropThumbhash(),
                 shelfTitle = item.shelfTitle(showProgress = showProgress),
                 shelfSubtitle = item.shelfSubtitle(showProgress = showProgress),
                 overlay = OverlayDataExtractor.fromSectionItem(item),
                 contentType = "${cardLayout.name}:${style.name}:${item.type}",
                 // Protect the selected still while preserving series fallback art.
-                hidesArtwork = spoilerPrefs.hidesImage(unwatchedEpisode, EpisodeSpoilers.selectedImageIsStill(item)),
+                hidesArtwork = spoilerPrefs.hidesImage(unwatchedEpisode, EpisodeSpoilers.selectedImageIsStill(art)),
                 hidesPoster = spoilerPrefs.hidesImage(unwatchedEpisode, item.posterIsEpisodeStill),
             )
         }
@@ -252,8 +260,21 @@ fun TvMediaRow(
         }
     }
 
+    val lastItemRequester = remember { FocusRequester() }
+    LaunchedEffect(lastItemFocusRequest) {
+        if (lastItemFocusRequest > 0) {
+            runCatching { rowState.scrollToItem((rowItems.size - 1).coerceAtLeast(0)) }
+            androidx.compose.runtime.withFrameNanos { }
+            androidx.compose.runtime.withFrameNanos { }
+            runCatching { lastItemRequester.requestFocus() }
+        }
+    }
+
     LaunchedEffect(firstItemFocusRequest) {
         if (firstItemFocusRequest > 0 && firstItemFocusRequester != null) {
+            // The first card may be scrolled out of composition (looping back from the last one).
+            runCatching { rowState.scrollToItem(0) }
+            androidx.compose.runtime.withFrameNanos { }
             runCatching { firstItemFocusRequester.requestFocus() }
         }
     }
@@ -283,6 +304,7 @@ fun TvMediaRow(
             // attached to index 0 — or Compose's default first-focusable
             // search if the row wasn't given one.
             modifier = Modifier
+                .graphicsLayer { alpha = railAlpha }
                 .then(
                     if (rowContainerFocusRequester != null) {
                         Modifier.focusRequester(rowContainerFocusRequester)
@@ -391,7 +413,11 @@ fun TvMediaRow(
                 // Always anchor firstItemFocusRequester to index 0 so it can
                 // serve as a stable fallback target for focusRestorer and for
                 // imperative requestFocus() calls from parent screens.
-                val itemFocusRequester = firstItemFocusRequester.takeIf { index == 0 }
+                val itemFocusRequester = when {
+                    index == 0 -> firstItemFocusRequester
+                    index == rowItems.lastIndex -> lastItemRequester
+                    else -> null
+                }
                 val appliedCardModifier = itemCardModifier.then(
                     if (index == 0) firstItemCardModifier else Modifier,
                 ).then(

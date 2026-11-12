@@ -2,6 +2,7 @@
 
 package org.siloserver.silo.tv.ui.screens.player
 
+import kotlinx.coroutines.flow.collectLatest
 import org.siloserver.silo.common.diagnostics.DiagnosticsPlaybackLogger
 import org.siloserver.silo.common.diagnostics.DiagnosticsSeekEvent
 import org.siloserver.silo.common.player.AudioOutputPath
@@ -1191,6 +1192,8 @@ class TvPlayerViewModel(
          * to `playerFactory.buildMediaItem`. Mirrors phone player parity.
          */
         val artworkUrl: String? = null,
+        /** The title's clear logo (the series' for an episode), shown in the player's top-left corner. */
+        val titleLogoUrl: String? = null,
         val sessionId: String? = null,
         val playMethod: PlayMethod? = null,
         val playbackPlan: PlaybackExecutionPlan? = null,
@@ -2009,6 +2012,20 @@ class TvPlayerViewModel(
                     .distinctUntilChanged()
                     .collect(previews::show)
             }
+        }
+        // The clear logo for the corner of the player: the series' for an episode, else the film's.
+        viewModelScope.launch {
+            fun UiState.logoOwnerId(): String? =
+                (seriesId?.takeIf { it.isNotBlank() } ?: contentId).takeIf { it.isNotBlank() }
+            _uiState
+                .map { it.logoOwnerId() }
+                .distinctUntilChanged()
+                .collectLatest { id ->
+                    if (id == null) return@collectLatest
+                    val logo = (catalogRepository.getItemDetail(id, launchArgs.libraryId) as? ApiResult.Success)
+                        ?.data?.logoUrl?.takeIf { it.isNotBlank() }
+                    _uiState.update { if (it.logoOwnerId() == id) it.copy(titleLogoUrl = logo) else it }
+                }
         }
         viewModelScope.launch {
             val screen = _uiState

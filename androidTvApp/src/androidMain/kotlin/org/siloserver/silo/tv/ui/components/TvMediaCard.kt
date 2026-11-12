@@ -288,9 +288,10 @@ fun TvMediaCard(
             }
         }
 
-        Spacer(modifier = Modifier.height(11.dp))
+        TvCardText.ensureLoaded(androidx.compose.ui.platform.LocalContext.current)
+        if (TvCardText.showText) Spacer(modifier = Modifier.height(11.dp))
 
-        Text(
+        if (TvCardText.showText && TvCardText.showName) Text(
             text = title,
             style = MaterialTheme.typography.titleSmall.copy(
                 fontSize = 15.5.sp,
@@ -307,8 +308,8 @@ fun TvMediaCard(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        val metadata = caption ?: year?.takeIf { it > 0 }?.toString()
-        if (metadata != null) {
+        val metadata = caption ?: year?.takeIf { it > 0 && TvCardText.showYear }?.toString()
+        if (metadata != null && TvCardText.showText) {
             Text(
                 text = metadata,
                 style = MaterialTheme.typography.bodySmall.copy(

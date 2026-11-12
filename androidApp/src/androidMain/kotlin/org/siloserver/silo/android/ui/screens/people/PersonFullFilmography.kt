@@ -116,8 +116,7 @@ internal fun PersonFullFilmography(
     val hasSelf = remember(credits) { credits.any { it.isSelf } }
 
     Box(modifier = Modifier.fillMaxSize()) {
-    // The person's photo, darkened and faded into the page colour, so the page
-    // matches the title pages instead of sitting on plain black.
+    // Colour-wash gradient background, like the Android TV person page.
     PersonBackdrop(person)
     LazyColumn(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
@@ -165,23 +164,28 @@ internal fun PersonFullFilmography(
 @Composable
 private fun PersonBackdrop(person: Person) {
     val page = androidx.compose.material3.MaterialTheme.colorScheme.background
+    // Same soft colour wash as the TV person page: a hue picked from the
+    // person's name (stable between visits) fading into the page colour.
+    val hue = remember(person.name) { (person.name.hashCode().toLong() and 0x7fffffffL).rem(360L).toFloat() }
+    val tint = remember(hue) { Color.hsv(hue, 0.55f, 0.55f) }
     Box(modifier = Modifier.fillMaxSize()) {
-        if (!person.photoUrl.isNullOrBlank()) {
-            ThumbhashImage(
-                url = person.photoUrl,
-                thumbhash = person.photoThumbhash,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().height(420.dp).alpha(0.55f),
-            )
-        }
         Box(
             modifier = Modifier.fillMaxSize().background(
-                // Only fades the photo into the page colour at the bottom; no dark tint over it.
+                Brush.linearGradient(
+                    0f to tint.copy(alpha = 0.55f),
+                    0.6f to tint.copy(alpha = 0.18f),
+                    1f to Color.Transparent,
+                    start = androidx.compose.ui.geometry.Offset.Zero,
+                    end = androidx.compose.ui.geometry.Offset(1000f, 1800f),
+                ),
+            ),
+        )
+        Box(
+            modifier = Modifier.fillMaxSize().background(
                 Brush.verticalGradient(
                     0f to Color.Transparent,
-                    0.38f to Color.Transparent,
-                    0.62f to page,
+                    0.4f to Color.Transparent,
+                    0.85f to page,
                     1f to page,
                 ),
             ),

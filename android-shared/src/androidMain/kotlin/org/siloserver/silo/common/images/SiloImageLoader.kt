@@ -13,6 +13,8 @@ import coil3.request.ImageRequest
 import coil3.request.Options
 import coil3.request.SuccessResult
 import coil3.request.crossfade
+import coil3.intercept.Interceptor
+import coil3.request.ImageResult
 import okio.Path.Companion.toOkioPath
 import org.siloserver.silo.network.SiloOkHttp
 import org.siloserver.silo.common.diagnostics.DiagnosticsImageHealth
@@ -45,6 +47,7 @@ fun buildSiloImageLoader(context: PlatformContext, cacheDir: File): ImageLoader 
         .crossfade(true)
         .eventListenerFactory { DiagnosticsImageEventListener() }
         .components {
+            add(StableArtworkKeyInterceptor)
             add(SharedDownloadFetcherFactory(OkHttpNetworkFetcherFactory(callFactory = { SiloOkHttp.imageClient })))
         }
         .diskCache {
@@ -77,5 +80,31 @@ private class DiagnosticsImageEventListener : EventListener() {
 
     override fun onError(request: ImageRequest, result: ErrorResult) {
         DiagnosticsImageHealth.failure(stage, result.throwable)
+    }
+}
+
+/**
+ * Artwork URLs are signed per API response (`exp` and `sig` change every
+ * time the same poster is issued), so keying the caches on the full URL made
+ * every refresh a miss. Key memory and disk caches on the URL without the
+ * signature so a poster already seen is served from cache.
+ */
+private object StableArtworkKeyInterceptor : Interceptor {
+    private val volatileParams = setOf("exp", "sig", "signature", "expires")
+
+    override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
+        val request = chain.request
+        val raw = request.data as? String ?: (request.data as? coil3.Uri)?.toString()
+        if (raw == null || !raw.startsWith("http") || !raw.contains('?')) return chain.proceed()
+        val base = raw.substringBefore('?')
+        val kept = raw.substringAfter('?').split('&').filter { it.isNotEmpty() && it.substringBefore('=') !in volatileParams }
+        val key = if (kept.isEmpty()) base else base + "?" + kept.joinToString("&")
+        val next = request.newBuilder()
+            .apply {
+                if (request.memoryCacheKey == null) memoryCacheKey(key)
+                if (request.diskCacheKey == null) diskCacheKey(key)
+            }
+            .build()
+        return chain.withRequest(next).proceed()
     }
 }

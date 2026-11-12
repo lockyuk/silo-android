@@ -85,6 +85,8 @@ fun TvPlayerTransportCluster(
     skipForwardSeconds: Int = 30,
     // What the Subtitles button reveals when focused ("English", "Off").
     subtitlesValue: String? = null,
+    // The title text between the two button groups, under the scrub bar.
+    centerContent: (@Composable () -> Unit)? = null,
 ) {
     // The groups sit at opposite ends of the row. Left/Right cross the gap
     // between them explicitly; a plain search from skip-forward can land on
@@ -125,6 +127,14 @@ fun TvPlayerTransportCluster(
                 onMoveUp = onMoveUpToScrubber,
             )
         }
+
+        // The title, filling the gap between the groups.
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 24.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) { centerContent?.invoke() }
 
         // Secondary group — pushed right.
         Row(verticalAlignment = Alignment.CenterVertically) {

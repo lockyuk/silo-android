@@ -497,10 +497,6 @@ fun SeriesDetailContent(
             }
         }
 
-        item(contentType = "detail-facts") {
-            DetailFactsSection(detail = detail)
-        }
-
 
         if (!isExpandedDetailLayout) {
             item(contentType = "detail-episodes") {
@@ -533,6 +529,11 @@ fun SeriesDetailContent(
                 items = similarItems,
                 onSelect = onSimilarItemClick,
             )
+        }
+
+        // Details sit at the very bottom of the page.
+        item(contentType = "detail-facts") {
+            DetailFactsSection(detail = detail)
         }
 
         item(contentType = "detail-spacer") {

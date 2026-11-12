@@ -118,6 +118,7 @@ data class TvMarqueeContent(
         // A card that carries its series backdrop already shows the art the
         // detail would bring, so the hero never swaps a second time.
         val upgradeBackdrop = isEpisode && source.seriesHeroBackdrop() == null &&
+            backdropIsEpisodeStill != true &&
             !enrichment.backdropUrl.isNullOrBlank() &&
             (!hidesStills || enrichment.backdropIsEpisodeStill == false)
         return copy(
@@ -167,11 +168,20 @@ data class TvMarqueeContent(
 
             // An episode's hero is its series backdrop when the card carries
             // one; it is never a still, so spoiler protection keeps it.
-            val seriesBackdrop = item.seriesHeroBackdrop()
+            // The episode's own still is the backdrop when the card carries one (in
+            // its backdrop or poster slot); the series art is the fallback.
+            val still: Pair<String, String?>? = if (!isEpisode) null else when {
+                !item.backdropUrl.isNullOrBlank() && item.backdropIsEpisodeStill == true ->
+                    item.backdropUrl!! to item.backdropThumbhash
+                !item.posterUrl.isNullOrBlank() && item.posterIsEpisodeStill == true ->
+                    item.posterUrl!! to item.posterThumbhash
+                else -> null
+            }
+            val seriesBackdrop = if (still != null) null else item.seriesHeroBackdrop()
             val hidesBackdrop = seriesBackdrop == null &&
-                spoilers.hidesImage(unwatchedEpisode, item.backdropIsEpisodeStill)
+                spoilers.hidesImage(unwatchedEpisode, if (still != null) true else item.backdropIsEpisodeStill)
             val hidesPoster = spoilers.hidesImage(unwatchedEpisode, item.posterIsEpisodeStill)
-            val sectionBackdropUrl = seriesBackdrop?.url ?: item.backdropUrl?.takeIf { it.isNotBlank() }
+            val sectionBackdropUrl = seriesBackdrop?.url ?: still?.first ?: item.backdropUrl?.takeIf { it.isNotBlank() }
             val sectionPosterUrl = item.posterUrl?.takeIf { it.isNotBlank() }
             return TvMarqueeContent(
                 id = "$rowIdentity#${item.contentId}",
@@ -190,6 +200,8 @@ data class TvMarqueeContent(
                 backdropUrl = (if (hidesBackdrop) null else sectionBackdropUrl) ?: (if (hidesPoster) null else sectionPosterUrl),
                 backdropThumbhash = if (seriesBackdrop != null) {
                     seriesBackdrop.thumbhash
+                } else if (!hidesBackdrop && still != null) {
+                    still.second
                 } else if (!hidesBackdrop && sectionBackdropUrl != null) {
                     item.backdropThumbhash
                 } else if (!hidesPoster) {
@@ -202,6 +214,8 @@ data class TvMarqueeContent(
                 hidesStills = spoilers.hidesImage(unwatchedEpisode),
                 backdropIsEpisodeStill = if (seriesBackdrop != null) {
                     false
+                } else if (!hidesBackdrop && still != null) {
+                    true
                 } else if (!hidesBackdrop && sectionBackdropUrl != null) {
                     item.backdropIsEpisodeStill
                 } else {
