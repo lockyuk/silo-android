@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.screens.detail
 
+import org.siloserver.silo.tv.ui.theme.auroraBackground
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -366,15 +367,15 @@ fun TvItemDetailScreen(
 
     when {
         state.isLoading && state.detail == null -> TvLoadingScreen(
-            modifier = Modifier.background(MaterialTheme.colorScheme.background),
+            modifier = Modifier.auroraBackground(),
         )
         state.error != null && state.detail == null -> TvErrorScreen(
             message = state.error!!,
             onRetry = viewModel::loadAll,
-            modifier = Modifier.background(MaterialTheme.colorScheme.background),
+            modifier = Modifier.auroraBackground(),
         )
         seriesRedirect != null && !seriesRedirectFailed -> TvLoadingScreen(
-            modifier = Modifier.background(MaterialTheme.colorScheme.background),
+            modifier = Modifier.auroraBackground(),
         )
         state.detail != null -> TvDetailContent(
             detail = state.detail!!,

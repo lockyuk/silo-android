@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.screens.notifications
 
+import org.siloserver.silo.tv.ui.theme.auroraBackground
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
@@ -175,7 +176,7 @@ fun TvInboxScreen(
             // specifically" — a claim that lands anywhere in the list leaves a
             // working D-pad, which is what the retry is protecting.
             .onFocusChanged { firstRowHasFocus = it.hasFocus }
-            .background(MaterialTheme.colorScheme.background),
+            .auroraBackground(),
     ) {
         Column(
             modifier = Modifier.padding(

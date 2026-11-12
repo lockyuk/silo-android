@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.screens.detail
 
+import org.siloserver.silo.tv.ui.theme.Aurora
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -556,7 +557,7 @@ private fun TvDetailEpisodeCard(
                         modifier = Modifier
                             .fillMaxWidth(fraction)
                             .height(5.dp)
-                            .background(ProgressFill),
+                            .background(Aurora.Gradient),
                     )
                 }
             }

@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.components
 
+import org.siloserver.silo.tv.ui.theme.auroraBackground
 import android.graphics.Bitmap
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
@@ -110,7 +111,7 @@ fun TvRootHeroBackdrop(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .auroraBackground(),
     ) {
         // Diagonal sampled-tint wash: richest in the top-right behind the art,
         // carried dimmed to the bottom-left (tvOS stops 1.0 / 0.5 / 0.18).

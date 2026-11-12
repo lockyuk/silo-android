@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.screens.people
 
+import org.siloserver.silo.tv.ui.theme.auroraBackground
 import androidx.compose.ui.layout.layout
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.activity.compose.BackHandler
@@ -116,16 +117,16 @@ fun TvPersonDetailScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .auroraBackground(),
     ) {
         when {
             state.isLoading && state.person == null -> TvLoadingScreen(
-                modifier = Modifier.background(MaterialTheme.colorScheme.background),
+                modifier = Modifier.auroraBackground(),
             )
             state.error != null && state.person == null -> TvErrorScreen(
                 message = state.error!!,
                 onRetry = viewModel::reload,
-                modifier = Modifier.background(MaterialTheme.colorScheme.background),
+                modifier = Modifier.auroraBackground(),
             )
             state.person != null -> TvPersonDetailContent(
                 person = state.person!!,

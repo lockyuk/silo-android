@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.screens.recommendations
 
+import org.siloserver.silo.tv.ui.theme.auroraBackground
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -220,18 +221,18 @@ fun TvRecommendationsScreen(
                 modifier = Modifier.padding(top = savedListTopInset),
             )
             state.isLoading && state.sections.isEmpty() -> TvLoadingScreen(
-                modifier = Modifier.background(MaterialTheme.colorScheme.background),
+                modifier = Modifier.auroraBackground(),
             )
             state.error != null && state.sections.isEmpty() -> TvErrorScreen(
                 message = state.error ?: "Failed to load recommendations",
                 onRetry = viewModel::loadRecommendations,
-                modifier = Modifier.background(MaterialTheme.colorScheme.background),
+                modifier = Modifier.auroraBackground(),
             )
             visibleSections.isEmpty() -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background)
+                        .auroraBackground()
                         .padding(horizontal = Spacing.safeArea),
                     contentAlignment = Alignment.Center,
                 ) {

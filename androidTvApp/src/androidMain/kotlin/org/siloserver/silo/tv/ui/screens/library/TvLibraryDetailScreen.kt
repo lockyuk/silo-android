@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.screens.library
 
+import org.siloserver.silo.tv.ui.theme.auroraBackground
 import org.siloserver.silo.model.section.ResolvedSection
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -163,7 +164,7 @@ fun TvLibraryDetailScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .auroraBackground(),
     ) {
         when (state.selectedTab) {
             TvLibraryTab.Recommended -> RecommendedTab(

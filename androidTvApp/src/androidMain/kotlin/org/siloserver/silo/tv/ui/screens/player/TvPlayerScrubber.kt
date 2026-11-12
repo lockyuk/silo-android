@@ -419,7 +419,7 @@ fun TvPlayerScrubber(
                     chapterFractions = chapterFractions,
                     trackColor = Color.White.copy(alpha = trackAlpha),
                     bufferedColor = Color.White.copy(alpha = 0.20f),
-                    playedColor = TvPlayerChrome.Paper,
+                    playedColor = org.siloserver.silo.tv.ui.theme.Aurora.VioletLight,
                     playedFraction = totalProgress,
                     bufferedFraction = bufferedFrac.coerceAtLeast(totalProgress),
                     bands = markerBands,
@@ -459,7 +459,7 @@ fun TvPlayerScrubber(
             if (isScrubbing && previewThumbnail != null) {
                 var cardSize by remember { mutableStateOf(IntSize.Zero) }
                 val liftPx = with(density) { (if (autoSeekRate != 0) 52.dp else 22.dp).toPx() }
-                val cardShape = RoundedCornerShape(10.dp)
+                val cardShape = RoundedCornerShape(22.dp)
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
@@ -485,7 +485,7 @@ fun TvPlayerScrubber(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .size(160.dp, 90.dp)
-                            .clip(RoundedCornerShape(7.dp)),
+                            .clip(RoundedCornerShape(18.dp)),
                     )
                     Text(
                         text = formatScrubberTime(scrubPreviewSec),

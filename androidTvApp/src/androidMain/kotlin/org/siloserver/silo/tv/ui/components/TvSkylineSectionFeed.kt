@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.components
 
+import org.siloserver.silo.tv.ui.theme.auroraBackground
 import org.siloserver.silo.model.catalog.seriesHeroBackdrop
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -1068,7 +1069,7 @@ fun TvSkylineSectionFeed(
         BoxWithConstraints(
             modifier = modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
+                .auroraBackground(),
         ) {
             val presentation = LocalCardPresentation.current
             TvCardText.ensureLoaded(androidx.compose.ui.platform.LocalContext.current)

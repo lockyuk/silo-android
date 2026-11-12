@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.screens.browse
 
+import org.siloserver.silo.tv.ui.theme.auroraBackground
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -119,7 +120,7 @@ fun TvBrowseScreen(
         modifier = Modifier
             .fillMaxSize()
             .onFocusChanged { browseGridHasFocus = it.hasFocus }
-            .background(MaterialTheme.colorScheme.background),
+            .auroraBackground(),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             if (state.error != null) {

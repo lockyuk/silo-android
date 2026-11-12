@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.screens.search
 
+import org.siloserver.silo.tv.ui.theme.auroraBackground
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
@@ -625,7 +626,7 @@ fun TvSearchScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .auroraBackground(),
     ) {
         TvCatalogGrid(
             items = state.items,

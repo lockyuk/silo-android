@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.screens.personal
 
+import org.siloserver.silo.tv.ui.theme.auroraBackground
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -355,7 +356,7 @@ private fun PersonalGrid(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .auroraBackground(),
     ) {
         Column(
             modifier = Modifier.padding(
@@ -505,7 +506,7 @@ private fun PersonalInlineGrid(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .auroraBackground(),
     ) {
         // For You hands this grid the page's focus claim, and with an empty
         // list there is no card to give it to. The Sort pill takes it

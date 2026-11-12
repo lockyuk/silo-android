@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.components
 
+import org.siloserver.silo.tv.ui.theme.Aurora
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -268,10 +269,10 @@ internal fun SquaredPillSurface(
     )
     val fill by animateColorAsState(
         targetValue = if (stableHero) {
-            if (isFocused) Color.White else Color.White.copy(alpha = 0.10f)
+            if (isFocused) Aurora.VioletLight else Color.White.copy(alpha = 0.10f)
         } else when (kind) {
-            PillKind.Primary -> if (isFocused) Color.White else Color.White.copy(alpha = 0.76f)
-            PillKind.Secondary -> if (isFocused) Color.White else Color.Black.copy(alpha = 0.52f)
+            PillKind.Primary -> if (isFocused) Aurora.VioletLight else Color.White.copy(alpha = 0.76f)
+            PillKind.Secondary -> if (isFocused) Aurora.VioletLight else Color.Black.copy(alpha = 0.52f)
         },
         animationSpec = focusSpring(),
         label = "pillFill",
@@ -298,7 +299,7 @@ internal fun SquaredPillSurface(
     )
 
     // --- Compact focus treatment (shared by both pills) ---
-    val focusOutlineColor = if (primary) Color.White.copy(alpha = 0.94f) else Color.White.copy(alpha = 0.98f)
+    val focusOutlineColor = Aurora.Violet.copy(alpha = 0.95f)
     val focusOutlineShape = if (capsule) RoundedCornerShape(percent = 50) else RoundedCornerShape(TvControlCorner + 2.dp)
     val shadowOpacity by animateFloatAsState(
         targetValue = if (isFocused) 0.24f else 0.14f,

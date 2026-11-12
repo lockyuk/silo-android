@@ -11,10 +11,10 @@ val SiloOnSurface = Color(0xFFEDEDED)
 // 0.75 (was 0.60): 10-ft legibility floor for supporting text — audit 2026-07-20.
 val SiloSecondaryText = Color(0xFFEDEDED).copy(alpha = 0.75f)
 
-val DarkBackground = Color(0xFF000000)
-val DarkSurface = Color(0xFF0A0A0A)
-val DarkSurfaceVariant = Color(0xFF0E0F12)
-val DarkSurfaceElevated = Color(0xFF15171C)
+val DarkBackground = Color(0xFF07060D)
+val DarkSurface = Color(0xFF0D0B14)
+val DarkSurfaceVariant = Color(0xFF14121E)
+val DarkSurfaceElevated = Color(0xFF1B1828)
 
 val DarkOnBackground = SiloOnSurface
 val DarkOnSurface = SiloOnSurface

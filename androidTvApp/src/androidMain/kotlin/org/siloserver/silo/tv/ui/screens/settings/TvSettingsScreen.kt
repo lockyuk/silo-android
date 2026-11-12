@@ -2686,7 +2686,7 @@ private fun SettingsRowTextStyle() =
     MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, lineHeight = 19.sp)
 
 // tvOS pane rows: 14pt corners, content capped at 1080pt — halved to dp.
-private val RowShape = RoundedCornerShape(7.dp)
+private val RowShape = RoundedCornerShape(26.dp)
 private val RowMaxWidth = 540.dp
 
 /**

@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.screens.libraries
 
+import org.siloserver.silo.tv.ui.theme.auroraBackground
 import androidx.compose.foundation.background
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,16 +49,16 @@ fun TvLibrariesScreen(
 
     when {
         state.isLoading && state.libraries.isEmpty() -> TvLoadingScreen(
-            modifier = Modifier.background(MaterialTheme.colorScheme.background),
+            modifier = Modifier.auroraBackground(),
         )
         state.error != null && state.libraries.isEmpty() -> TvErrorScreen(
             message = state.error!!,
             onRetry = viewModel::load,
-            modifier = Modifier.background(MaterialTheme.colorScheme.background),
+            modifier = Modifier.auroraBackground(),
         )
         state.libraries.isEmpty() -> TvCatalogEmptyState(
             message = "No libraries available for this profile.",
-            modifier = Modifier.background(MaterialTheme.colorScheme.background),
+            modifier = Modifier.auroraBackground(),
         )
         selectedLibrary != null -> {
             key(selectedLibrary.id) {

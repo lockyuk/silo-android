@@ -46,15 +46,15 @@ private val SiloTvDarkColorScheme = darkColorScheme(
  * canvas (× 0.5 = 4dp). Intentionally distinct from the [Shapes.small] (12.dp)
  * token — these controls render tighter corners.
  */
-val TvControlCorner = 4.dp
+val TvControlCorner = 40.dp
 
 // tvOS corner radii: 8 / 12 / 18.
 private val SiloTvShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(12.dp),
-    large = RoundedCornerShape(18.dp),
-    extraLarge = RoundedCornerShape(28.dp),
+    extraSmall = RoundedCornerShape(12.dp),
+    small = RoundedCornerShape(18.dp),
+    medium = RoundedCornerShape(22.dp),
+    large = RoundedCornerShape(28.dp),
+    extraLarge = RoundedCornerShape(36.dp),
 )
 
 private const val TvUiFontScale = 0.86f

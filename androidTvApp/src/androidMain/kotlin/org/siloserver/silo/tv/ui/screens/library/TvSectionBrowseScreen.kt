@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.screens.library
 
+import org.siloserver.silo.tv.ui.theme.auroraBackground
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -72,7 +73,7 @@ fun TvSectionBrowseScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .auroraBackground(),
     ) {
         when {
             state.unavailable -> PageMessage(

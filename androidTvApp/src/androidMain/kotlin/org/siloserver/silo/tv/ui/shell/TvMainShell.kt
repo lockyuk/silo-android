@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.shell
 
+import org.siloserver.silo.tv.ui.theme.auroraBackground
 import org.siloserver.silo.model.catalog.CatalogBoxSet
 import org.siloserver.silo.model.catalog.boxSetCard
 import androidx.activity.compose.BackHandler
@@ -1180,7 +1181,7 @@ fun TvMainShell(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .auroraBackground()
             // Keep the key-event path as a pre-Android-16 remote/keyboard
             // fallback. API 36 Back presses arrive through BackHandler above.
             .onPreviewKeyEvent { ev ->
@@ -1880,13 +1881,13 @@ private fun TvLibraryTypeContent(
                 message = "No ${type.title} libraries available for this profile.",
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background),
+                    .auroraBackground(),
             )
         } else {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background),
+                    .auroraBackground(),
             )
         }
         return

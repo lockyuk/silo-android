@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.components
 
+import org.siloserver.silo.tv.ui.theme.Aurora
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -172,7 +173,7 @@ fun TvReferenceShelfCard(
                         modifier = Modifier
                             .fillMaxWidth(progress.coerceIn(0f, 1f))
                             .height(3.dp)
-                            .background(ProgressFill),
+                            .background(Aurora.Gradient),
                     )
                 }
             }

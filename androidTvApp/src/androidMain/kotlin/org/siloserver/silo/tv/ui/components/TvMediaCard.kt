@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.components
 
+import org.siloserver.silo.tv.ui.theme.Aurora
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -280,7 +281,7 @@ fun TvMediaCard(
                                 modifier = Modifier
                                     .fillMaxWidth(progress.coerceIn(0f, 1f))
                                     .height(3.dp)
-                                    .background(ProgressFill),
+                                    .background(Aurora.Gradient),
                             )
                         }
                     }
@@ -342,4 +343,4 @@ const val TvCardOverlayScale: Float = 0.7f
 private val SleeveScaleEasing = CubicBezierEasing(0f, 0f, 0.2f, 1f)
 
 /** Hoisted so every card shares one instance instead of allocating a shape per composition. */
-private val TvMediaCardShape = RoundedCornerShape(8.dp)
+private val TvMediaCardShape = RoundedCornerShape(16.dp)

@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.screens.requests
 
+import org.siloserver.silo.tv.ui.theme.auroraBackground
 import androidx.compose.runtime.rememberCoroutineScope
 import org.siloserver.silo.common.requests.rememberRequestRouter
 import org.siloserver.silo.model.request.RequestDiscoverySection
@@ -232,7 +233,7 @@ fun TvRequestsPage(
         )
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Box(modifier = Modifier.fillMaxSize().auroraBackground()) {
         if (rows.isEmpty()) {
             TvRequestsPlaceholder(
                 hasLoaded = hasLoaded,

@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.components
 
+import org.siloserver.silo.tv.ui.theme.Aurora
 import org.siloserver.silo.common.ui.components.SpoilerImage
 import org.siloserver.silo.common.ui.components.DefaultArtworkKind
 import org.siloserver.silo.common.ui.components.ThumbhashImage
@@ -172,7 +173,7 @@ fun TvEpisodeCard(
                             modifier = Modifier
                                 .fillMaxWidth(progress.coerceIn(0f, 1f))
                                 .height(3.dp)
-                                .background(ProgressFill),
+                                .background(Aurora.Gradient),
                         )
                     }
                 }

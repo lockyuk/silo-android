@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.components
 
+import org.siloserver.silo.tv.ui.theme.Aurora
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -104,7 +105,7 @@ internal val TvHeroRowHeaderTop = 496.dp
 /** How far below the row band's top edge a row's header text starts. */
 internal val TvHeroRowHeaderInset = 8.dp
 
-private val HeroAccent = Color(0xFF3AA0FF)
+private val HeroAccent = Color(0xFF8F7BFF)
 private val HeroText = Color(0xFFF4F6FA)
 private val HeroMuted = Color(0xFFC3C9D6)
 private val HeroSynopsis = Color(0xFFDFE4ED)
@@ -592,7 +593,7 @@ internal fun TvHeroPositionBar(
                             .fillMaxHeight()
                             .graphicsLayer { scaleX = if (index == current) progress().coerceIn(0f, 1f) else if (seen.getOrElse(index) { false }) 1f else 0f; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f) }
                             .fillMaxWidth()
-                            .background(HeroAccent),
+                            .background(Aurora.Gradient),
                     )
                 }
             }

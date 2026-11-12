@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.screens.library
 
+import org.siloserver.silo.tv.ui.theme.auroraBackground
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -119,7 +120,7 @@ fun TvLibraryCollectionDetailScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .auroraBackground(),
     ) {
         // The title, pills, and count live INSIDE the grid as its header
         // row rather than above it. A header stacked over the grid shrinks

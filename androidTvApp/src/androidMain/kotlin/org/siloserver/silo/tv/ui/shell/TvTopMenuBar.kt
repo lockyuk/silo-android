@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.shell
 
+import org.siloserver.silo.tv.ui.theme.Aurora
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -529,7 +530,11 @@ fun TvTopMenuBar(
         // and an invisible same-size twin at the trailing end keeps the tab
         // group itself screen-centered.
         Row(
-            modifier = Modifier.height(TvSkyline.barHeight),
+            modifier = Modifier
+                .height(TvSkyline.barHeight)
+                .background(Aurora.Base.copy(alpha = 0.62f), RoundedCornerShape(percent = 50))
+                .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(percent = 50))
+                .padding(horizontal = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(TvSkyline.tabSpacing),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -719,8 +724,8 @@ private fun TvTopMenuTab(
 
     val shape = RoundedCornerShape(percent = 50)
     val containerColor = when {
-        isFocused -> SiloOnSurface
-        isSelected -> ChromeSelectedFill
+        isFocused -> Color.Transparent
+        isSelected -> Color.Transparent
         else -> Color.Transparent
     }
     val borderColor = when {
@@ -730,7 +735,7 @@ private fun TvTopMenuTab(
     }
     val textColor = when {
         isFocused -> DarkBackground
-        isSelected -> SiloOnSurface
+        isSelected -> DarkBackground
         else -> SiloOnSurface.copy(alpha = 0.62f)
     }
 
@@ -741,11 +746,11 @@ private fun TvTopMenuTab(
         colors = ClickableSurfaceDefaults.colors(
             containerColor = containerColor,
             contentColor = textColor,
-            // Keep the inverted look while focused/pressed; the capsule is the
-            // only focus cue, so the focused container matches our own fill.
-            focusedContainerColor = SiloOnSurface,
+            // The focused capsule is filled with the Aurora gradient (drawn below),
+            // so the container itself stays transparent.
+            focusedContainerColor = Color.Transparent,
             focusedContentColor = DarkBackground,
-            pressedContainerColor = SiloOnSurface,
+            pressedContainerColor = Color.Transparent,
             pressedContentColor = DarkBackground,
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
@@ -756,7 +761,10 @@ private fun TvTopMenuTab(
         modifier = modifier
             .focusProperties { this.canFocus = canFocus }
             .focusRequester(focusRequester)
-            .height(TvSkyline.tabPillHeight),
+            .height(TvSkyline.tabPillHeight)
+            // The selected and the focused tab are both filled with the Aurora gradient; focus adds a ring.
+            .then(if (isFocused || isSelected) Modifier.background(Aurora.Gradient, shape) else Modifier)
+            .then(if (isFocused) Modifier.border(2.dp, Color.White.copy(alpha = 0.9f), shape) else Modifier),
     ) {
         Box(
             modifier = Modifier

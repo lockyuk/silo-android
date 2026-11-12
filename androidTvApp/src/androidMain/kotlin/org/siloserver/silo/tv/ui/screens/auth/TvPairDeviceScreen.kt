@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.screens.auth
 
+import org.siloserver.silo.tv.ui.theme.auroraBackground
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -126,7 +127,7 @@ fun TvPairDeviceScreen(
         modifier = Modifier
             .fillMaxSize()
             .then(actionFocus)
-            .background(MaterialTheme.colorScheme.background),
+            .auroraBackground(),
         contentAlignment = Alignment.Center,
     ) {
         Column(

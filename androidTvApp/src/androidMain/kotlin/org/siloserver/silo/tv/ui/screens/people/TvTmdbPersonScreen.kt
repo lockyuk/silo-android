@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.screens.people
 
+import org.siloserver.silo.tv.ui.theme.auroraBackground
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -39,14 +40,14 @@ fun TvTmdbPersonScreen(
         }
     }
     BackHandler(enabled = true) { onBack() }
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Box(modifier = Modifier.fillMaxSize().auroraBackground()) {
         val r = result
         when {
-            r == null -> TvLoadingScreen(modifier = Modifier.background(MaterialTheme.colorScheme.background))
+            r == null -> TvLoadingScreen(modifier = Modifier.auroraBackground())
             r.isFailure -> TvErrorScreen(
                 message = r.exceptionOrNull()?.message ?: "Something went wrong",
                 onRetry = onBack,
-                modifier = Modifier.background(MaterialTheme.colorScheme.background),
+                modifier = Modifier.auroraBackground(),
             )
             else -> TvPersonDetailContent(
                 person = r.getOrThrow(),

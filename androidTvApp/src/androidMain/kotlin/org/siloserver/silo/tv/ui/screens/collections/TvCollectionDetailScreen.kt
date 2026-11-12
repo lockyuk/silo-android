@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.screens.collections
 
+import org.siloserver.silo.tv.ui.theme.auroraBackground
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -80,7 +81,7 @@ fun TvCollectionDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .auroraBackground(),
     ) {
         androidx.compose.foundation.layout.Row(
             modifier = Modifier

@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.screens.home
 
+import org.siloserver.silo.tv.ui.theme.auroraBackground
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -123,12 +124,12 @@ fun TvHomeScreen(
 
     when {
         state.isLoading && state.sections.isEmpty() -> TvLoadingScreen(
-            modifier = Modifier.background(MaterialTheme.colorScheme.background),
+            modifier = Modifier.auroraBackground(),
         )
         state.error != null && state.sections.isEmpty() -> TvErrorScreen(
             message = state.error!!,
             onRetry = viewModel::loadSections,
-            modifier = Modifier.background(MaterialTheme.colorScheme.background),
+            modifier = Modifier.auroraBackground(),
         )
         shouldShowHomeEmptyState(state.isLoading, state.error, visibleSections.size) ->
             TvHomeEmptyState(
@@ -200,7 +201,7 @@ private fun TvHomeEmptyState(
         modifier = Modifier
             .fillMaxSize()
             .onFocusChanged { homeContentHasFocus = it.hasFocus }
-            .background(MaterialTheme.colorScheme.background)
+            .auroraBackground()
             .padding(48.dp),
         contentAlignment = Alignment.Center,
     ) {
