@@ -83,13 +83,13 @@ fun Modifier.siloFocus(
  * episode. Mirrors tvOS `TVCardOutline` and `TVCardOutlineButtonStyle`.
  */
 object CardOutline {
-    val width = 2.dp
-    val color = Color.White.copy(alpha = 0.70f)
+    val width = 3.dp
+    val color = Color.White.copy(alpha = 0.95f)
     /** A small lift; tvOS uses the same 5% on every card. */
-    const val FocusedScale = 1.05f
+    const val FocusedScale = 1.08f
     /** The focused card's drop shadow, in place of a light glow. */
-    val shadowColor = Color.Black.copy(alpha = 0.45f)
-    val shadowElevation = 12.dp
+    val shadowColor = Color.Black.copy(alpha = 0.65f)
+    val shadowElevation = 20.dp
 }
 
 /** The [CardOutline] lift, or none when the system asks for reduced motion. */

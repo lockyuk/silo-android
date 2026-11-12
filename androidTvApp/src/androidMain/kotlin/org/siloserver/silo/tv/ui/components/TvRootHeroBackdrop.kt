@@ -95,13 +95,13 @@ fun TvRootHeroBackdrop(
         else -> 0.0f
     }
     val midWashAlpha = when {
-        isVisible -> 0.5f
+        isVisible -> 0.62f
         hasTintOnlyWash -> 0.18f
         hasEmptyWash -> 0.15f
         else -> 0.0f
     }
     val trailingWashAlpha = when {
-        isVisible -> 0.18f
+        isVisible -> 0.3f
         hasTintOnlyWash -> 0.08f
         hasEmptyWash -> 0.07f
         else -> 0.0f

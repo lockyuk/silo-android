@@ -317,6 +317,7 @@ private fun TvHomeContent(
         styleForSection = { section ->
             section.tvHomeRowStyle()
         },
+        rankedForSection = { section -> section.isTvRankedRow() },
         clickActionForSection = { section, item ->
             if (section.isTvContinueWatchingRow()) {
                 {
@@ -403,4 +404,11 @@ private fun ResolvedSection.isForYouRow(): Boolean {
         type == "recommendations" ||
         title.equals("for you", ignoreCase = true) ||
         title.equals("recommended for you", ignoreCase = true)
+}
+
+/** Trending / popular / top-ten style rows get the Netflix-like numbered look. */
+internal fun ResolvedSection.isTvRankedRow(): Boolean {
+    val key = (sectionType + " " + title).lowercase()
+    return items.size >= 5 && (key.contains("top 10") || key.contains("top ten") ||
+        key.contains("trending") || key.contains("popular"))
 }

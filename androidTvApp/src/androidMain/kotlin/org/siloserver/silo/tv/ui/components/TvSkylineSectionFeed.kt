@@ -171,6 +171,7 @@ fun TvSkylineSectionFeed(
     styleForSection: (ResolvedSection) -> TvRowStyle = {
         if (it.isTvProgressRow()) TvRowStyle.Backdrop else TvRowStyle.Poster
     },
+    rankedForSection: (ResolvedSection) -> Boolean = { false },
     cardActions: (ResolvedSection, SectionItem) -> TvMediaCardActions = { _, _ -> TvMediaCardActions() },
     /** A non-null action replaces [onItemClick] while preserving detail-return tracking. */
     clickActionForSection: (ResolvedSection, SectionItem) -> (() -> Unit)? = { _, _ -> null },
@@ -1231,6 +1232,7 @@ fun TvSkylineSectionFeed(
                             onSeeAllClick = onSeeAllClickForSection(section),
                             showProgress = showProgress,
                             style = styleForSection(section),
+                            ranked = rankedForSection(section),
                             startPadding = TvSkyline.safeAreaX,
                             endPadding = Spacing.safeArea,
                             itemSpacing = TvSkylineItemSpacing,

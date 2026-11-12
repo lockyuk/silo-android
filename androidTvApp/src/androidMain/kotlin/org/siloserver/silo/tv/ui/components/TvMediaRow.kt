@@ -5,6 +5,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Color
+import androidx.tv.material3.Text
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -95,6 +105,8 @@ fun TvMediaRow(
      */
     unwatchedById: Map<String, Boolean>? = null,
     style: TvRowStyle = TvRowStyle.Poster,
+    /** Top-10 look: a large outlined rank numeral behind the first ten posters. */
+    ranked: Boolean = false,
     /** 0 hides the cards (their title stays); a row peeking at the bottom shows only its title. */
     railAlpha: Float = 1f,
     cardLayout: TvRowCardLayout = TvRowCardLayout.Default,
@@ -503,7 +515,7 @@ fun TvMediaRow(
                             contentKey = item.contentId,
                             onLongClick = itemLongClick,
                         )
-                        TvRowStyle.Poster -> TvMediaCard(
+                        TvRowStyle.Poster -> TvRankedSlot(rank = if (ranked && index < 10) index + 1 else null) { TvMediaCard(
                             hideArtwork = rowItem.hidesPoster,
                             title = item.title,
                             posterUrl = item.posterUrl,
@@ -523,7 +535,7 @@ fun TvMediaRow(
                             // Bottom corner: the top corners hold the quality overlays and watched check.
                             cornerLabel = markedBadge.takeIf { item.contentId == markedContentId },
                             highlighted = markedContentId != null && item.contentId == markedContentId,
-                        )
+                        ) }
                     }
                 }
             }
@@ -642,5 +654,32 @@ internal fun tvMediaRowSlotKeys(items: List<SectionItem>, keyEpisodesBySeries: B
     // TvExploreAllItemKey does.
     return items.map { item ->
         seriesOf(item)?.takeIf { cardsPerSeries[it] == 1 }?.let { "\u0000series-slot:$it" } ?: item.contentId
+    }
+}
+
+/** Wraps a poster with a big outlined rank numeral tucked behind its left edge (Top 10 rows). */
+@Composable
+private fun TvRankedSlot(rank: Int?, content: @Composable () -> Unit) {
+    if (rank == null) {
+        content()
+        return
+    }
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(
+            text = rank.toString(),
+            style = androidx.compose.ui.text.TextStyle(
+                fontSize = 150.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = (-8).sp,
+                color = Color.White.copy(alpha = 0.55f),
+                drawStyle = androidx.compose.ui.graphics.drawscope.Stroke(width = 5f),
+            ),
+            textAlign = TextAlign.End,
+            maxLines = 1,
+            modifier = Modifier
+                .width(if (rank >= 10) 150.dp else 96.dp)
+                .padding(bottom = 36.dp),
+        )
+        Box(modifier = Modifier.offset(x = (-14).dp)) { content() }
     }
 }
