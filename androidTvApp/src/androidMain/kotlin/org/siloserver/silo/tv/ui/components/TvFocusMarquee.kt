@@ -1,5 +1,7 @@
 package org.siloserver.silo.tv.ui.components
 
+import androidx.compose.ui.text.withStyle
+import org.siloserver.silo.tv.ui.theme.Aurora
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -77,6 +79,8 @@ fun TvFocusMarquee(
     /** An extra line under the block for pages that preview more than catalog
      *  items (the Requests page's status and stage track). */
     footer: (@Composable (TvMarqueeContent) -> Unit)? = null,
+    /** The Aurora eyebrow pill above the title (the row the item is in); null shows none. */
+    eyebrow: String? = null,
 ) {
     Box(
         modifier = modifier
@@ -127,6 +131,7 @@ fun TvFocusMarquee(
                             detailLine = detailLine.takeIf { value.id == content?.id },
                             translation = translation.takeIf { it?.contentId == value.contentId },
                             footer = footer,
+                            eyebrow = eyebrow,
                         )
                     }
                 }
@@ -137,6 +142,7 @@ fun TvFocusMarquee(
                 detailLine = detailLine,
                 translation = translation.takeIf { it?.contentId == content.contentId },
                 footer = footer,
+                eyebrow = eyebrow,
             )
         }
     }
@@ -148,6 +154,7 @@ private fun TvMarqueeBlock(
     detailLine: String?,
     translation: TvMarqueeTranslation? = null,
     footer: (@Composable (TvMarqueeContent) -> Unit)? = null,
+    eyebrow: String? = null,
 ) {
     // tvOS parity (TVFocusMarquee): when the text-fallback title wraps to two
     // lines the synopsis drops to one, keeping the bottom-anchored block's
@@ -180,6 +187,27 @@ private fun TvMarqueeBlock(
         modifier = Modifier.widthIn(max = MarqueeContentWidth),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
+        if (eyebrow != null) {
+            val pill = RoundedCornerShape(percent = 50)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .background(Color.White.copy(alpha = 0.08f), pill)
+                    .border(1.dp, Color.White.copy(alpha = 0.14f), pill)
+                    .padding(horizontal = 12.dp, vertical = 5.dp),
+            ) {
+                Text("\u25CF", color = Aurora.Violet, fontSize = 7.sp, maxLines = 1)
+                Text(
+                    text = eyebrow.uppercase(),
+                    color = Color.White.copy(alpha = 0.92f),
+                    fontSize = 10.sp,
+                    letterSpacing = 1.2.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                )
+            }
+        }
         // The text title stays composed (for layout and line count) until the
         // logo decodes, but only becomes visible after the grace period or on
         // error, so a bad/slow URL never leaves a blank title slot.
@@ -192,7 +220,7 @@ private fun TvMarqueeBlock(
             ) {
                 if (!logoLoaded || !logoFadeDone) {
                     Text(
-                        text = content.title,
+                        text = marqueeTitleAnnotated(content.title),
                         color = Color.White,
                         fontWeight = FontWeight.Black,
                         fontSize = MarqueeTitleSize,
@@ -226,7 +254,7 @@ private fun TvMarqueeBlock(
             }
         } else {
             Text(
-                text = content.title,
+                text = marqueeTitleAnnotated(content.title),
                 color = Color.White,
                 fontWeight = FontWeight.Black,
                 fontSize = MarqueeTitleSize,
@@ -257,40 +285,20 @@ private fun TvMarqueeBlock(
         }
         if (content.badges.isNotEmpty() || showRatings) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                content.badges.forEach { badge -> MarqueeBadge(badge) }
-                if (showRatings) HeroRatings(src, compact = true)
-            }
-        }
-        if (metaTokens.isNotEmpty() || machineTranslated) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (metaTokens.isNotEmpty()) {
-                    TvFactsRow(
-                        tokens = metaTokens,
-                        style = LocalTextStyle.current.merge(
-                            TextStyle(
-                                color = SiloSecondaryText,
-                                fontSize = MarqueeMetaSize,
-                                fontWeight = FontWeight.Medium,
-                            ),
-                        ),
-                        spacing = MarqueeMetaGap,
-                    )
-                }
-                // The block has no spare row, so the machine-translation
-                // marker is the compact icon at the end of the meta line.
-                if (machineTranslated) {
-                    MachineTranslatedLabel(
+                content.badges.forEach { badge ->
+                    Text(
+                        text = badge,
                         color = SiloSecondaryText,
-                        compact = true,
-                        iconSize = 14.dp,
+                        fontSize = 12.sp,
+                        letterSpacing = 0.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
                     )
                 }
+                if (showRatings) HeroRatings(src, compact = true)
             }
         }
 
@@ -322,21 +330,6 @@ private fun TvMarqueeBlock(
                     .drawAlpha { pulse?.value ?: 1f },
             )
         }
-
-        // tvOS keeps resolution, dynamic range and audio as separate outlined
-        // badges below the aired/cast line, rather than a dot-joined spec line.
-        content.specLine
-            ?.split(" · ")
-            ?.filter { it.isNotBlank() }
-            ?.takeIf { it.isNotEmpty() }
-            ?.let { badges ->
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(7.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    badges.forEach { badge -> MarqueeBadge(badge.uppercase()) }
-                }
-            }
 
         footer?.invoke(content)
     }
@@ -397,3 +390,16 @@ private val MarqueeBadgeSize = 10.5.sp
 
 /** How long the marquee waits on a logo before showing the text title. */
 private const val MarqueeLogoGraceMs = 700L
+
+/** The title for the text fallback: the part after a colon in the Aurora gradient on its own line, else all of it. */
+private fun marqueeTitleAnnotated(title: String): androidx.compose.ui.text.AnnotatedString =
+    androidx.compose.ui.text.buildAnnotatedString {
+        val i = title.indexOf(": ")
+        if (i > 0 && i < title.length - 2) {
+            append(title.substring(0, i + 1))
+            append("\n")
+            withStyle(androidx.compose.ui.text.SpanStyle(brush = Aurora.Gradient)) { append(title.substring(i + 2)) }
+        } else {
+            withStyle(androidx.compose.ui.text.SpanStyle(brush = Aurora.Gradient)) { append(title) }
+        }
+    }

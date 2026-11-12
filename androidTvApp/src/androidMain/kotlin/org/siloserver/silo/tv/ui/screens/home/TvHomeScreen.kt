@@ -285,6 +285,7 @@ private fun TvHomeContent(
     TvSkylineSectionFeed(
         hero = hero,
         autoAdvanceFirstRow = true,
+        onToggleWatchlistFirstRow = { item, inWatchlist -> onToggleWatchlist(item.contentId, inWatchlist) },
         onPlayFirstRowItem = { item, at -> onPlayItem(item.contentId, item.type, at) },
         onMarqueeTranslated = onMarqueeTranslated,
         surfaceKey = "home",

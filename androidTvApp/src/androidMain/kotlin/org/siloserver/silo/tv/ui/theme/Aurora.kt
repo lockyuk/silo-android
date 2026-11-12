@@ -33,23 +33,23 @@ fun Modifier.auroraBackground(): Modifier = this
         val h = size.height
         drawRect(
             Brush.radialGradient(
-                colors = listOf(Aurora.Violet.copy(alpha = 0.34f), Color.Transparent),
-                center = Offset(w * 0.05f, h * 0.02f),
-                radius = w * 0.55f,
+                colors = listOf(Aurora.Violet.copy(alpha = 0.55f), Color.Transparent),
+                center = Offset(w * 0.10f, h * 0.19f),
+                radius = w * 0.42f,
             ),
         )
         drawRect(
             Brush.radialGradient(
-                colors = listOf(Aurora.Cyan.copy(alpha = 0.20f), Color.Transparent),
-                center = Offset(w * 0.98f, h * 0.18f),
+                colors = listOf(Aurora.Cyan.copy(alpha = 0.40f), Color.Transparent),
+                center = Offset(w * 0.90f, h * 0.42f),
+                radius = w * 0.36f,
+            ),
+        )
+        drawRect(
+            Brush.radialGradient(
+                colors = listOf(Aurora.Pink.copy(alpha = 0.35f), Color.Transparent),
+                center = Offset(w * 0.60f, h * 1.00f),
                 radius = w * 0.45f,
-            ),
-        )
-        drawRect(
-            Brush.radialGradient(
-                colors = listOf(Aurora.Pink.copy(alpha = 0.18f), Color.Transparent),
-                center = Offset(w * 0.55f, h * 1.05f),
-                radius = w * 0.55f,
             ),
         )
     }

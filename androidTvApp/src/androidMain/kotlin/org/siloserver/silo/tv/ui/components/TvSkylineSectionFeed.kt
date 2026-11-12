@@ -189,6 +189,8 @@ fun TvSkylineSectionFeed(
      */
     autoAdvanceFirstRow: Boolean = false,
     onPlayFirstRowItem: ((SectionItem, Double?) -> Unit)? = null,
+    /** Adds or removes the focused first-row item from the watchlist; null hides the + button. */
+    onToggleWatchlistFirstRow: ((SectionItem, Boolean) -> Unit)? = null,
     /**
      * Optional high-priority cache warmer for cards whose Select target needs
      * more than the card's own marquee detail. It starts on raw focus (and for
@@ -1153,6 +1155,10 @@ fun TvSkylineSectionFeed(
                     modifier = Modifier.offset(y = TvHeroDotsTop),
                 )
             }
+            // Aurora action row (Resume, +, info) under the first-row hero text.
+            val actionsFocusRequester = remember { FocusRequester() }
+            val actionsWatchlist = remember { mutableStateMapOf<String, Boolean>() }
+            val actionsMode = !heroZone && autoAdvanceFirstRow && onPlayFirstRowItem != null && focusedRowIndex <= 0
             if (!heroZone) TvFocusMarquee(
                 content = marquee.content,
                 detailLine = marquee.enrichment?.detailLine,
@@ -1166,11 +1172,44 @@ fun TvSkylineSectionFeed(
                 // bottom-anchored and grows upward, and the raised typography
                 // floors made it tall enough to collide with the bar.
                 topPadding = TvSkyline.barTopInset + TvSkyline.barHeight,
-                bottomPadding = refBandHeight + TvSkylineMarqueeBottomGap + TvSkylineHeroTextRaise,
+                bottomPadding = refBandHeight + TvSkylineMarqueeBottomGap + TvSkylineHeroTextRaise + (if (actionsMode) TvSkylineActionsBlock else 0.dp),
+                eyebrow = if (actionsMode) rows.firstOrNull()?.title else null,
                 modifier = Modifier
                     .fillMaxSize()
                     .offset(y = contentVerticalOffset + TvSkylineContentDrop),
             )
+
+            if (actionsMode) {
+                val actionItem = marquee.content?.source
+                if (actionItem != null) {
+                    val inWatchlist = actionsWatchlist[actionItem.contentId] ?: (actionItem.userState?.inWatchlist == true)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(
+                                start = TvSkyline.safeAreaX,
+                                bottom = refBandHeight + TvSkylineMarqueeBottomGap + TvSkylineHeroTextRaise,
+                            )
+                            .offset(y = contentVerticalOffset + TvSkylineContentDrop),
+                        contentAlignment = Alignment.BottomStart,
+                    ) {
+                        TvHeroActionRow(
+                            playLabel = if (actionItem.positionSeconds != null) "Resume" else "Play",
+                            inWatchlist = inWatchlist,
+                            showWatchlist = onToggleWatchlistFirstRow != null,
+                            playFocusRequester = actionsFocusRequester,
+                            onFocusedChange = { heroFocused = it },
+                            onPlay = { onPlayFirstRowItem?.invoke(actionItem, actionItem.positionSeconds) },
+                            onMoreInfo = { rows.firstOrNull()?.let { section -> openDetail(section, 0, actionItem.contentId) } },
+                            onToggleWatchlist = {
+                                actionsWatchlist[actionItem.contentId] = !inWatchlist
+                                onToggleWatchlistFirstRow?.invoke(actionItem, !inWatchlist)
+                            },
+                            onDown = { runCatching { resolvedFirstRowFocusRequester.requestFocus() } },
+                        )
+                    }
+                }
+            }
 
             Box(
                 modifier = Modifier
@@ -1184,6 +1223,12 @@ fun TvSkylineSectionFeed(
                     }
                     .onFocusChanged { feedHasFocus = it.hasFocus }
                     .onPreviewKeyEvent { event ->
+                        // Up from the first row's cards goes to the Resume / + / info buttons above them.
+                        if (actionsMode && focusedRowIndex == 0 && marquee.content != null &&
+                            event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp
+                        ) {
+                            if (runCatching { actionsFocusRequester.requestFocus() }.isSuccess) return@onPreviewKeyEvent true
+                        }
                         // Left on the first hero card jumps to the last.
                         if (autoAdvanceFirstRow && focusedRowIndex == 0 && focusedItemIndex == 0 &&
                             (rows.firstOrNull()?.items?.size ?: 0) > 1 &&
@@ -1445,6 +1490,9 @@ internal fun tvSkylineReferenceBandHeight(): Dp {
         TvSkylineRowCardVerticalPadding * 2 + cardHeight +
         TvSkylineRowPreviewSpacing + TvSkylineRowPreviewPeek
 }
+
+/** Room under the hero text for the Aurora action row (button height plus its gap). */
+internal val TvSkylineActionsBlock = 52.dp
 
 /** The hero text block sits this much higher than the bottom-anchored default (70px on a 1080p screen). */
 internal val TvSkylineHeroTextRaise = 35.dp

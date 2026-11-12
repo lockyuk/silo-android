@@ -398,13 +398,13 @@ internal fun HeroRatings(item: SectionItem, compact: Boolean = false) {
     val audience = item.ratingRtAudience
     if (imdb == null && tmdb == null && critic == null && (compact || audience == null)) return
     Row(
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         modifier = if (compact) Modifier else Modifier.padding(top = 2.dp),
     ) {
-        imdb?.let { HeroScoreChip(badge = "IMDb", badgeColor = Color(0xFFF5C518), value = String.format("%.1f", it)) }
-        tmdb?.let { HeroScoreChip(badge = "TMDB", badgeColor = Color(0xFF01B4E4), value = "${Math.round(it * 10)}%") }
-        critic?.let { HeroScoreChip(icon = if (it >= 60) HeroScoreIcon.Tomato else HeroScoreIcon.Splat, value = "$it%", caption = if (compact) null else "Critics") }
+        imdb?.let { HeroScoreChip(badge = "IMDb", badgeColor = Color(0xFFF5C518), value = String.format("%.1f", it), plain = compact) }
+        tmdb?.let { HeroScoreChip(badge = "TMDB", badgeColor = Color(0xFF01B4E4), value = "${Math.round(it * 10)}%", plain = compact) }
+        critic?.let { HeroScoreChip(icon = if (it >= 60) HeroScoreIcon.Tomato else HeroScoreIcon.Splat, value = "$it%", caption = if (compact) null else "Critics", plain = compact) }
         if (!compact) audience?.let { HeroScoreChip(icon = if (it >= 60) HeroScoreIcon.Popcorn else HeroScoreIcon.Spilled, value = "$it%", caption = "Audience") }
     }
 }
@@ -418,13 +418,13 @@ private fun HeroScoreChip(
     badgeColor: Color = Color.Unspecified,
     icon: HeroScoreIcon? = null,
     caption: String? = null,
+    plain: Boolean = false,
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(5.dp),
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(5.dp))
-            .padding(horizontal = 7.dp, vertical = 3.dp),
+        modifier = (if (plain) Modifier else Modifier.background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(5.dp)))
+            .padding(horizontal = if (plain) 0.dp else 7.dp, vertical = 3.dp),
     ) {
         if (badge != null) {
             Text(
@@ -437,7 +437,7 @@ private fun HeroScoreChip(
             )
         }
         if (icon != null) HeroScoreGlyph(icon)
-        Text(value, color = HeroText, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(value, color = HeroText, fontSize = if (plain) 13.sp else 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         caption?.let { Text(it, color = HeroMuted, fontSize = 8.sp, maxLines = 1) }
     }
 }
@@ -545,60 +545,103 @@ internal fun TvHeroPositionBar(
     modifier: Modifier = Modifier,
 ) {
     if (count <= 1) return
-    val seen = remember(count) { androidx.compose.runtime.mutableStateListOf<Boolean>().apply { repeat(count) { add(it < current) } } }
-    var previous by remember(count) { androidx.compose.runtime.mutableIntStateOf(current) }
-    LaunchedEffect(current) {
-        if (current != previous) {
-            val loopedForward = current == 0 && previous == count - 1
-            val steppedBack = (current < previous && !loopedForward) || (previous == 0 && current == count - 1)
-            if (loopedForward) {
-                for (i in seen.indices) seen[i] = false
-            } else if (steppedBack) {
-                for (i in current until count) seen[i] = false
-            } else if (previous in seen.indices) {
-                seen[previous] = true
-            }
-            previous = current
-        }
-        if (current in seen.indices) seen[current] = false
-    }
+    // Aurora pager: the current item is a wide pill filled by the timer, the others short dim pills.
     Row(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier,
     ) {
-        Text(
-            text = "${current + 1} / $count",
-            color = HeroText,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            modifier = Modifier.width(44.dp),
-        )
-        Text("\u2039", color = HeroText, fontSize = 18.sp, maxLines = 1)
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier.weight(1f),
-        ) {
-            for (index in 0 until count) {
-                Box(
+        for (index in 0 until count) {
+            val width by androidx.compose.animation.core.animateDpAsState(if (index == current) 40.dp else 12.dp, label = "heroPagerWidth")
+            Box(
+                Modifier
+                    .width(width)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color.White.copy(alpha = 0.22f)),
+            ) {
+                if (index == current) Box(
                     Modifier
-                        .weight(1f)
-                        .height(3.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(Color.White.copy(alpha = 0.28f)),
-                ) {
-                    Box(
-                        Modifier
-                            .fillMaxHeight()
-                            .graphicsLayer { scaleX = if (index == current) progress().coerceIn(0f, 1f) else if (seen.getOrElse(index) { false }) 1f else 0f; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f) }
-                            .fillMaxWidth()
-                            .background(Aurora.Gradient),
-                    )
-                }
+                        .fillMaxHeight()
+                        .graphicsLayer { scaleX = progress().coerceIn(0f, 1f); transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f) }
+                        .fillMaxWidth()
+                        .background(Aurora.Gradient),
+                )
             }
         }
-        Text("\u203a", color = HeroText, fontSize = 18.sp, maxLines = 1)
+    }
+}
+
+/**
+ * The Aurora action row under the hero text: a gradient Resume/Play pill, then round add-to-watchlist and
+ * more-info buttons. It is one focus group; Down returns to the cards, Up leaves for the menu.
+ */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+@Composable
+internal fun TvHeroActionRow(
+    playLabel: String,
+    inWatchlist: Boolean,
+    showWatchlist: Boolean,
+    playFocusRequester: FocusRequester,
+    onFocusedChange: (Boolean) -> Unit,
+    onPlay: () -> Unit,
+    onMoreInfo: () -> Unit,
+    onToggleWatchlist: () -> Unit,
+    onDown: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .focusProperties { enter = { playFocusRequester } }
+            .focusGroup()
+            .onFocusChanged { onFocusedChange(it.hasFocus) }
+            .onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
+                    onDown()
+                    true
+                } else {
+                    false
+                }
+            },
+    ) {
+        AuroraActionPill(label = playLabel, icon = Icons.Filled.PlayArrow, primary = true, onClick = onPlay, modifier = Modifier.focusRequester(playFocusRequester))
+        if (showWatchlist) AuroraActionPill(label = null, icon = if (inWatchlist) Icons.Filled.Check else Icons.Filled.Add, primary = false, onClick = onToggleWatchlist)
+        AuroraActionPill(label = null, icon = Icons.Outlined.Info, primary = false, onClick = onMoreInfo)
+    }
+}
+
+@Composable
+private fun AuroraActionPill(
+    label: String?,
+    icon: ImageVector,
+    primary: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (focused) 1.05f else 1f, label = "auroraPillScale")
+    val shape = RoundedCornerShape(percent = 50)
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .then(if (focused) Modifier.border(3.dp, Color.White.copy(alpha = 0.95f), shape) else if (!primary) Modifier.border(1.dp, Color.White.copy(alpha = 0.14f), shape) else Modifier)
+            .background(if (primary) Aurora.Gradient else Brush.linearGradient(listOf(Color.White.copy(alpha = if (focused) 0.24f else 0.08f), Color.White.copy(alpha = if (focused) 0.24f else 0.08f))), shape)
+            .onFocusChanged { focused = it.isFocused }
+            .clickable(onClick = onClick)
+            .padding(horizontal = if (label == null) 12.dp else 25.dp, vertical = 11.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = if (primary) HeroInk else HeroText, modifier = Modifier.size(19.dp))
+        if (label != null) Text(
+            text = label,
+            color = HeroInk,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.ExtraBold,
+            maxLines = 1,
+        )
     }
 }
 

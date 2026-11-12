@@ -1679,6 +1679,9 @@ fun TvMainShell(
             onInstallAnchorFocus = { hook -> focusState.focusBarAnchorNow = hook },
             profileFocusRequest = focusState.profileFocusRequest,
             isSearchActive = currentRoute == TvMainRoute.Search.route,
+            showRequests = requestsEnabled,
+            requestsSelected = currentRoute == TvMainRoute.Requests.route,
+            onRequestsClick = openRequests,
             // Request detail is a full detail page like a library title's,
             // which has no bar either (tvOS pushes it over the tab).
             visibility = if (currentRoute == TvMainRoute.Settings.route || currentRoute == TvMainRoute.RequestDetail.ROUTE) {

@@ -1,5 +1,7 @@
 package org.siloserver.silo.tv.ui.components
 
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.clip
 import org.siloserver.silo.tv.ui.theme.auroraBackground
 import android.graphics.Bitmap
 import androidx.compose.animation.Crossfade
@@ -90,21 +92,21 @@ fun TvRootHeroBackdrop(
     val hasTintOnlyWash = !isVisible && ambientAccent != null
     val hasEmptyWash = !isVisible && ambientAccent == null && emptyWashColor != null
     val leadingWashAlpha = when {
-        isVisible -> 1.0f
-        hasTintOnlyWash -> 0.34f
-        hasEmptyWash -> 0.30f
+        isVisible -> 0.0f
+        hasTintOnlyWash -> 0.0f
+        hasEmptyWash -> 0.0f
         else -> 0.0f
     }
     val midWashAlpha = when {
-        isVisible -> 0.5f
-        hasTintOnlyWash -> 0.18f
-        hasEmptyWash -> 0.15f
+        isVisible -> 0.0f
+        hasTintOnlyWash -> 0.0f
+        hasEmptyWash -> 0.0f
         else -> 0.0f
     }
     val trailingWashAlpha = when {
-        isVisible -> 0.18f
-        hasTintOnlyWash -> 0.08f
-        hasEmptyWash -> 0.07f
+        isVisible -> 0.0f
+        hasTintOnlyWash -> 0.0f
+        hasEmptyWash -> 0.0f
         else -> 0.0f
     }
 
@@ -199,35 +201,9 @@ private fun CornerAnchoredArt(
             Box(
                 modifier = Modifier
                     .size(artWidth, artHeight)
-                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                    // drawWithCache: the two mask brushes are built once per
-                    // size, not on every frame of a crossfade.
-                    .drawWithCache {
-                        // Horizontal ramp: opaque at trailing (right) edge,
-                        // clear toward the leading (left) edge.
-                        val horizontalMask = Brush.horizontalGradient(
-                            colorStops = arrayOf(
-                                0.0f to Color.Transparent,
-                                0.68f to Color.Black,
-                                1.0f to Color.Black,
-                            ),
-                            endX = size.width,
-                        )
-                        // Vertical ramp: opaque at the top, clear toward bottom.
-                        val verticalMask = Brush.verticalGradient(
-                            colorStops = arrayOf(
-                                0.0f to Color.Black,
-                                0.58f to Color.Black,
-                                1.0f to Color.Transparent,
-                            ),
-                            endY = size.height,
-                        )
-                        onDrawWithContent {
-                            drawContent()
-                            drawRect(brush = horizontalMask, blendMode = BlendMode.DstIn)
-                            drawRect(brush = verticalMask, blendMode = BlendMode.DstIn)
-                        }
-                    },
+                    // Aurora: the art sits in a panel with a large rounded bottom-left corner, softened into the glow.
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 100.dp))
+                    .graphicsLayer { alpha = 0.62f },
             ) {
                 ThumbhashImage(
                     url = url,
@@ -265,8 +241,8 @@ fun TvRootHeroBackdrop(
     TvRootHeroBackdrop(content = content, modifier = modifier)
 }
 
-private const val ArtWidthFraction = 0.64f
-private const val ArtHeightFraction = 0.70f
+private const val ArtWidthFraction = 0.52f
+private const val ArtHeightFraction = 0.65f
 private const val TintOnlyDitherAlpha = 0.28f
 private const val EmptyWashDitherAlpha = 0.34f
 

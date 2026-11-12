@@ -129,6 +129,7 @@ private sealed class TvTopMenuFocus {
     data object ForYou : TvTopMenuFocus()
     data object Calendar : TvTopMenuFocus()
     data object Search : TvTopMenuFocus()
+    data object Requests : TvTopMenuFocus()
     data object Profile : TvTopMenuFocus()
 }
 
@@ -193,6 +194,10 @@ fun TvTopMenuBar(
     onInstallAnchorFocus: ((TvTopMenuPanel?) -> Boolean) -> Unit = {},
     profileFocusRequest: Int = 0,
     isSearchActive: Boolean = false,
+    /** Requests sits in the tab row, between the library tabs and Calendar. */
+    showRequests: Boolean = false,
+    requestsSelected: Boolean = false,
+    onRequestsClick: () -> Unit = {},
     visibility: Float = 1f,
     openPanel: TvTopMenuPanel? = null,
     onDwell: (TvTopMenuPanel?) -> Unit = {},
@@ -204,6 +209,7 @@ fun TvTopMenuBar(
     val calendarFocusRequester = remember { FocusRequester() }
     val forYouFocusRequester = remember { FocusRequester() }
     val searchFocusRequester = remember { FocusRequester() }
+    val requestsFocusRequester = remember { FocusRequester() }
     val profileFocusRequester = remember { FocusRequester() }
     // One requester per library-type tab; stable across recompositions so a
     // focus request still lands after the visible-tab set changes.
@@ -259,6 +265,7 @@ fun TvTopMenuBar(
         TvTopMenuFocus.ForYou -> forYouFocusRequester
         TvTopMenuFocus.Calendar -> calendarFocusRequester
         TvTopMenuFocus.Search -> searchFocusRequester
+        TvTopMenuFocus.Requests -> requestsFocusRequester
         TvTopMenuFocus.Profile -> profileFocusRequester
     }
 
@@ -274,7 +281,11 @@ fun TvTopMenuBar(
         TvRootDestination.Calendar -> calendarFocusRequester
         is TvRootDestination.LibraryType -> tabFocusRequesters[root.type] ?: homeFocusRequester
         TvRootDestination.ForYou -> forYouFocusRequester
-        null -> if (isSearchActive) searchFocusRequester else homeFocusRequester
+        null -> when {
+            isSearchActive -> searchFocusRequester
+            requestsSelected -> requestsFocusRequester
+            else -> homeFocusRequester
+        }
     }
 
     // Focus the selected tab when `focusRequest` actually changes (the
@@ -442,6 +453,23 @@ fun TvTopMenuBar(
     // in one ordered focus group — the three-zone `align` layout couldn't be
     // crossed by Compose's 2D focus search (Right off the last tab, or Left off
     // search, escaped into content instead of moving along the bar).
+    @Composable
+    fun requestsTab() = TvTopMenuTab(
+        label = "Requests",
+        isSelected = requestsSelected,
+        isFocused = focusedButton == TvTopMenuFocus.Requests,
+        canFocus = canFocusButton(TvTopMenuFocus.Requests),
+        focusRequester = requestsFocusRequester,
+        onFocusChanged = { hasFocus ->
+            focusedButton = if (hasFocus) {
+                TvTopMenuFocus.Requests
+            } else {
+                focusedButton.takeUnless { it == TvTopMenuFocus.Requests }
+            }
+        },
+        onClick = onRequestsClick,
+    )
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -538,22 +566,6 @@ fun TvTopMenuBar(
             horizontalArrangement = Arrangement.spacedBy(TvSkyline.tabSpacing),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TvTopMenuIconButton(
-                icon = Icons.Outlined.Search,
-                contentDescription = "Search",
-                isFocused = focusedButton == TvTopMenuFocus.Search,
-                canFocus = canFocusButton(TvTopMenuFocus.Search),
-                focusRequester = searchFocusRequester,
-                onFocusChanged = { hasFocus ->
-                    focusedButton = if (hasFocus) {
-                        TvTopMenuFocus.Search
-                    } else {
-                        focusedButton.takeUnless { it == TvTopMenuFocus.Search }
-                    }
-                },
-                onClick = onSearchClick,
-            )
-
             destinations.forEach { destination ->
                 when (destination) {
                     TvRootDestination.Home -> TvTopMenuTab(
@@ -621,7 +633,7 @@ fun TvTopMenuBar(
                         },
                     )
 
-                    TvRootDestination.Calendar -> TvTopMenuTab(
+                    TvRootDestination.Calendar -> { if (showRequests) requestsTab(); TvTopMenuTab(
                         label = "Calendar",
                         isSelected = selectedRoot == TvRootDestination.Calendar,
                         isFocused = focusedButton == TvTopMenuFocus.Calendar,
@@ -635,13 +647,11 @@ fun TvTopMenuBar(
                             }
                         },
                         onClick = { onSelectRoot(TvRootDestination.Calendar) },
-                    )
+                    ) }
                 }
             }
 
-            // Invisible twin of the search button so the tab group stays
-            // centered on screen with search sitting to its left.
-            Spacer(modifier = Modifier.size(TvSkyline.barIconSize))
+            if (showRequests && destinations.none { it == TvRootDestination.Calendar }) requestsTab()
         }
 
         Spacer(modifier = Modifier.weight(1f))
@@ -654,6 +664,23 @@ fun TvTopMenuBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(TvSkyline.barTrailingSpacing),
         ) {
+
+            TvTopMenuIconButton(
+                icon = Icons.Outlined.Search,
+                contentDescription = "Search",
+                isFocused = focusedButton == TvTopMenuFocus.Search,
+                canFocus = canFocusButton(TvTopMenuFocus.Search),
+                focusRequester = searchFocusRequester,
+                onFocusChanged = { hasFocus ->
+                    focusedButton = if (hasFocus) {
+                        TvTopMenuFocus.Search
+                    } else {
+                        focusedButton.takeUnless { it == TvTopMenuFocus.Search }
+                    }
+                },
+                onClick = onSearchClick,
+            )
+
             TvTopMenuProfileButton(
                 accountState = accountState,
                 isFocused = focusedButton == TvTopMenuFocus.Profile,
@@ -809,8 +836,8 @@ private fun TvTopMenuIconButton(
     LaunchedEffect(isInteractionFocused) { onFocusChanged(isInteractionFocused) }
 
     val shape = CircleShape
-    val containerColor = if (isFocused) SiloOnSurface else Color.Transparent
-    val iconColor = if (isFocused) DarkBackground else SiloOnSurface.copy(alpha = 0.62f)
+    val containerColor = if (isFocused) Color.Transparent else Color.White.copy(alpha = 0.08f)
+    val iconColor = if (isFocused) DarkBackground else SiloOnSurface.copy(alpha = 0.85f)
 
     Surface(
         onClick = onClick,
@@ -819,20 +846,21 @@ private fun TvTopMenuIconButton(
         colors = ClickableSurfaceDefaults.colors(
             containerColor = containerColor,
             contentColor = iconColor,
-            focusedContainerColor = SiloOnSurface,
+            focusedContainerColor = Color.Transparent,
             focusedContentColor = DarkBackground,
-            pressedContainerColor = SiloOnSurface,
+            pressedContainerColor = Color.Transparent,
             pressedContentColor = DarkBackground,
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         border = ClickableSurfaceDefaults.border(
-            border = Border(border = BorderStroke(0.dp, Color.Transparent), shape = shape),
-            focusedBorder = Border(border = BorderStroke(0.dp, Color.Transparent), shape = shape),
+            border = Border(border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)), shape = shape),
+            focusedBorder = Border(border = BorderStroke(2.dp, Color.White.copy(alpha = 0.9f)), shape = shape),
         ),
         modifier = Modifier
             .focusProperties { this.canFocus = canFocus }
             .focusRequester(focusRequester)
-            .size(TvSkyline.barIconSize),
+            .size(TvSkyline.barIconSize)
+            .then(if (isFocused) Modifier.background(Aurora.Gradient, shape) else Modifier),
     ) {
         Box(modifier = Modifier.fillMaxWidth().fillMaxHeight(), contentAlignment = Alignment.Center) {
             Icon(
