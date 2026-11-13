@@ -301,7 +301,7 @@ private fun BoxSetContent(
         }
         Box(Modifier.offset(x = grid.edge, y = grid.synopsisTop).width(grid.synopsisW).height(grid.synopsisH).clipToBounds()) {
             boxSet.overview?.takeIf { it.isNotBlank() }?.let {
-                Text(it, style = ui(14, FontWeight.Normal, Level.Dim), maxLines = 5, overflow = TextOverflow.Ellipsis)
+                Text(it, style = ui(16, FontWeight.Normal, Level.Dim), maxLines = 5, overflow = TextOverflow.Ellipsis)
             }
         }
         Row(

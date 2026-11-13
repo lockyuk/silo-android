@@ -342,6 +342,11 @@ private fun RequestDetailContent(
         )
     }
     val isSeriesTitle = detail.mediaType == RequestMediaType.Series
+    // A film that is not out yet: days until its release date (null once released).
+    val releaseInDays: Int? = if (!isSeriesTitle && org.siloserver.silo.tv.ui.screens.detail.isFutureAirDate(detail.releaseDate)) {
+        detail.releaseDate?.take(10)?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() }
+            ?.let { java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), it).toInt().coerceAtLeast(0) }
+    } else null
         val stripCells = buildList {
             if (isSeriesTitle && detail.creators.isNotEmpty()) add("Created by" to detail.creators.take(2).joinToString(", "))
             (detail.director.takeIf { it.isNotBlank() } ?: extra?.directors?.takeIf { it.isNotEmpty() }?.take(2)?.joinToString(", "))
@@ -381,7 +386,11 @@ private fun RequestDetailContent(
                 // The page draws the backdrop behind everything, as the library title page does.
                 backdropUrl = null,
                 backdropThumbhash = null,
-                sourceTokens = listOf("Not in library", if (detail.mediaType == RequestMediaType.Series) "Series" else "Movie"),
+                sourceTokens = listOf(
+                    "Not in library",
+                    if (detail.mediaType == RequestMediaType.Series) "Series"
+                    else if (releaseInDays != null) "Upcoming movie" else "Movie",
+                ),
                 ratingChip = detail.contentRating.takeIf { it.isNotBlank() },
                 overview = detail.overview.takeIf { it.isNotBlank() },
                 tagline = detail.tagline.takeIf { it.isNotBlank() },
@@ -413,10 +422,14 @@ private fun RequestDetailContent(
                             gap = 8.dp,
                             padding = PaddingValues(horizontal = 13.5.dp, vertical = 10.5.dp),
                         ) {
-                            org.siloserver.silo.tv.ui.components.vantage.VLabel("Request")
+                            org.siloserver.silo.tv.ui.components.vantage.VLabel(if (releaseInDays != null) "In cinemas in" else "Request")
                             Text(
-                                if (state.canCancel) "Requested" else "Not requested yet",
-                                style = org.siloserver.silo.tv.ui.components.vantage.ui(22, FontWeight.SemiBold),
+                                when {
+                                    releaseInDays != null -> if (releaseInDays == 0) "Today" else "$releaseInDays ${if (releaseInDays == 1) "day" else "days"}"
+                                    state.canCancel -> "Requested"
+                                    else -> "Not requested yet"
+                                },
+                                style = org.siloserver.silo.tv.ui.components.vantage.ui(if (releaseInDays != null) 28 else 22, FontWeight.SemiBold),
                             )
                             Text(
                                 if (state.canCancel) "It will be added to your library when it is available."

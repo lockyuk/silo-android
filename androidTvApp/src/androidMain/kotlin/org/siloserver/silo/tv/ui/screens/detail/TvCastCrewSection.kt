@@ -115,10 +115,10 @@ fun TvCastCrewSection(
 
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         TvDetailSectionHeader(
-            title = "Cast & Crew",
+            title = "Cast",
             modifier = Modifier.padding(horizontal = horizontalContentPadding),
         )
 
@@ -158,7 +158,7 @@ fun TvCastCrewSection(
                     },
                 )
                 .focusGroup(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(9.dp),
             contentPadding = PaddingValues(
                 horizontal = horizontalContentPadding,
                 vertical = 8.dp,
@@ -206,8 +206,9 @@ fun TvCastCrewSection(
 }
 
 /**
- * Vantage cast pill: a small round headshot beside the name and role on light glass. Focus turns
- * the pill white with the accent glow. [photoSize] is kept for callers; the pill sets its own size.
+ * Mock-up cast card: a round headshot (96 px) with the name and role centred beneath it,
+ * 104 px wide. Focus rings the photo in white with the accent glow and brightens the name.
+ * [photoSize] is kept for callers; the card sets its own size.
  */
 @Composable
 internal fun TvCastCard(
@@ -218,26 +219,29 @@ internal fun TvCastCard(
     onClick: () -> Unit = {},
 ) {
     val L = org.siloserver.silo.tv.ui.theme.Level
-    val pill = org.siloserver.silo.tv.ui.theme.VantagePill
     val accent = org.siloserver.silo.tv.ui.theme.animatedAccent()
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
-    androidx.compose.foundation.layout.Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(11.dp),
+    val face = (96 * 0.75f).dp
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
         modifier = cardModifier
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-            .androidxDrawHalo(isFocused, accent)
-            .background(if (isFocused) L.Fg else L.Glass, pill)
-            .border(1.dp, if (isFocused) Color.Transparent else L.Edge, pill)
-            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
-            .padding(start = 5.dp, end = 18.dp, top = 5.dp, bottom = 5.dp),
+            .width((104 * 0.75f).dp)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
     ) {
         Box(
             modifier = Modifier
-                .size(46.dp)
-                .clip(pill)
-                .background(DarkSurfaceElevated),
+                .size(face)
+                .then(
+                    if (isFocused) Modifier.drawBehind {
+                        drawCircle(accent.copy(alpha = 0.5f), radius = size.minDimension / 2 + 7.dp.toPx())
+                    } else Modifier,
+                )
+                .clip(CircleShape)
+                .background(DarkSurfaceElevated)
+                .border(if (isFocused) 2.25.dp else 1.5.dp, if (isFocused) L.Fg else Color.White.copy(alpha = 0.15f), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             if (!member.photoUrl.isNullOrBlank()) {
@@ -253,26 +257,25 @@ internal fun TvCastCard(
                     imageVector = Icons.Filled.Person,
                     contentDescription = null,
                     tint = Color.White.copy(alpha = 0.6f),
-                    modifier = Modifier.size(22.dp),
+                    modifier = Modifier.size(30.dp),
                 )
             }
         }
-        Column {
+        Text(
+            text = member.name,
+            style = org.siloserver.silo.tv.ui.components.vantage.ui(12, FontWeight.SemiBold, if (isFocused) L.Fg else L.Dim),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        member.character?.takeIf { it.isNotBlank() }?.let { role ->
             Text(
-                text = member.name,
-                style = org.siloserver.silo.tv.ui.components.vantage.ui(15.5, FontWeight.SemiBold, if (isFocused) L.Ink else L.Fg),
+                text = role,
+                style = org.siloserver.silo.tv.ui.components.vantage.mono(10, color = L.Faint),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            val role = member.character?.takeIf { it.isNotBlank() }
-            if (role != null) {
-                Text(
-                    text = role,
-                    style = org.siloserver.silo.tv.ui.components.vantage.mono(12, color = if (isFocused) L.Ink.copy(alpha = 0.7f) else L.Dim),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
         }
     }
 }

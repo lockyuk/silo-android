@@ -99,7 +99,7 @@ internal fun TvDetailTrailersSection(
                     horizontal = TvDetailHorizontalInset,
                     vertical = 6.dp,
                 ),
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                horizontalArrangement = Arrangement.spacedBy(org.siloserver.silo.tv.ui.theme.TvGrid.cardGap),
             ) {
                 itemsIndexed(
                     items = entries,
@@ -139,7 +139,7 @@ private fun TvDetailTrailerCard(
 
     Column(
         modifier = modifier
-            .width(235.dp)
+            .width(org.siloserver.silo.tv.ui.theme.TvGrid.cardW)
             .scale(scale)
             .clickable(
                 interactionSource = interactionSource,
@@ -151,8 +151,8 @@ private fun TvDetailTrailerCard(
     ) {
         Box(
             modifier = Modifier
-                .width(235.dp)
-                .height(132.dp)
+                .width(org.siloserver.silo.tv.ui.theme.TvGrid.cardW)
+                .height(org.siloserver.silo.tv.ui.theme.TvGrid.cardH)
                 .shadow(if (isFocused) 16.dp else 7.dp, cardShape, clip = false)
                 .clip(cardShape)
                 .background(DarkSurfaceElevated)
@@ -176,12 +176,12 @@ private fun TvDetailTrailerCard(
                     imageVector = Icons.Filled.Movie,
                     contentDescription = null,
                     tint = SiloSecondaryText,
-                    modifier = Modifier.size(30.dp),
+                    modifier = Modifier.size(22.dp),
                 )
             }
             Box(
                 modifier = Modifier
-                    .size(30.dp)
+                    .size(22.dp)
                     .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                     .background(Color.Black.copy(alpha = if (isFocused) 0.72f else 0.55f)),
                 contentAlignment = Alignment.Center,
@@ -190,7 +190,7 @@ private fun TvDetailTrailerCard(
                     imageVector = Icons.Filled.PlayArrow,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(14.dp),
                 )
             }
         }

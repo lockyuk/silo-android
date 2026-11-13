@@ -196,8 +196,8 @@ fun TvSeriesModePicker(
             )
             .focusGroup(),
         state = listState,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        contentPadding = PaddingValues(horizontal = horizontalContentPadding, vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        contentPadding = PaddingValues(horizontal = horizontalContentPadding, vertical = 1.dp),
     ) {
         item(key = "series-show-overview", contentType = "series-mode") {
             TvSeriesModeTab(
@@ -280,7 +280,7 @@ private fun TvSeriesModeTab(
                 ambientColor = Color.White.copy(alpha = if (isFocused) 0.08f else 0f),
                 spotColor = Color.White.copy(alpha = if (isFocused) 0.08f else 0f),
             )
-            .height(26.dp)
+            .height(22.dp)
             // Same outward white focus outline as Play and the selector
             // controls, without changing this row's stable measurements.
             .seriesModeFocusRing(visible = isFocused)
@@ -299,7 +299,7 @@ private fun TvSeriesModeTab(
                 indication = null,
                 onClick = onActivated,
             )
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -384,7 +384,7 @@ private fun TvSeasonChip(
                 indication = null,
                 onClick = onClick,
             )
-            .padding(horizontal = 13.dp, vertical = 7.dp),
+            .padding(horizontal = 6.5.dp, vertical = 3.5.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(

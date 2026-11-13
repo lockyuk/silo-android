@@ -2362,7 +2362,7 @@ private fun EpisodesSection(
 ) {
     val isSeries = detail.type == "series"
     val railEpisodes = if (isSeries) state.carouselEpisodes.ifEmpty { state.episodes } else state.episodes
-    Column(verticalArrangement = Arrangement.spacedBy(if (isSeries) 14.5.dp else 20.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(if (isSeries) 6.dp else 20.dp)) {
         if (!isSeries) {
             Row(
                 modifier = Modifier

@@ -18,15 +18,15 @@ object TvGrid {
     val kickerTop = px(84)
     val kickerH = px(26)
     val logoTop = px(118)
-    val logoW = px(440)
-    val logoH = px(80)
-    val factsTop = px(214)
+    val logoW = px(520)
+    val logoH = px(104)
+    val factsTop = px(230)
     val factsH = px(28)
-    val synopsisTop = px(254)
-    val synopsisW = px(520)
-    /** Five lines of 14 px / 1.5, always reserved. */
-    val synopsisH = px(105)
-    val actionTop = px(376)
+    val synopsisTop = px(270)
+    val synopsisW = px(560)
+    /** Five lines of 16 px / 1.5, always reserved. */
+    val synopsisH = px(120)
+    val actionTop = px(398)
     val actionH = px(46)
 
     // Right column

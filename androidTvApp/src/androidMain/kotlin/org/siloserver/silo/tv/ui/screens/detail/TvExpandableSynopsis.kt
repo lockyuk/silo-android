@@ -87,7 +87,7 @@ internal fun TvExpandableSynopsis(
     // Lines the whole text needs, measured with no height limit so the answer does not depend on
     // how much room the hero happens to have (a height-limited measure made the pill flicker).
     var fullLines by remember(previewText) { mutableStateOf(0) }
-    val lineHeight = 15.75.dp
+    val lineHeight = 18.dp
     val overflows = fullLines > collapsedMaxLines
     val showPill = false
 
@@ -103,7 +103,7 @@ internal fun TvExpandableSynopsis(
     }
 
     Column(
-        modifier = modifier.widthIn(max = 390.dp),
+        modifier = modifier.widthIn(max = 420.dp),
         horizontalAlignment = Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -118,8 +118,8 @@ internal fun TvExpandableSynopsis(
                 Text(
                     text = previewText,
                     fontWeight = FontWeight.Normal,
-                    fontSize = 12.2.sp,
-                    lineHeight = 18.3.sp,
+                    fontSize = 13.95.sp,
+                    lineHeight = 20.9.sp,
                     onTextLayout = { fullLines = it.lineCount },
                 )
             }
