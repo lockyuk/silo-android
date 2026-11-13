@@ -29,6 +29,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -42,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import org.siloserver.silo.tv.ui.theme.TvSkyline
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -93,7 +96,7 @@ internal const val TvHeroRotateMs = 7_000L
 // full-bleed backdrop, the rows starting beneath it.
 internal val TvHeroLeft = 47.dp
 internal val TvHeroTop = 114.dp
-internal val TvHeroDotsTop = 396.dp
+internal val TvHeroDotsTop = 248.dp
 
 
 /**
@@ -101,7 +104,7 @@ internal val TvHeroDotsTop = 396.dp
  * its title text is on screen and its cards are below the bottom edge. Fixed,
  * so every library's hero sits in the same place whatever its card size.
  */
-internal val TvHeroRowHeaderTop = 470.dp
+internal val TvHeroRowHeaderTop = 396.dp
 
 /** How far below the row band's top edge a row's header text starts. */
 internal val TvHeroRowHeaderInset = 8.dp
@@ -141,20 +144,22 @@ internal fun TvHomeHeroPanel(
 ) {
     // Every part sits at fixed screen coordinates (dp on the 960 x 540 layout), the same
     // on Home, For You and every library, so nothing moves between pages or items.
-    Box(modifier = modifier.fillMaxSize()) {
-        Crossfade(
-            targetState = content,
-            animationSpec = tween(350),
-            label = "tvHomeHero",
+    // Vantage: the same logo / chips / synopsis block as Home, bottom-anchored just above the
+    // Resume · Details · ＋ pills, which sit at a fixed height on every page.
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        TvFocusMarquee(
+            content = content,
+            eyebrow = eyebrow,
+            startPadding = TvSkyline.safeAreaX,
+            topPadding = TvSkyline.barTopInset + TvSkyline.barHeight,
+            bottomPadding = (maxHeight - TvHeroButtonsTop + 12.dp).coerceAtLeast(0.dp),
             modifier = Modifier.fillMaxSize(),
-        ) { value ->
-            if (value != null) HeroInfo(value, eyebrow)
-        }
+        )
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .offset(x = 47.dp, y = 334.dp)
+                .offset(x = TvSkyline.safeAreaX, y = TvHeroButtonsTop)
                 // Entering the buttons from the menu or the row always lands on
                 // Play, whichever button is nearest.
                 .focusProperties { enter = { playFocusRequester } }
@@ -169,10 +174,9 @@ internal fun TvHomeHeroPanel(
                     }
                 },
         ) {
-            // Focus is only ever on Resume or More info. Left from Resume goes to
-            // the previous item and Right from More info to the next one; the
-            // arrows at the screen edges show where each goes.
-            HeroPill(
+            // Left from Resume goes to the previous item and Right from the last
+            // button to the next one.
+            AuroraActionPill(
                 label = playLabel,
                 icon = Icons.Filled.PlayArrow,
                 primary = true,
@@ -188,11 +192,12 @@ internal fun TvHomeHeroPanel(
                         }
                     },
             )
-            HeroPill(
-                label = "More info",
-                icon = Icons.Outlined.Info,
+            AuroraActionPill(label = "Details", icon = null, primary = false, onClick = onMoreInfo)
+            AuroraActionPill(
+                label = null,
+                icon = if (inWatchlist) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                 primary = false,
-                onClick = onMoreInfo,
+                onClick = onToggleWatchlist,
                 modifier = Modifier.onPreviewKeyEvent { event ->
                     if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight && onNext != null) {
                         onNext()
@@ -205,6 +210,9 @@ internal fun TvHomeHeroPanel(
         }
     }
 }
+
+/** Where the hero's Resume · Details · ＋ pills sit (dp from the top of the screen). */
+internal val TvHeroButtonsTop = 322.dp
 
 @Composable
 private fun HeroInfo(content: TvMarqueeContent, eyebrow: String) {
@@ -615,7 +623,7 @@ internal fun TvHeroActionRow(
         // Vantage: Resume (white, accent halo) · Details · ＋ / ✓ for the watchlist.
         AuroraActionPill(label = playLabel, icon = Icons.Filled.PlayArrow, primary = true, onClick = onPlay, modifier = Modifier.focusRequester(playFocusRequester))
         AuroraActionPill(label = "Details", icon = null, primary = false, onClick = onMoreInfo)
-        if (showWatchlist) AuroraActionPill(label = null, icon = if (inWatchlist) Icons.Filled.Check else Icons.Filled.Add, primary = false, onClick = onToggleWatchlist)
+        if (showWatchlist) AuroraActionPill(label = null, icon = if (inWatchlist) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder, primary = false, onClick = onToggleWatchlist)
     }
 }
 

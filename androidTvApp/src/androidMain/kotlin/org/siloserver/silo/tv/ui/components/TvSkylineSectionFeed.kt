@@ -1493,7 +1493,7 @@ internal fun tvSkylineRowBandHeight(presentation: CardPresentation): Dp {
 
 /** The band height at Medium cards with no card text (how the hero has looked so far): the fixed reference for the hero's layout. */
 internal fun tvSkylineReferenceBandHeight(): Dp {
-    val cardHeight = RowDimens.BackdropWidth * 9f / 16f
+    val cardHeight = RowDimens.DensePosterWidth * 3f / 2f
     return TvSkylineRowHeaderHeight + TvSkylineRowHeaderGap +
         TvSkylineRowCardVerticalPadding * 2 + cardHeight +
         TvSkylineRowPreviewSpacing + TvSkylineRowPreviewPeek
@@ -1503,7 +1503,7 @@ internal fun tvSkylineReferenceBandHeight(): Dp {
 internal val TvSkylineActionsBlock = 52.dp
 
 /** The hero text block sits this much higher than the bottom-anchored default (70px on a 1080p screen). */
-internal val TvSkylineHeroTextRaise = 2.dp
+internal val TvSkylineHeroTextRaise = 14.dp
 
 /** The marquee text and the rows sit this much lower on screen. */
 internal val TvSkylineContentDrop = 8.dp

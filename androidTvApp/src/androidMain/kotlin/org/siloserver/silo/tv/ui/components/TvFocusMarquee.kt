@@ -181,20 +181,27 @@ private fun TvMarqueeBlock(
         modifier = Modifier.widthIn(max = MarqueeContentWidth),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // Vantage tagline: CONTINUE / the row's name, the episode and the time left.
+        // Vantage: SEASON x and EPISODE x pills, then a quiet tag (Continue / the row's name, time left).
         val position = src.positionSeconds
         val duration = src.durationSeconds
-        val labelParts = buildList {
+        val tagParts = buildList {
             add(if (position != null && position > 0) "Continue" else (eyebrow ?: ""))
-            val season = src.seasonNumber
-            val episode = src.episodeNumber
-            if (season != null && episode != null) add("S$season E$episode")
             if (position != null && duration != null && duration > position && position > 0) {
                 add("${((duration - position) / 60.0).toInt().coerceAtLeast(1)} min left")
             }
         }.filter { it.isNotBlank() }
-        if (labelParts.isNotEmpty()) {
-            org.siloserver.silo.tv.ui.components.vantage.VTag(labelParts.joinToString(" \u00B7 "))
+        val season = src.seasonNumber
+        val episode = src.episodeNumber
+        if (season != null || episode != null || tagParts.isNotEmpty()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                season?.let { org.siloserver.silo.tv.ui.components.vantage.VChip("SEASON $it") }
+                episode?.let { org.siloserver.silo.tv.ui.components.vantage.VChip("EPISODE $it") }
+                if (tagParts.isNotEmpty()) {
+                    Box(Modifier.padding(start = if (season != null || episode != null) 4.dp else 0.dp)) {
+                        org.siloserver.silo.tv.ui.components.vantage.VTag(tagParts.joinToString(" \u00B7 "))
+                    }
+                }
+            }
         }
         // The clear logo; the title in Outfit when there is none.
         VantageLogo(content, onLines = { titleLineCount = it })

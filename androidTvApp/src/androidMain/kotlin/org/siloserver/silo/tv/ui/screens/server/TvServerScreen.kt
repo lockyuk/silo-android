@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
@@ -106,6 +107,7 @@ private fun Tone.color(): Color = when (this) { Tone.Good -> Level.Good; Tone.In
  * Storage and Logs. Silo data comes from the admin API; the automation apps are read directly
  * on the LAN with connections saved on this TV.
  */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun TvServerScreen(
     serverName: String,
@@ -114,13 +116,12 @@ fun TvServerScreen(
     val http: org.siloserver.silo.network.api.RawHttpApi = koinInject()
     val repo = remember(http) { TvServerRepository(http) }
     var tab by rememberSaveable { mutableStateOf(ServerTab.Overview) }
-    val firstTab = remember { FocusRequester() }
 
     var overview by remember { mutableStateOf<ServerOverview?>(null) }
     LaunchedEffect(Unit) {
         while (true) {
             overview = runCatching { repo.overview(serverName) }.getOrNull() ?: overview
-            delay(5_000)
+            delay(1_000)
         }
     }
 
@@ -151,12 +152,19 @@ fun TvServerScreen(
         }
 
         // Sub-tabs, top right under the bar.
+        // Focus coming into the chips (Up from a page, Down from the menu) lands on the page
+        // being shown, so moving up never switches to a neighbouring page by accident.
+        val chipRequesters = remember { ServerTab.entries.associateWith { FocusRequester() } }
         Row(
-            Modifier.align(Alignment.TopEnd).padding(top = 92.mx, end = 44.mx).focusGroup(),
+            Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 92.mx, end = 44.mx)
+                .focusProperties { enter = { chipRequesters.getValue(tab) } }
+                .focusGroup(),
             horizontalArrangement = Arrangement.spacedBy(6.mx),
         ) {
-            ServerTab.entries.forEachIndexed { i, t ->
-                VTabChip(t.title, selected = tab == t, onFocus = { tab = t }, focusRequester = if (i == 0) firstTab else null)
+            ServerTab.entries.forEach { t ->
+                VTabChip(t.title, selected = tab == t, onFocus = { tab = t }, focusRequester = chipRequesters.getValue(t))
             }
         }
 
@@ -358,7 +366,7 @@ private fun StreamsPage(o: ServerOverview?) {
         PageHead("Streams · ${o.streams.size} playing", if (o.streams.isEmpty()) "Quiet" else "Now playing")
         Spacer(Modifier.height(20.mx))
         Row(horizontalArrangement = Arrangement.spacedBy(16.mx)) {
-            VPanel(Modifier.width(760.mx).height(470.mx), title = "Sessions", sub = "updates every 5 s") {
+            VPanel(Modifier.width(760.mx).height(470.mx), title = "Sessions", sub = "live") {
                 if (o.streams.isEmpty()) Text("Nobody is watching right now.", style = mono(12, color = Level.Dim))
                 o.streams.forEachIndexed { i, s ->
                     if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(Level.Edge))
@@ -775,12 +783,12 @@ private fun SystemPage(repo: TvServerRepository, serverName: String) {
                     if (dt > 0.5) {
                         fun pct(a: Double?, b: Double?) = if (a != null && b != null) (((a - b) / dt) / now.cores * 100).coerceIn(0.0, 100.0).toFloat() else 0f
                         val io = if (now.readBytes != null && p.readBytes != null) ((now.readBytes - p.readBytes + (now.writeBytes ?: 0) - (p.writeBytes ?: 0)) / dt / 1e6).toFloat().coerceAtLeast(0f) else 0f
-                        history.value = (history.value + SysSample(now.hostCpuPct.toFloat(), pct(now.processCpuSeconds, p.processCpuSeconds), pct(now.ffmpegCpuSeconds, p.ffmpegCpuSeconds), (now.goroutines ?: 0).toFloat(), io)).takeLast(720)
+                        history.value = (history.value + SysSample(now.hostCpuPct.toFloat(), pct(now.processCpuSeconds, p.processCpuSeconds), pct(now.ffmpegCpuSeconds, p.ffmpegCpuSeconds), (now.goroutines ?: 0).toFloat(), io)).takeLast(3600)
                     }
                 }
                 prev = now; stats = now
             }
-            delay(5_000)
+            delay(1_000)
         }
     }
     val s = stats ?: run { Loading(); return }
@@ -804,7 +812,7 @@ private fun SystemPage(repo: TvServerRepository, serverName: String) {
         )
         Spacer(Modifier.height(20.mx))
         Row(horizontalArrangement = Arrangement.spacedBy(16.mx)) {
-            VPanel(Modifier.width(600.mx).height(258.mx), title = "Memory", sub = "host RAM, and what Silo is using", gap = 12.mx) {
+            VPanel(Modifier.width(600.mx).height(282.mx), title = "Memory", sub = "host RAM, and what Silo is using", gap = 9.mx) {
                 Row(horizontalArrangement = Arrangement.spacedBy(22.mx), verticalAlignment = Alignment.Bottom) {
                     Column { VLabel("NAS in use"); VBig("%.1f".format(usedGb), "of %.1f GB · %d%%".format(totalGb, (usedGb * 100 / totalGb.coerceAtLeast(0.1)).toInt())) }
                     Column { VLabel("Silo"); VBig(if (siloGb >= 1) "%.2f GB".format(siloGb) else "%.0f MB".format(siloGb * 1024), if (ffGb > 0) "incl. ${s.ffmpegCount} transcoder${if (s.ffmpegCount > 1) "s" else ""}" else "container · process ${bytesShort(s.processRssBytes)}", color = Level.liveAccent) }
@@ -836,7 +844,7 @@ private fun SystemPage(repo: TvServerRepository, serverName: String) {
                     }
                 }
             }
-            VPanel(Modifier.weight(1f).height(258.mx), title = "CPU", sub = "since this page opened · every 5 s", gap = 10.mx) {
+            VPanel(Modifier.weight(1f).height(282.mx), title = "CPU", sub = "live · since this page opened", gap = 10.mx) {
                 Row(horizontalArrangement = Arrangement.spacedBy(14.mx), verticalAlignment = Alignment.CenterVertically) {
                     CpuRing(s.hostCpuPct.toInt(), Level.Good, "NAS", "${s.cores} cores")
                     CpuRing((last?.siloCpu ?: 0f).toInt(), Level.liveAccent, "Silo", "%.1f cores".format((last?.siloCpu ?: 0f) * s.cores / 100))
@@ -858,7 +866,7 @@ private fun SystemPage(repo: TvServerRepository, serverName: String) {
         }
         Spacer(Modifier.height(16.mx))
         Row(horizontalArrangement = Arrangement.spacedBy(16.mx)) {
-            VPanel(Modifier.weight(1f).height(248.mx), title = "Uptime", sub = "Silo server") {
+            VPanel(Modifier.weight(1f).height(228.mx), title = "Uptime", sub = "Silo server") {
                 val up = s.startedAt?.let { Duration.between(it, Instant.now()) }
                 if (up != null) VBig(if (up.toDays() > 0) "${up.toDays()}d ${up.toHours() % 24}h" else "${up.toHours()}h", "${up.toMinutes() % 60}m", 44)
                 Text(
@@ -869,7 +877,7 @@ private fun SystemPage(repo: TvServerRepository, serverName: String) {
                 Spacer(Modifier.weight(1f))
                 Text("build ${s.build.ifBlank { "–" }}" + (s.builtAt?.let { " · built " + DateTimeFormatter.ofPattern("d MMM H:mm").withZone(ZoneId.systemDefault()).format(it) } ?: ""), style = mono(10.5, color = Level.Faint), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            VPanel(Modifier.weight(1f).height(248.mx), title = "Silo process", sub = "Go runtime") {
+            VPanel(Modifier.weight(1f).height(228.mx), title = "Silo process", sub = "Go runtime") {
                 Row { MiniStat("Goroutines", "${s.goroutines ?: "–"}", null, Modifier.weight(1f)); MiniStat("Threads", "${s.threads ?: "–"}", null, Modifier.weight(1f)) }
                 Row {
                     MiniStat("Open files", "${s.openFds ?: "–"}", s.maxFds?.let { if (it >= 1000) "of ${it / 1000}k" else "of $it" }, Modifier.weight(1f))
@@ -878,12 +886,12 @@ private fun SystemPage(repo: TvServerRepository, serverName: String) {
                 VLineChart(h.map { it.goroutines }, modifier = Modifier.fillMaxWidth().height(30.mx), maxOverride = (h.maxOfOrNull { it.goroutines } ?: 1f) * 1.1f)
                 VLabel("goroutines")
             }
-            VPanel(Modifier.weight(1f).height(248.mx), title = "Disk I/O", sub = "by Silo, since start") {
+            VPanel(Modifier.weight(1f).height(228.mx), title = "Disk I/O", sub = "by Silo, since start") {
                 Row { MiniStat("Read", "%.1f".format((s.readBytes ?: 0) / 1e9), "GB", Modifier.weight(1f)); MiniStat("Written", "%.1f".format((s.writeBytes ?: 0) / 1e9), "GB", Modifier.weight(1f)) }
                 VLineChart(h.map { it.ioMBs }, modifier = Modifier.fillMaxWidth().height(46.mx), maxOverride = (h.maxOfOrNull { it.ioMBs } ?: 1f).coerceAtLeast(1f) * 1.1f)
                 Text("now %.1f MB/s".format(last?.ioMBs ?: 0f), style = mono(11, color = Level.Dim))
             }
-            VPanel(Modifier.weight(1f).height(248.mx), title = "Transcoding", sub = if (s.ffmpegCount > 0) "busy" else "idle", edge = if (s.ffmpegCount > 0) Purple.copy(alpha = 0.55f) else Level.Edge) {
+            VPanel(Modifier.weight(1f).height(228.mx), title = "Transcoding", sub = if (s.ffmpegCount > 0) "busy" else "idle", edge = if (s.ffmpegCount > 0) Purple.copy(alpha = 0.55f) else Level.Edge) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.mx)) {
                     if (s.hwAccel.isEmpty()) VChip("Software only", ChipTone.Warn)
                     s.hwAccel.forEachIndexed { i, b -> VChip(if (i == 0) "$b verified" else b, if (i == 0) ChipTone.Good else ChipTone.Plain, dot = i == 0) }

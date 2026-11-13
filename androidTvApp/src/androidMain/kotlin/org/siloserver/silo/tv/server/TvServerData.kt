@@ -206,16 +206,27 @@ class TvServerRepository(private val http: RawHttpApi) {
     private suspend fun siloJson(path: String): JsonElement? =
         http.siloGet(path)?.let { runCatching { LooseJson.parseToJsonElement(it) }.getOrNull() }
 
+    // The slow parts of the overview (library stats, the 3-hour chart, the log) change rarely,
+    // so they are fetched every 15 s; resources, sessions and health are fetched on every call.
+    private var slowAt = 0L
+    private var slowStats: JsonElement? = null
+    private var slowSeries: JsonElement? = null
+    private var slowLogs: JsonElement? = null
+
     suspend fun overview(serverName: String): ServerOverview = coroutineScope {
-        val statsD = async { siloJson("/api/v1/admin/stats") }
+        val refreshSlow = System.currentTimeMillis() - slowAt > 15_000 || slowStats == null
+        val statsD = async { if (refreshSlow) siloJson("/api/v1/admin/stats") ?: slowStats else slowStats }
         val statusD = async { siloJson("/api/v1/admin/server/status") }
         val resD = async { siloJson("/api/v1/admin/system/resources") }
         val sessD = async { siloJson("/api/v1/admin/sessions") }
         val tsD = async {
-            val from = Instant.now().minusSeconds(3 * 3600)
-            siloJson("/api/v1/admin/stats/timeseries?from=$from")
+            if (refreshSlow) siloJson("/api/v1/admin/stats/timeseries?from=${Instant.now().minusSeconds(3 * 3600)}") ?: slowSeries else slowSeries
         }
-        val logD = async { siloJson("/api/v1/admin/logs/app?limit=60&level=info") }
+        val logD = async { if (refreshSlow) siloJson("/api/v1/admin/logs/app?limit=60&level=info") ?: slowLogs else slowLogs }
+        if (refreshSlow) {
+            slowStats = statsD.await(); slowSeries = tsD.await(); slowLogs = logD.await()
+            slowAt = System.currentTimeMillis()
+        }
         val stats = statsD.await(); val status = statusD.await(); val res = resD.await()
         val sys = res["system"]
         val gpu0 = res["gpu"].arr()?.firstOrNull()
