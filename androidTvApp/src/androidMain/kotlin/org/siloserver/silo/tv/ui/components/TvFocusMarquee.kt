@@ -212,10 +212,10 @@ private fun TvMarqueeBlock(
         }
         // The clear logo; the title in Outfit when there is none. One fixed slot for all of them.
         androidx.compose.foundation.layout.Spacer(Modifier.height(6.dp))
-        Box(Modifier.size(org.siloserver.silo.tv.ui.theme.TvGrid.logoW, org.siloserver.silo.tv.ui.theme.TvGrid.logoH), contentAlignment = Alignment.CenterStart) {
+        Box(Modifier.size(390.dp, 78.dp), contentAlignment = Alignment.CenterStart) {
             VantageLogo(content, onLines = { titleLineCount = it })
         }
-        androidx.compose.foundation.layout.Spacer(Modifier.height(12.dp))
+        androidx.compose.foundation.layout.Spacer(Modifier.height(6.dp))
         // Chips: certificate (solid), year, genre, quality; then IMDb / RT / TMDB scores.
         Row(
             modifier = Modifier.height(org.siloserver.silo.tv.ui.theme.TvGrid.factsH),
@@ -246,7 +246,7 @@ private fun TvMarqueeBlock(
             }
         }
         androidx.compose.foundation.layout.Spacer(Modifier.height(9.dp))
-        Box(Modifier.height(org.siloserver.silo.tv.ui.theme.TvGrid.synopsisH)) {
+        Box(Modifier.height(90.dp)) {
         synopsisText?.let { synopsis ->
             val pulse: State<Float>? = if (translating) {
                 rememberInfiniteTransition(label = "marqueeTranslating").animateFloat(
@@ -260,13 +260,13 @@ private fun TvMarqueeBlock(
             }
             Text(
                 text = synopsis,
-                style = org.siloserver.silo.tv.ui.components.vantage.ui(14, FontWeight.Normal, level.Synopsis),
-                lineHeight = 18.3.sp,
+                style = org.siloserver.silo.tv.ui.components.vantage.ui(16, FontWeight.Normal, level.Synopsis),
+                lineHeight = 20.9.sp,
                 minLines = 5,
                 maxLines = 5,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
-                    .widthIn(max = org.siloserver.silo.tv.ui.theme.TvGrid.synopsisW)
+                    .widthIn(max = 420.dp)
                     .drawAlpha { pulse?.value ?: 1f },
             )
         }

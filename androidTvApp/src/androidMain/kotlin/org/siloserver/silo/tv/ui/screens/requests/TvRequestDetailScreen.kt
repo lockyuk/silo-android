@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -340,6 +341,28 @@ private fun RequestDetailContent(
             ),
         )
     }
+    val isSeriesTitle = detail.mediaType == RequestMediaType.Series
+        val stripCells = buildList {
+            if (isSeriesTitle && detail.creators.isNotEmpty()) add("Created by" to detail.creators.take(2).joinToString(", "))
+            (detail.director.takeIf { it.isNotBlank() } ?: extra?.directors?.takeIf { it.isNotEmpty() }?.take(2)?.joinToString(", "))
+                ?.let { add("Director" to it) }
+            (detail.genres.ifEmpty { extra?.genres.orEmpty() }).filter { it.isNotBlank() }.take(2)
+                .takeIf { it.isNotEmpty() }?.let { add("Genres" to it.joinToString(" · ")) }
+            val budget = extra?.budget?.takeIf { it > 0 }
+            val revenue = extra?.revenue?.takeIf { it > 0 }
+            if (budget != null || revenue != null) {
+                add("Budget / Revenue" to "${org.siloserver.silo.tv.ui.screens.detail.money(budget)} / ${org.siloserver.silo.tv.ui.screens.detail.money(revenue)}")
+            }
+            if (isSeriesTitle) {
+                detail.numberOfSeasons?.takeIf { it > 0 }?.let { s ->
+                    add("Seasons" to listOfNotNull("$s", detail.numberOfEpisodes?.takeIf { it > 0 }?.let { "$it episodes" }).joinToString(" · "))
+                }
+            } else {
+                detail.runtime?.takeIf { it > 0 }?.let { add("Runtime" to if (it >= 60) "${it / 60}h ${it % 60}m" else "${it}m") }
+            }
+            (detail.networks.firstOrNull() ?: detail.productionCompanies.firstOrNull() ?: extra?.companies?.firstOrNull())
+                ?.let { add((if (isSeriesTitle && detail.networks.isNotEmpty()) "Network" else "Studio") to it) }
+        }.take(6)
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
@@ -358,16 +381,51 @@ private fun RequestDetailContent(
                 // The page draws the backdrop behind everything, as the library title page does.
                 backdropUrl = null,
                 backdropThumbhash = null,
-                sourceTokens = detail.genres.take(3),
+                sourceTokens = listOf("Not in library", if (detail.mediaType == RequestMediaType.Series) "Series" else "Movie"),
                 ratingChip = detail.contentRating.takeIf { it.isNotBlank() },
                 overview = detail.overview.takeIf { it.isNotBlank() },
                 tagline = detail.tagline.takeIf { it.isNotBlank() },
                 factsLine = detail.factTokens(ratings),
                 directorText = detail.creditText(),
-                extraHeight = if (progress != null) StatusStripHeight else 0.dp,
                 synopsisPillFocusRequester = synopsisPillFocusRequester,
                 onSynopsisPillPresent = onSynopsisPillPresent,
-                playbackSummary = progress?.let { { RequestStatusStrip(progress = it, state = state) } },
+                sidePanel = {
+                    val grid = org.siloserver.silo.tv.ui.theme.TvGrid
+                    androidx.compose.foundation.layout.Column(
+                        Modifier.width(grid.rightW),
+                        verticalArrangement = Arrangement.spacedBy(12.dp * 0.75f),
+                    ) {
+                        org.siloserver.silo.tv.ui.components.vantage.VPanel(
+                            Modifier.fillMaxWidth().height(grid.detailsH),
+                            title = "Details", sub = "TMDB", gap = 6.dp,
+                            padding = PaddingValues(horizontal = 13.5.dp, vertical = 10.5.dp),
+                        ) {
+                            stripCells.take(5).forEach { (k, v) ->
+                                Row(verticalAlignment = Alignment.Top) {
+                                    Text(k, style = org.siloserver.silo.tv.ui.components.vantage.mono(12, color = org.siloserver.silo.tv.ui.theme.Level.Faint), maxLines = 1)
+                                    androidx.compose.foundation.layout.Spacer(Modifier.width(10.dp))
+                                    Text(v, style = org.siloserver.silo.tv.ui.components.vantage.mono(12), maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.End, modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                        org.siloserver.silo.tv.ui.components.vantage.VPanel(
+                            Modifier.fillMaxWidth().height(grid.progressH),
+                            gap = 8.dp,
+                            padding = PaddingValues(horizontal = 13.5.dp, vertical = 10.5.dp),
+                        ) {
+                            org.siloserver.silo.tv.ui.components.vantage.VLabel("Request")
+                            Text(
+                                if (state.canCancel) "Requested" else "Not requested yet",
+                                style = org.siloserver.silo.tv.ui.components.vantage.ui(22, FontWeight.SemiBold),
+                            )
+                            Text(
+                                if (state.canCancel) "It will be added to your library when it is available."
+                                else "Press OK on Request and it is searched for as soon as it can be found.",
+                                style = org.siloserver.silo.tv.ui.components.vantage.mono(12, color = org.siloserver.silo.tv.ui.theme.Level.Dim),
+                            )
+                        }
+                    }
+                },
                 actions = {
                     Row(
                         modifier = Modifier.onFocusChanged { actionFocusFallback.onRowFocusChanged(it.hasFocus) },
@@ -407,36 +465,6 @@ private fun RequestDetailContent(
                     }
                 },
             )
-        }
-        val isSeriesTitle = detail.mediaType == RequestMediaType.Series
-        val stripCells = buildList {
-            if (isSeriesTitle && detail.creators.isNotEmpty()) add("Created by" to detail.creators.take(2).joinToString(", "))
-            (detail.director.takeIf { it.isNotBlank() } ?: extra?.directors?.takeIf { it.isNotEmpty() }?.take(2)?.joinToString(", "))
-                ?.let { add("Director" to it) }
-            (detail.genres.ifEmpty { extra?.genres.orEmpty() }).filter { it.isNotBlank() }.take(2)
-                .takeIf { it.isNotEmpty() }?.let { add("Genres" to it.joinToString(" · ")) }
-            val budget = extra?.budget?.takeIf { it > 0 }
-            val revenue = extra?.revenue?.takeIf { it > 0 }
-            if (budget != null || revenue != null) {
-                add("Budget / Revenue" to "${org.siloserver.silo.tv.ui.screens.detail.money(budget)} / ${org.siloserver.silo.tv.ui.screens.detail.money(revenue)}")
-            }
-            if (isSeriesTitle) {
-                detail.numberOfSeasons?.takeIf { it > 0 }?.let { s ->
-                    add("Seasons" to listOfNotNull("$s", detail.numberOfEpisodes?.takeIf { it > 0 }?.let { "$it episodes" }).joinToString(" · "))
-                }
-            } else {
-                detail.runtime?.takeIf { it > 0 }?.let { add("Runtime" to if (it >= 60) "${it / 60}h ${it % 60}m" else "${it}m") }
-            }
-            (detail.networks.firstOrNull() ?: detail.productionCompanies.firstOrNull() ?: extra?.companies?.firstOrNull())
-                ?.let { add((if (isSeriesTitle && detail.networks.isNotEmpty()) "Network" else "Studio") to it) }
-        }.take(6)
-        if (stripCells.isNotEmpty()) {
-            item(key = "facts-strip", contentType = "detail-facts-strip") {
-                org.siloserver.silo.tv.ui.screens.detail.TvVantageFactsStrip(
-                    cells = stripCells,
-                    modifier = Modifier.padding(start = TvDetailHorizontalInset, end = TvDetailHorizontalInset, top = 22.dp, bottom = 16.dp),
-                )
-            }
         }
         if (castMembers.isNotEmpty()) {
             item(key = "cast", contentType = "detail-cast") {

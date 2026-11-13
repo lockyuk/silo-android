@@ -46,6 +46,8 @@ internal fun TvVantageDetailPanels(
     seasons: List<Season>,
     nextUp: EpisodeListItem?,
     modifier: Modifier = Modifier,
+    /** An episode that has not aired: the progress card becomes a countdown. */
+    upcoming: EpisodeListItem? = null,
 ) {
     val isSeries = detail.type.equals("series", true) || detail.type.equals("show", true)
     val rows = buildList {
@@ -92,7 +94,7 @@ internal fun TvVantageDetailPanels(
                 }
             }
         }
-        ProgressCard(detail, seasons, nextUp, isSeries)
+        if (upcoming != null) CountdownCard(upcoming) else ProgressCard(detail, seasons, nextUp, isSeries)
     }
 }
 
@@ -309,5 +311,39 @@ internal fun TvGridRing(percent: Int, label: String) {
             drawArc(accent, -90f, 360f * percent.coerceIn(0, 100) / 100f, false, androidx.compose.ui.geometry.Offset(inset, inset), arc, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round))
         }
         Text(label, style = org.siloserver.silo.tv.ui.components.vantage.ui(14, FontWeight.SemiBold))
+    }
+}
+
+/** True when [date] (yyyy-MM-dd...) is today or later. */
+internal fun isFutureAirDate(date: String?): Boolean {
+    val d = date?.take(10)?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: return false
+    return !d.isBefore(LocalDate.now())
+}
+
+/** "Fri 13 Nov" for an episode's air date. */
+internal fun airDateLabel(date: String?): String? {
+    val d = date?.take(10)?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: return null
+    return d.format(DateTimeFormatter.ofPattern("EEE d MMM", Locale.getDefault()))
+}
+
+/** The upcoming-episode card: days until it airs (mock-up countdown). */
+@Composable
+private fun CountdownCard(episode: EpisodeListItem) {
+    val d = episode.airDate?.take(10)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+    val days = d?.let { java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), it).toInt() }?.coerceAtLeast(0) ?: 0
+    VPanel(
+        Modifier.fillMaxWidth().height(org.siloserver.silo.tv.ui.theme.TvGrid.progressH),
+        gap = 8.mx,
+        padding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.mx, vertical = 14.mx),
+    ) {
+        VLabel(if (days == 0) "Airs today" else "Airs in", color = org.siloserver.silo.tv.ui.theme.animatedAccent())
+        androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.mx)) {
+            Text(if (days == 0) "Tonight" else "$days", style = org.siloserver.silo.tv.ui.components.vantage.ui(34, FontWeight.SemiBold))
+            if (days > 0) Text(if (days == 1) "DAY" else "DAYS", style = mono(11, color = Level.Faint, tracking = 0.12f), modifier = Modifier.padding(bottom = 6.mx))
+        }
+        Text(
+            "${airDateLabel(episode.airDate).orEmpty()}\nIt is added to your library once it is released.",
+            style = mono(12, color = Level.Dim),
+        )
     }
 }

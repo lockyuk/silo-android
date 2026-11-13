@@ -1185,6 +1185,19 @@ fun TvSkylineSectionFeed(
                     // No page offset: the hero block sits at fixed grid coordinates.
                     .fillMaxSize(),
             )
+            // The hero pager: pills under the synopsis at the mock-up's y392, outside the row band.
+            val heroPagerCount = rows.firstOrNull()?.items?.size ?: 0
+            if (autoAdvanceFirstRow && focusedRowIndex == 0 && heroPagerCount > 1) {
+                TvHeroPositionBar(
+                    count = heroPagerCount,
+                    current = focusedItemIndex.coerceIn(0, heroPagerCount - 1),
+                    progress = { rowTimer.value },
+                    modifier = Modifier
+                        .offset(x = org.siloserver.silo.tv.ui.theme.TvGrid.edge, y = 300.dp)
+                        .height(4.5.dp)
+                        .fillMaxWidth(),
+                )
+            }
 
             if (actionsMode) {
                 val actionItem = marquee.content?.source
@@ -1362,19 +1375,6 @@ fun TvSkylineSectionFeed(
                         )
                         }
                     }
-                }
-                val heroRowCount = rows.firstOrNull()?.items?.size ?: 0
-                if (autoAdvanceFirstRow && focusedRowIndex == 0 && heroRowCount > 1) {
-                    TvHeroPositionBar(
-                        count = heroRowCount,
-                        current = focusedItemIndex.coerceIn(0, heroRowCount - 1),
-                        progress = { rowTimer.value },
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(start = 330.dp, end = TvHeroLeft, top = 2.dp)
-                            .height(18.dp)
-                            .fillMaxWidth(),
-                    )
                 }
             }
             // The next section's title under the row, always at the same spot on every row and page.

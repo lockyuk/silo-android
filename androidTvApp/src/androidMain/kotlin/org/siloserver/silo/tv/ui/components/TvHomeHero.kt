@@ -523,21 +523,16 @@ internal fun TvHeroPositionBar(
     if (count <= 1) return
     // Vantage pager: "1 / 6", then the current item as a long white dash filled by the timer.
     Row(
-        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
+        horizontalArrangement = Arrangement.spacedBy(4.5.dp, Alignment.Start),
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier,
     ) {
-        Text(
-            "${current + 1} / $count",
-            style = org.siloserver.silo.tv.ui.components.vantage.mono(10.5, color = org.siloserver.silo.tv.ui.theme.Level.Faint, tracking = 0.15f),
-            modifier = Modifier.padding(end = 4.dp),
-        )
         for (index in 0 until count) {
-            val width by androidx.compose.animation.core.animateDpAsState(if (index == current) 34.dp else 13.dp, label = "heroPagerWidth")
+            val width by androidx.compose.animation.core.animateDpAsState(if (index == current) 25.5.dp else 4.5.dp, label = "heroPagerWidth")
             Box(
                 Modifier
                     .width(width)
-                    .height(3.dp)
+                    .height(4.5.dp)
                     .clip(RoundedCornerShape(2.dp))
                     .background(if (index < current) org.siloserver.silo.tv.ui.theme.Level.Fg.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.3f)),
             ) {

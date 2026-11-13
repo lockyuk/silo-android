@@ -754,8 +754,11 @@ private fun TvDetailContent(
     } else {
         movieDirectorCredit(detail).takeIf { activeSeriesEpisode == null }
     }
-    val heroSourceTokens = activeSeriesEpisode?.let(TvDetailMetadata::seriesEpisodeSourceTokens)
-        ?: TvDetailMetadata.sourceTokens(detail)
+    val upcomingEpisode = activeSeriesEpisode?.takeIf { it.files.isEmpty() && isFutureAirDate(it.airDate) }
+    val heroSourceTokens = (activeSeriesEpisode?.let(TvDetailMetadata::seriesEpisodeSourceTokens)
+        ?: TvDetailMetadata.sourceTokens(detail)).let { tokens ->
+        if (upcomingEpisode != null) listOf("Upcoming episode") + tokens.take(2) else tokens
+    }
     val activeSeriesSelectedVersion = activeSeriesPlaybackDetail?.let { playbackDetail ->
         selectTvDetailDisplayVersion(
             versions = playbackDetail.versions,
@@ -1042,6 +1045,7 @@ private fun TvDetailContent(
                                     detail = detail,
                                     seasons = state.seasons,
                                     nextUp = state.nextUpEpisode,
+                                    upcoming = upcomingEpisode,
                                 )
                             },
                             playbackSummary = {
@@ -1056,7 +1060,16 @@ private fun TvDetailContent(
                                 // focus updates state.nextUpEpisode, Play/Resume
                                 // always follows the focused episode while the
                                 // other Show-level actions stay available.
-                                HeroActionRow(
+                                if (upcomingEpisode != null) {
+                                    // Nothing to play yet: the primary pill says when it airs.
+                                    org.siloserver.silo.tv.ui.components.vantage.VButton(
+                                        text = "Airs ${airDateLabel(upcomingEpisode.airDate).orEmpty()}",
+                                        primary = true,
+                                        height = org.siloserver.silo.tv.ui.theme.TvGrid.actionH,
+                                        onClick = {},
+                                        focusRequester = playFocus,
+                                    )
+                                } else HeroActionRow(
                                     detail = detail,
                                     state = state,
                                     viewModel = viewModel,
