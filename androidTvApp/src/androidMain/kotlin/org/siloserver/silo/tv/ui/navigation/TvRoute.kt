@@ -423,6 +423,9 @@ sealed class TvMainRoute(val route: String) {
     data object Music : TvMainRoute("main/music")
     data object Audiobooks : TvMainRoute("main/audiobooks")
     data object Requests : TvMainRoute("main/requests")
+
+    /** Vantage Server Control: streams, hardware, storage, requests and the automation apps (admins). */
+    data object Server : TvMainRoute("main/server")
     data object Settings : TvMainRoute("main/settings")
 
     data object Collections : TvMainRoute("main/collections")

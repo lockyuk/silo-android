@@ -166,16 +166,17 @@ fun TvEpisodeCard(
                 if (progress != null && progress > 0f) {
                     Box(
                         modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = 7.5.dp, end = 7.5.dp, bottom = 7.dp)
                             .fillMaxWidth()
                             .height(3.dp)
-                            .align(Alignment.BottomStart)
-                            .background(ProgressTrack),
+                            .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(2.dp)),
                     ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(progress.coerceIn(0f, 1f))
                                 .height(3.dp)
-                                .background(Aurora.Gradient),
+                                .background(org.siloserver.silo.tv.ui.theme.animatedAccent(), RoundedCornerShape(2.dp)),
                         )
                     }
                 }
@@ -247,7 +248,7 @@ val TvEpisodeCardWidth: Dp = RowDimens.BackdropWidth
 fun tvEpisodeCardWidth(): Dp = TvEpisodeCardWidth.cardScaled()
 
 /** Hoisted so every card shares one instance instead of allocating a shape per composition. */
-private val TvEpisodeCardShape = RoundedCornerShape(8.dp)
+private val TvEpisodeCardShape = RoundedCornerShape(10.dp)
 
 /** Unscaled: 8dp side inset + 3dp progress bar, scaled by [TvCardOverlayScale]. */
 private val TvEpisodeCardOverlayBottomInset = 12.dp

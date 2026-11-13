@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
@@ -252,50 +253,35 @@ internal fun SquaredPillSurface(
     val shape = if (capsule) org.siloserver.silo.tv.ui.theme.LevelChamfer else org.siloserver.silo.tv.ui.theme.LevelChamfer
     val primary = kind == PillKind.Primary
 
-    // --- Body visuals (per kind) ---
+    // --- Body visuals (Vantage) ---
+    // Primary: white with the accent halo. Secondary: light glass with a hairline edge; it turns
+    // white with the halo when focused.
+    val lit = primary || isFocused
     val foreground by animateColorAsState(
-        targetValue = if (stableHero) {
-            if (isFocused) Color.Black else Color.White
-        } else when (kind) {
-            // The Play pill remains the bright primary action at rest. Making
-            // it use the same translucent treatment as the circular utility
-            // buttons erased the hierarchy and made the whole action cluster
-            // look malformed whenever focus moved down to the selector.
-            PillKind.Primary -> Color.Black
-            PillKind.Secondary -> if (isFocused) Color.Black else Color.White
-        },
+        targetValue = if (lit) org.siloserver.silo.tv.ui.theme.Level.Ink else org.siloserver.silo.tv.ui.theme.Level.Fg,
         animationSpec = focusSpring(),
         label = "pillForeground",
     )
     val fill by animateColorAsState(
-        targetValue = if (stableHero) {
-            if (isFocused) Aurora.VioletLight else Color.White.copy(alpha = 0.10f)
-        } else when (kind) {
-            PillKind.Primary -> if (isFocused) Aurora.VioletLight else Color.White.copy(alpha = 0.76f)
-            PillKind.Secondary -> if (isFocused) Aurora.VioletLight else Color.White.copy(alpha = 0.08f)
-        },
+        targetValue = if (lit) org.siloserver.silo.tv.ui.theme.Level.Fg else org.siloserver.silo.tv.ui.theme.Level.Glass2,
         animationSpec = focusSpring(),
         label = "pillFill",
     )
     val innerBorderColor by animateColorAsState(
-        targetValue = when {
-            isFocused && primary -> Color.Black.copy(alpha = 0.18f)
-            isFocused -> Color.Black.copy(alpha = 0.12f)
-            primary -> Color.White.copy(alpha = 0.12f)
-            else -> Color.White.copy(alpha = 0.24f)
-        },
+        targetValue = if (lit) Color.Transparent else org.siloserver.silo.tv.ui.theme.Level.Edge,
         animationSpec = focusSpring(),
         label = "pillInnerBorder",
     )
-    val innerBorderWidth by animateDpAsState(
+    val innerBorderWidth = 1.dp
+    val haloAccent = org.siloserver.silo.tv.ui.theme.animatedAccent()
+    val haloAlpha by animateFloatAsState(
         targetValue = when {
-            isFocused && primary -> 0.9.dp
-            isFocused -> 0.75.dp
-            primary -> 0.8.dp
-            else -> 1.2.dp
+            isFocused -> 0.55f
+            primary -> 0.32f
+            else -> 0f
         },
         animationSpec = focusSpring(),
-        label = "pillInnerBorderWidth",
+        label = "pillHalo",
     )
 
     // --- Compact focus treatment (shared by both pills) ---
@@ -351,19 +337,21 @@ internal fun SquaredPillSurface(
                 ambientColor = Color.Black.copy(alpha = shadowOpacity),
                 spotColor = Color.Black.copy(alpha = shadowOpacity),
             )
-            // Compact focus outline, half-scale port of tvOS width 2.5 / inset 3.
-            .focusRing(
-                visible = isFocused && !stableHero,
-                color = focusOutlineColor,
-                width = 1.25.dp,
-                inset = 1.5.dp,
-                corner = if (capsule) 50.dp else TvControlCorner + 2.dp,
-            )
-            .then(
-                if (primary && !isFocused && !stableHero) Modifier.background(Aurora.Gradient, shape)
-                else Modifier.background(fill, shape),
-            )
-            .then(if (stableHero) Modifier else Modifier.border(innerBorderWidth, innerBorderColor, shape))
+            // Vantage halo: an accent ring around the pill (5px in the mock-up).
+            .drawBehind {
+                if (haloAlpha > 0f) {
+                    val grow = 3.5.dp.toPx()
+                    val r = if (capsule || true) size.height / 2f + grow else (TvControlCorner + 2.dp).toPx()
+                    drawRoundRect(
+                        color = haloAccent.copy(alpha = haloAlpha),
+                        topLeft = androidx.compose.ui.geometry.Offset(-grow, -grow),
+                        size = androidx.compose.ui.geometry.Size(size.width + grow * 2, size.height + grow * 2),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r),
+                    )
+                }
+            }
+            .background(fill, shape)
+            .border(innerBorderWidth, innerBorderColor, shape)
             .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
             .onFocusChanged { isFocused = it.isFocused }
             .clickable(

@@ -64,6 +64,8 @@ class AmbientBackdropTintState internal constructor(
         // on, or after the backdrop upgraded under enrichment.
         if (pendingUrl.value == url) {
             _accent.value = accent
+            // Vantage: the chrome accent follows the featured backdrop.
+            org.siloserver.silo.tv.ui.theme.Level.followBackdrop(accent)
         }
     }
 

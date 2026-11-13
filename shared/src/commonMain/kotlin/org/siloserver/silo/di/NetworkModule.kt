@@ -81,6 +81,7 @@ val networkModule = module {
     single<HomeRealtimeClient> { DefaultHomeRealtimeClient(get()) }
     single<CalendarApi> { DefaultCalendarApi(get(), get(), get()) }
     single { HealthApi(get()) }
+    single { org.siloserver.silo.network.api.RawHttpApi(get()) }
     single { BrandingApi(get()) }
     single { SettingsV2Api(get(), get(), get()) }
     single { SettingsApi(get()) }

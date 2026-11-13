@@ -131,6 +131,7 @@ private sealed class TvTopMenuFocus {
     data object Calendar : TvTopMenuFocus()
     data object Search : TvTopMenuFocus()
     data object Requests : TvTopMenuFocus()
+    data object Server : TvTopMenuFocus()
     data object Profile : TvTopMenuFocus()
 }
 
@@ -199,6 +200,10 @@ fun TvTopMenuBar(
     showRequests: Boolean = false,
     requestsSelected: Boolean = false,
     onRequestsClick: () -> Unit = {},
+    /** Server sits at the end of the tab pill, after Search, for admin accounts. */
+    showServer: Boolean = false,
+    serverSelected: Boolean = false,
+    onServerClick: () -> Unit = {},
     visibility: Float = 1f,
     openPanel: TvTopMenuPanel? = null,
     onDwell: (TvTopMenuPanel?) -> Unit = {},
@@ -211,6 +216,7 @@ fun TvTopMenuBar(
     val forYouFocusRequester = remember { FocusRequester() }
     val searchFocusRequester = remember { FocusRequester() }
     val requestsFocusRequester = remember { FocusRequester() }
+    val serverFocusRequester = remember { FocusRequester() }
     val profileFocusRequester = remember { FocusRequester() }
     // One requester per library-type tab; stable across recompositions so a
     // focus request still lands after the visible-tab set changes.
@@ -267,6 +273,7 @@ fun TvTopMenuBar(
         TvTopMenuFocus.Calendar -> calendarFocusRequester
         TvTopMenuFocus.Search -> searchFocusRequester
         TvTopMenuFocus.Requests -> requestsFocusRequester
+        TvTopMenuFocus.Server -> serverFocusRequester
         TvTopMenuFocus.Profile -> profileFocusRequester
     }
 
@@ -285,6 +292,7 @@ fun TvTopMenuBar(
         null -> when {
             isSearchActive -> searchFocusRequester
             requestsSelected -> requestsFocusRequester
+            serverSelected -> serverFocusRequester
             else -> homeFocusRequester
         }
     }
@@ -560,9 +568,10 @@ fun TvTopMenuBar(
         // group itself screen-centered.
         Row(
             modifier = Modifier
-                .height(TvSkyline.barHeight)
-                .padding(horizontal = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(TvSkyline.tabSpacing),
+                .background(org.siloserver.silo.tv.ui.theme.Level.Glass, org.siloserver.silo.tv.ui.theme.VantagePill)
+                .border(1.dp, org.siloserver.silo.tv.ui.theme.Level.Edge, org.siloserver.silo.tv.ui.theme.VantagePill)
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             destinations.forEach { destination ->
@@ -651,6 +660,40 @@ fun TvTopMenuBar(
             }
 
             if (showRequests && destinations.none { it == TvRootDestination.Calendar }) requestsTab()
+
+            // Vantage: Search and Server are tabs at the end of the pill.
+            TvTopMenuTab(
+                label = "Search",
+                isSelected = isSearchActive,
+                isFocused = focusedButton == TvTopMenuFocus.Search,
+                canFocus = canFocusButton(TvTopMenuFocus.Search),
+                focusRequester = searchFocusRequester,
+                onFocusChanged = { hasFocus ->
+                    focusedButton = if (hasFocus) {
+                        TvTopMenuFocus.Search
+                    } else {
+                        focusedButton.takeUnless { it == TvTopMenuFocus.Search }
+                    }
+                },
+                onClick = onSearchClick,
+            )
+            if (showServer) {
+                TvTopMenuTab(
+                    label = "Server",
+                    isSelected = serverSelected,
+                    isFocused = focusedButton == TvTopMenuFocus.Server,
+                    canFocus = canFocusButton(TvTopMenuFocus.Server),
+                    focusRequester = serverFocusRequester,
+                    onFocusChanged = { hasFocus ->
+                        focusedButton = if (hasFocus) {
+                            TvTopMenuFocus.Server
+                        } else {
+                            focusedButton.takeUnless { it == TvTopMenuFocus.Server }
+                        }
+                    },
+                    onClick = onServerClick,
+                )
+            }
         }
 
         Spacer(modifier = Modifier.weight(1f))
@@ -665,22 +708,6 @@ fun TvTopMenuBar(
         ) {
 
             TvLevelClock()
-
-            TvTopMenuIconButton(
-                icon = Icons.Outlined.Search,
-                contentDescription = "Search",
-                isFocused = focusedButton == TvTopMenuFocus.Search,
-                canFocus = canFocusButton(TvTopMenuFocus.Search),
-                focusRequester = searchFocusRequester,
-                onFocusChanged = { hasFocus ->
-                    focusedButton = if (hasFocus) {
-                        TvTopMenuFocus.Search
-                    } else {
-                        focusedButton.takeUnless { it == TvTopMenuFocus.Search }
-                    }
-                },
-                onClick = onSearchClick,
-            )
 
             TvTopMenuProfileButton(
                 accountState = accountState,
@@ -706,31 +733,35 @@ data class TvAccountState(
     val subtitle: String = "",
     /** Active server display name, shown in the dropdown header. */
     val serverName: String = "",
+    /** The account is an admin and the main profile is active: shows the Server tab. */
+    val isAdmin: Boolean = false,
 )
 
-/** The Silo wordmark: a level-gauge glyph (an outlined tank filled to 62%) and SILO in condensed display type. */
+/** The Silo wordmark: a rounded tank outline holding an accent fill, and SILO in wide-tracked Outfit. */
 @Composable
 private fun TvSiloWordmark() {
     androidx.compose.foundation.layout.Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(9.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        val accent = org.siloserver.silo.tv.ui.theme.Level.Accent
+        val accent = org.siloserver.silo.tv.ui.theme.animatedAccent()
+        val fg = org.siloserver.silo.tv.ui.theme.Level.Fg
         Box(
             modifier = Modifier
-                .size(width = 12.dp, height = 24.dp)
-                .border(2.dp, accent, androidx.compose.foundation.shape.RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp)),
+                .size(20.dp)
+                .border(1.5.dp, fg, RoundedCornerShape(6.dp))
+                .padding(start = 3.dp, end = 3.dp, bottom = 3.dp),
             contentAlignment = Alignment.BottomCenter,
         ) {
-            Box(Modifier.fillMaxWidth().fillMaxHeight(0.62f).background(accent))
+            Box(Modifier.fillMaxWidth().height(7.dp).background(accent, RoundedCornerShape(2.dp)))
         }
         Text(
             text = "SILO",
-            color = org.siloserver.silo.tv.ui.theme.Level.Fg,
-            fontFamily = org.siloserver.silo.tv.ui.theme.LevelDisplayFamily,
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = 24.sp,
-            letterSpacing = 1.4.sp,
+            color = fg,
+            fontFamily = org.siloserver.silo.tv.ui.theme.VantageUiFamily,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 15.sp,
+            letterSpacing = 3.sp,
             maxLines = 1,
         )
     }
@@ -739,7 +770,11 @@ private fun TvSiloWordmark() {
 /** The time, in monospace, at the right of the bar. */
 @Composable
 private fun TvLevelClock() {
-    val fmt = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val fmt = remember {
+        val is24 = android.text.format.DateFormat.is24HourFormat(context)
+        java.text.SimpleDateFormat(if (is24) "HH:mm" else "h:mm", java.util.Locale.getDefault())
+    }
     var now by remember { mutableStateOf(fmt.format(java.util.Date())) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -750,9 +785,9 @@ private fun TvLevelClock() {
     Text(
         text = now,
         color = org.siloserver.silo.tv.ui.theme.Level.Fg,
-        fontFamily = org.siloserver.silo.tv.ui.theme.LevelMonoFamily,
+        fontFamily = org.siloserver.silo.tv.ui.theme.VantageMonoFamily,
         fontWeight = FontWeight.Medium,
-        fontSize = 12.sp,
+        fontSize = 15.sp,
         maxLines = 1,
     )
 }
@@ -786,56 +821,44 @@ private fun TvTopMenuTab(
     val isInteractionFocused by interactionSource.collectIsFocusedAsState()
     LaunchedEffect(isInteractionFocused) { onFocusChanged(isInteractionFocused) }
 
-    val shape = org.siloserver.silo.tv.ui.theme.LevelChamfer
-    val containerColor = when {
-        isFocused -> Color.Transparent
-        isSelected -> Color.Transparent
-        else -> Color.Transparent
-    }
-    val borderColor = when {
-        isFocused -> Color.Transparent
-        isSelected -> ChromeSelectedBorder
-        else -> Color.Transparent
-    }
-    val textColor = when {
-        isFocused -> org.siloserver.silo.tv.ui.theme.Level.Ink
-        isSelected -> org.siloserver.silo.tv.ui.theme.Level.Fg
-        else -> org.siloserver.silo.tv.ui.theme.Level.Muted
-    }
+    val shape = org.siloserver.silo.tv.ui.theme.VantagePill
+    val L = org.siloserver.silo.tv.ui.theme.Level
+    val accent = org.siloserver.silo.tv.ui.theme.animatedAccent()
+    val filled = isFocused || isSelected
+    val textColor = if (filled) L.Ink else L.Dim
 
     Surface(
         onClick = onClick,
         interactionSource = interactionSource,
         shape = ClickableSurfaceDefaults.shape(shape = shape),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = containerColor,
+            containerColor = if (filled) L.Fg else Color.Transparent,
             contentColor = textColor,
-            // The focused capsule is filled with the Aurora gradient (drawn below),
-            // so the container itself stays transparent.
-            focusedContainerColor = Color.Transparent,
-            focusedContentColor = DarkBackground,
-            pressedContainerColor = Color.Transparent,
-            pressedContentColor = DarkBackground,
+            focusedContainerColor = L.Fg,
+            focusedContentColor = L.Ink,
+            pressedContainerColor = L.Fg,
+            pressedContentColor = L.Ink,
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         border = ClickableSurfaceDefaults.border(
-            border = Border(border = BorderStroke(1.dp, borderColor), shape = shape),
+            border = Border(border = BorderStroke(0.dp, Color.Transparent), shape = shape),
             focusedBorder = Border(border = BorderStroke(0.dp, Color.Transparent), shape = shape),
         ),
         modifier = modifier
             .focusProperties { this.canFocus = canFocus }
             .focusRequester(focusRequester)
             .height(TvSkyline.tabPillHeight)
-            // Level: a focused tab is filled with the accent; the selected tab carries an accent underline.
-            .then(if (isFocused) Modifier.background(org.siloserver.silo.tv.ui.theme.Level.Accent, shape) else Modifier)
+            // Vantage: the focused tab carries the accent halo of the primary button.
             .then(
-                if (isSelected && !isFocused) {
+                if (isFocused) {
                     Modifier.drawBehind {
-                        val h = 2.dp.toPx()
-                        drawRect(
-                            color = org.siloserver.silo.tv.ui.theme.Level.Accent,
-                            topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - h),
-                            size = androidx.compose.ui.geometry.Size(size.width, h),
+                        val r = size.height / 2f
+                        val grow = 3.dp.toPx()
+                        drawRoundRect(
+                            color = accent.copy(alpha = 0.45f),
+                            topLeft = androidx.compose.ui.geometry.Offset(-grow, -grow),
+                            size = androidx.compose.ui.geometry.Size(size.width + grow * 2, size.height + grow * 2),
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(r + grow, r + grow),
                         )
                     }
                 } else {
@@ -845,20 +868,16 @@ private fun TvTopMenuTab(
     ) {
         Box(
             modifier = Modifier
-                .padding(
-                    horizontal = TvSkyline.tabPaddingHorizontal,
-                    vertical = TvSkyline.tabPaddingVertical,
-                )
+                .padding(horizontal = 14.dp)
                 .fillMaxHeight(),
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = label.uppercase(),
-                style = navRailLabel,
-                fontSize = TvSkyline.tabLabelSize,
-                letterSpacing = 1.6.sp,
-                fontWeight = if (isSelected || isFocused) FontWeight.SemiBold else FontWeight.Medium,
-                color = textColor,
+                text = label,
+                fontFamily = org.siloserver.silo.tv.ui.theme.VantageUiFamily,
+                fontSize = 13.sp,
+                fontWeight = if (filled) FontWeight.SemiBold else FontWeight.Medium,
+                color = if (filled) L.Ink else L.Dim,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

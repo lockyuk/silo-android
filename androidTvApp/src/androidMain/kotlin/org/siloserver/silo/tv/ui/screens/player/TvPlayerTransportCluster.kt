@@ -32,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -212,22 +213,38 @@ private fun TransportIconButton(
 
     // Focus inverts the disc to Paper — no scale, so a button never crosses
     // its own hit target or nudges its neighbours.
+    // Vantage: play/pause is the white disc with the accent halo; the others are glass and
+    // turn white with the halo when focused.
+    val lit = isFocused || isPrimary
     val fill by animateColorAsState(
-        targetValue = if (isFocused) TvPlayerChrome.Paper else TvPlayerChrome.ButtonRest,
+        targetValue = if (lit) TvPlayerChrome.Paper else TvPlayerChrome.ButtonRest,
         animationSpec = tween(120),
         label = "transportBg",
     )
-    val tint = if (isFocused) TvPlayerChrome.Ink else TvPlayerChrome.Paper
+    val tint = if (lit) TvPlayerChrome.Ink else TvPlayerChrome.Paper
+    val halo = org.siloserver.silo.tv.ui.theme.animatedAccent()
+    val haloAlpha = when { isFocused -> 0.55f; isPrimary -> 0.32f; else -> 0f }
     val expanded = isFocused && label != null
 
     Row(
         modifier = Modifier
             .height(buttonSize)
             .widthIn(min = buttonSize)
-            .then(if (isFocused) Modifier.shadow(10.dp, shape, clip = false) else Modifier)
+            .drawBehind {
+                if (haloAlpha > 0f) {
+                    val grow = 4.5.dp.toPx()
+                    val r = size.height / 2f + grow
+                    drawRoundRect(
+                        halo.copy(alpha = haloAlpha),
+                        topLeft = androidx.compose.ui.geometry.Offset(-grow, -grow),
+                        size = androidx.compose.ui.geometry.Size(size.width + grow * 2, size.height + grow * 2),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r),
+                    )
+                }
+            }
             .clip(shape)
             .background(fill)
-            .then(if (isFocused) Modifier else Modifier.border(1.dp, TvPlayerChrome.ButtonRing, shape))
+            .then(if (lit) Modifier else Modifier.border(1.dp, TvPlayerChrome.ButtonRing, shape))
             .animateContentSize(animationSpec = tween(160))
             .let { mod -> if (focusRequester != null) mod.focusRequester(focusRequester) else mod }
             .focusProperties {

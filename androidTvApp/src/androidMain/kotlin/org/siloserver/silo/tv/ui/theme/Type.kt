@@ -23,7 +23,7 @@ val OutfitFamily: FontFamily = LevelDisplayFamily
 val SiloTvTypography = Typography(
     displayLarge = TextStyle(
         fontFamily = LevelDisplayFamily,
-        fontWeight = FontWeight.Black,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 44.sp,
         lineHeight = 48.sp,
         letterSpacing = 0.sp,
@@ -31,7 +31,7 @@ val SiloTvTypography = Typography(
     ),
     displayMedium = TextStyle(
         fontFamily = LevelDisplayFamily,
-        fontWeight = FontWeight.Black,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 36.sp,
         lineHeight = 40.sp,
         letterSpacing = 0.sp,
@@ -39,7 +39,7 @@ val SiloTvTypography = Typography(
     ),
     displaySmall = TextStyle(
         fontFamily = LevelDisplayFamily,
-        fontWeight = FontWeight.Black,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 28.sp,
         lineHeight = 32.sp,
         letterSpacing = 0.sp,
@@ -119,7 +119,7 @@ val SiloTvTypography = Typography(
     ),
     labelLarge = TextStyle(
         fontFamily = LevelMonoFamily,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Medium,
         fontSize = 18.sp,
         lineHeight = 22.sp,
         letterSpacing = 0.sp,
@@ -127,7 +127,7 @@ val SiloTvTypography = Typography(
     ),
     labelMedium = TextStyle(
         fontFamily = LevelMonoFamily,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Medium,
         fontSize = 16.sp,
         lineHeight = 20.sp,
         letterSpacing = 0.sp,
@@ -147,7 +147,7 @@ val SiloTvTypography = Typography(
 // caps at 92pt for series titles.
 val heroDisplay = TextStyle(
     fontFamily = LevelDisplayFamily,
-    fontWeight = FontWeight.Black,
+    fontWeight = FontWeight.SemiBold,
     fontSize = 58.sp,
     lineHeight = 64.sp,
     letterSpacing = 0.sp,
@@ -165,7 +165,7 @@ val heroMeta = TextStyle(
 
 // Top menu / nav button label.
 val navRailLabel = TextStyle(
-    fontFamily = LevelMonoFamily,
+    fontFamily = VantageUiFamily,
     fontWeight = FontWeight.SemiBold,
     fontSize = 18.sp,
     lineHeight = 22.sp,
@@ -175,10 +175,10 @@ val navRailLabel = TextStyle(
 // Eyebrow pill above hero copy — small caps with tracking, matches tvOS facts row.
 val sectionEyebrow = TextStyle(
     fontFamily = LevelMonoFamily,
-    fontWeight = FontWeight.Black,
-    fontSize = 16.sp,
-    lineHeight = 20.sp,
-    letterSpacing = 0.sp,
+    fontWeight = FontWeight.Medium,
+    fontSize = 13.sp,
+    lineHeight = 18.sp,
+    letterSpacing = 3.6.sp,
 )
 
 // Mono uppercase group header (e.g. the grouped-collections grid header).

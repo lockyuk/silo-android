@@ -51,16 +51,16 @@ object Spacing {
  */
 object TvSkyline {
     /** Root horizontal inset for chrome and content — tvOS `safeAreaX` (88pt). */
-    val safeAreaX = 44.dp
+    val safeAreaX = 33.dp
 
     /** Top bar offset from the screen's top edge — tvOS `barTopInset` (56pt). */
-    val barTopInset = 28.dp
+    val barTopInset = 18.dp
 
     /** Top bar row height — tvOS `barHeight` (64pt). */
-    val barHeight = 32.dp
+    val barHeight = 34.dp
 
     /** Active tab capsule height, aligned to the trailing search/profile chrome. */
-    val tabPillHeight = 30.dp
+    val tabPillHeight = 26.dp
 
     /** Gap between tab capsules in the bar's center cluster — tvOS `tabSpacing` (8pt). */
     val tabSpacing = 4.dp

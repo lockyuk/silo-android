@@ -1,117 +1,134 @@
 package org.siloserver.silo.tv.ui.theme
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.siloserver.silo.tv.R
 
 /**
- * The Silo Level look: a silo is read by how full it is, so watch progress is a level gauge, the
- * library is a shelf of spines, and the chrome is flat fills with chamfered corners, condensed
- * display type and monospaced data. No glows, no gradients, no pills.
+ * The Silo Vantage look: cinematic full-bleed backdrops, floating glass chrome, pill controls,
+ * a white primary button with an accent halo, Outfit for words and JetBrains Mono for data.
+ * The accent follows the backdrop of whatever is featured; it falls back to sky blue.
+ *
+ * The object keeps the name `Level` (the previous direction) so every screen that already reads
+ * these tokens picks up Vantage without further changes. [Vantage] is the same object.
  */
-class LevelScheme(
-    val name: String,
-    val bg: Color,
-    val surface: Color,
-    val surface2: Color,
-    val line: Color,
-    val fg: Color,
-    val muted: Color,
-    val accent: Color,
-    val accent2: Color,
-    val ink: Color,
-    /** Saturation / lightness of the spine fill behind each item's hue. */
-    val spineSat: Float,
-    val spineLight: Float,
-)
-
 object Level {
-    val Signal = LevelScheme("Signal", Color(0xFF0E0E0D), Color(0xFF181816), Color(0xFF24241F), Color(0xFF3A3A34), Color(0xFFF2EFE6), Color(0xFFA9A698), Color(0xFFFF5A1F), Color(0xFFFFD23F), Color(0xFF140A04), 0.16f, 0.23f)
-    val Grain = LevelScheme("Grain", Color(0xFF100D08), Color(0xFF1A160E), Color(0xFF272015), Color(0xFF403726), Color(0xFFF6ECD8), Color(0xFFB5A88C), Color(0xFFE8B04A), Color(0xFFF6E2B0), Color(0xFF1A1205), 0.22f, 0.22f)
-    val Coolant = LevelScheme("Coolant", Color(0xFF070F19), Color(0xFF0D1A28), Color(0xFF14283C), Color(0xFF27415C), Color(0xFFEAF5FF), Color(0xFF9BB4CB), Color(0xFF3DDCFF), Color(0xFFA9F1FF), Color(0xFF031018), 0.30f, 0.21f)
-    val Verdigris = LevelScheme("Verdigris", Color(0xFF08110E), Color(0xFF0F1B17), Color(0xFF18291F), Color(0xFF2C4A3D), Color(0xFFEAF8F1), Color(0xFF9BBDAD), Color(0xFF4FE0A8), Color(0xFFC3F7E0), Color(0xFF03150E), 0.28f, 0.21f)
-    val Rose = LevelScheme("Rose", Color(0xFF140B10), Color(0xFF1E1118), Color(0xFF2E1A25), Color(0xFF4D2C3D), Color(0xFFFBEAF1), Color(0xFFC3A0B1), Color(0xFFFF7AA8), Color(0xFFFFD0E0), Color(0xFF1C0610), 0.26f, 0.23f)
-    val Paper = LevelScheme("Paper", Color(0xFFECE8DC), Color(0xFFF8F5EA), Color(0xFFDDD8C8), Color(0xFFB5AF9B), Color(0xFF1A1914), Color(0xFF5E5A4C), Color(0xFFD9400B), Color(0xFF1A1914), Color(0xFFFFFFFF), 0.34f, 0.74f)
-    val Schemes = listOf(Signal, Grain, Coolant, Verdigris, Rose, Paper)
+    val DefaultAccent = Color(0xFF7CC4FF)
 
-    /** The scheme in use; reading it from composition recomposes when it changes. */
-    var current by mutableStateOf(Signal)
+    /** The accent in use. Screens with a featured backdrop set it with [followBackdrop]. */
+    var liveAccent by mutableStateOf(DefaultAccent)
 
-    val Bg get() = current.bg
-    val Surface get() = current.surface
-    val Surface2 get() = current.surface2
-    val Line get() = current.line
-    val Fg get() = current.fg
-    val Muted get() = current.muted
-    val Accent get() = current.accent
-    val Accent2 get() = current.accent2
-    val Ink get() = current.ink
+    val Bg = Color(0xFF07080C)
+    /** Glass panel fill (rgba(16,18,26,.58)). */
+    val Glass = Color(0x9410121A)
+    /** Light glass for secondary buttons and chips (rgba(255,255,255,.07)). */
+    val Glass2 = Color(0x12FFFFFF)
+    /** Hairline edge on glass (rgba(255,255,255,.14)). */
+    val Edge = Color(0x24FFFFFF)
+    val Fg = Color(0xFFF4F6FB)
+    val Dim = Color(0xFFA3ABBD)
+    val Faint = Color(0xFF6B7389)
+    val Good = Color(0xFF5BE3A8)
+    val Warn = Color(0xFFFFC15A)
+    val Bad = Color(0xFFFF6B6B)
+    /** Text on the white primary button. */
+    val Ink = Color(0xFF0A0C12)
+    val Synopsis = Color(0xFFD0D6E3)
+    val Track = Color(0x29FFFFFF)
 
-    /** A spine's colour for an item whose artwork hue is [hue] degrees. */
-    fun spine(hue: Float): Color =
-        Color.hsl(hue.coerceIn(0f, 359.9f), current.spineSat, current.spineLight)
-}
+    // Names the Level screens already use.
+    val Surface get() = Glass
+    val Surface2 get() = Glass2
+    val Line get() = Edge
+    val Muted get() = Dim
+    val Accent get() = liveAccent
+    val Accent2 get() = liveAccent
 
-val LevelDisplayFamily = FontFamily(
-    Font(R.font.level_display_semibold, FontWeight.Normal),
-    Font(R.font.level_display_semibold, FontWeight.Medium),
-    Font(R.font.level_display_semibold, FontWeight.SemiBold),
-    Font(R.font.level_display_extrabold, FontWeight.Bold),
-    Font(R.font.level_display_extrabold, FontWeight.ExtraBold),
-    Font(R.font.level_display_extrabold, FontWeight.Black),
-)
+    /** Brand colours for the automation dashboards. */
+    val Radarr = Color(0xFFFFC230)
+    val Sonarr = Color(0xFF35C5F4)
+    val Sabnzbd = Color(0xFF9BE564)
 
-val LevelMonoFamily = FontFamily(
-    Font(R.font.level_mono_regular, FontWeight.Normal),
-    Font(R.font.level_mono_medium, FontWeight.Medium),
-    Font(R.font.level_mono_semibold, FontWeight.SemiBold),
-    Font(R.font.level_mono_semibold, FontWeight.Bold),
-    Font(R.font.level_mono_semibold, FontWeight.Black),
-)
-
-val LevelBodyFamily = FontFamily(
-    Font(R.font.level_body_regular, FontWeight.Normal),
-    Font(R.font.level_body_medium, FontWeight.Medium),
-    Font(R.font.level_body_semibold, FontWeight.SemiBold),
-    Font(R.font.level_body_semibold, FontWeight.Bold),
-    Font(R.font.level_body_semibold, FontWeight.Black),
-)
-
-/** A rectangle with the top-left and bottom-right corners cut at 45 degrees. */
-class ChamferShape(private val cut: Dp) : Shape {
-    override fun createOutline(
-        size: androidx.compose.ui.geometry.Size,
-        layoutDirection: androidx.compose.ui.unit.LayoutDirection,
-        density: androidx.compose.ui.unit.Density,
-    ): androidx.compose.ui.graphics.Outline {
-        val c = with(density) { cut.toPx() }.coerceAtMost(minOf(size.width, size.height) / 2f)
-        val path = androidx.compose.ui.graphics.Path().apply {
-            moveTo(c, 0f)
-            lineTo(size.width, 0f)
-            lineTo(size.width, size.height - c)
-            lineTo(size.width - c, size.height)
-            lineTo(0f, size.height)
-            lineTo(0f, c)
-            close()
+    /**
+     * Sets the accent from a backdrop colour: keeps its hue, lifts it to a bright, saturated
+     * tone so it reads on the dark glass (hsl(h, 90%, 68%) as in the mock-up).
+     */
+    fun followBackdrop(sample: Color?) {
+        if (sample == null) {
+            liveAccent = DefaultAccent
+            return
         }
-        return androidx.compose.ui.graphics.Outline.Generic(path)
+        val hsv = FloatArray(3)
+        android.graphics.Color.colorToHSV(
+            android.graphics.Color.argb(255, (sample.red * 255).toInt(), (sample.green * 255).toInt(), (sample.blue * 255).toInt()),
+            hsv,
+        )
+        liveAccent = if (hsv[1] < 0.12f) DefaultAccent else Color.hsl(hsv[0], 0.9f, 0.68f)
     }
+
+    /** A spine colour for an artwork hue (kept for the old spine card). */
+    fun spine(hue: Float): Color = Color.hsl(hue.coerceIn(0f, 359.9f), 0.22f, 0.2f)
 }
 
-val LevelChamfer = ChamferShape(7.dp)
-val LevelChamferLarge = ChamferShape(14.dp)
+/** The Vantage tokens under their own name. */
+val Vantage = Level
 
-/** The flat Silo Level ground. */
+/** The accent, animated when it changes with the backdrop. */
+@Composable
+fun animatedAccent(): Color =
+    animateColorAsState(Level.liveAccent, animationSpec = tween(600), label = "vantageAccent").value
+
+val VantageUiFamily = FontFamily(
+    Font(R.font.vantage_ui_300, FontWeight.Light),
+    Font(R.font.vantage_ui_400, FontWeight.Normal),
+    Font(R.font.vantage_ui_500, FontWeight.Medium),
+    Font(R.font.vantage_ui_600, FontWeight.SemiBold),
+    Font(R.font.vantage_ui_700, FontWeight.Bold),
+    Font(R.font.vantage_ui_700, FontWeight.ExtraBold),
+    Font(R.font.vantage_ui_700, FontWeight.Black),
+)
+
+val VantageMonoFamily = FontFamily(
+    Font(R.font.vantage_mono_400, FontWeight.Normal),
+    Font(R.font.vantage_mono_500, FontWeight.Medium),
+    Font(R.font.vantage_mono_600, FontWeight.SemiBold),
+    Font(R.font.vantage_mono_600, FontWeight.Bold),
+    Font(R.font.vantage_mono_600, FontWeight.Black),
+)
+
+// Previous names, now Vantage faces.
+val LevelDisplayFamily = VantageUiFamily
+val LevelMonoFamily = VantageMonoFamily
+val LevelBodyFamily = VantageUiFamily
+
+/** Pill / circle: every control, chip, tab and avatar. */
+val VantagePill: Shape = RoundedCornerShape(percent = 50)
+/** Cards and artwork (14px in the mock-up). */
+val VantageCard: Shape = RoundedCornerShape(10.dp)
+/** Glass panels (18px in the mock-up). */
+val VantagePanel: Shape = RoundedCornerShape(14.dp)
+
+// Previous names: the chamfers became pills and rounded cards.
+val LevelChamfer: Shape = VantagePill
+val LevelChamferLarge: Shape = VantageCard
+
+/** The Vantage ground. */
 fun Modifier.levelBackground(): Modifier = this.background(Level.Bg)
+
+/** A floating glass panel. */
+fun Modifier.vantageGlass(shape: Shape = VantagePanel, edge: Color = Level.Edge): Modifier =
+    this.background(Level.Glass, shape).border(1.dp, edge, shape)

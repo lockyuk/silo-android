@@ -3245,6 +3245,27 @@ private fun TvPlayerIdleOverlay(
             )
         }
 
+        // Vantage: the time now and when this ends, top right in a glass chip.
+        run {
+            val ctx = androidx.compose.ui.platform.LocalContext.current
+            val fmt = remember {
+                java.text.SimpleDateFormat(
+                    if (android.text.format.DateFormat.is24HourFormat(ctx)) "HH:mm" else "h:mm a",
+                    java.util.Locale.getDefault(),
+                )
+            }
+            val now = System.currentTimeMillis()
+            val leftMs = ((durationSec - positionSec).coerceAtLeast(0.0) / playbackSpeed.coerceAtLeast(0.1) * 1000).toLong()
+            if (durationSec > 0) {
+                org.siloserver.silo.tv.ui.components.vantage.VChip(
+                    "${fmt.format(java.util.Date(now))} \u00B7 ends ${fmt.format(java.util.Date(now + leftMs))}",
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(end = TvPlayerChrome.SideInset, top = 26.dp),
+                )
+            }
+        }
+
         // Bottom-up: 26dp inset, 44dp transport, 16dp, scrubber (28dp bar
         // + 8dp + clock row), 16dp, then the eyebrow and title. The skip
         // indicator and the subtitle lift below are placed from these numbers.

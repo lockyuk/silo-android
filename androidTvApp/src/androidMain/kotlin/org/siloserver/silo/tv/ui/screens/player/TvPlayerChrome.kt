@@ -16,22 +16,22 @@ import org.siloserver.silo.tv.ui.theme.InterFamily
  * Ink content, never a scale, as on tvOS.
  */
 internal object TvPlayerChrome {
-    val Paper = Color(0xFFEDEDED)
-    val Ink = Color(0xFF0B0B0C)
+    val Paper = Color(0xFFF4F6FB)
+    val Ink = Color(0xFF0A0C12)
     val Graphite = Paper.copy(alpha = 0.60f)
     val Faint = Paper.copy(alpha = 0.38f)
     val InkMuted = Ink.copy(alpha = 0.58f)
 
     /** Panels and menus over the picture. Opaque enough that nothing reads through. */
-    val Smoke = Color(0xFF131417).copy(alpha = 0.955f)
+    val Smoke = Color(0xFF10121A).copy(alpha = 0.92f)
 
     /** Dialog and anchored-menu cards: fully opaque. */
-    val Card = Color(0xFF17181B)
-    val PanelStroke = Color.White.copy(alpha = 0.10f)
+    val Card = Color(0xFF12141C)
+    val PanelStroke = Color.White.copy(alpha = 0.14f)
 
     /** Transport buttons at rest: a dark disc and a ring, so they read on letterbox bars. */
-    val ButtonRest = Color.Black.copy(alpha = 0.38f)
-    val ButtonRing = Color.White.copy(alpha = 0.24f)
+    val ButtonRest = Color(0xFF10121A).copy(alpha = 0.58f)
+    val ButtonRing = Color.White.copy(alpha = 0.14f)
 
     /** A selected row that does not have focus. */
     val Selected = Color.White.copy(alpha = 0.075f)
@@ -42,8 +42,8 @@ internal object TvPlayerChrome {
     val StopText = Color(0xFFFF6961)
     val StopRest = Stop.copy(alpha = 0.12f)
 
-    val SideInset = 48.dp
-    val BottomInset = 26.dp
+    val SideInset = 33.dp
+    val BottomInset = 22.dp
 }
 
 /**
@@ -66,7 +66,7 @@ internal object TvPlayerType {
         color = TvPlayerChrome.Graphite,
     )
     val Title = base.copy(fontSize = 27.sp, lineHeight = 33.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.018).em)
-    val Time = base.copy(fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum")
+    val Time = base.copy(fontFamily = org.siloserver.silo.tv.ui.theme.VantageMonoFamily, fontSize = 15.sp, lineHeight = 19.sp, fontWeight = FontWeight.Medium)
     val ButtonLabel = base.copy(fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold)
     val ButtonValue = ButtonLabel.copy(fontWeight = FontWeight.Medium)
     val Tab = base.copy(fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold)
@@ -76,9 +76,10 @@ internal object TvPlayerType {
     val Value = RowDetail
 
     /** Columns of times and counts that must line up, such as chapter starts. */
-    val Figures = RowDetail.copy(fontFeatureSettings = "tnum")
+    val Figures = RowDetail.copy(fontFamily = org.siloserver.silo.tv.ui.theme.VantageMonoFamily)
     val Chip = base.copy(
-        fontSize = 9.sp,
+        fontFamily = org.siloserver.silo.tv.ui.theme.VantageMonoFamily,
+        fontSize = 9.5.sp,
         lineHeight = 11.sp,
         fontWeight = FontWeight.Bold,
         letterSpacing = 0.07.em,

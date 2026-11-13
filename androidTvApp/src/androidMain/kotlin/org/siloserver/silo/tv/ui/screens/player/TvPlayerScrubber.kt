@@ -419,7 +419,7 @@ fun TvPlayerScrubber(
                     chapterFractions = chapterFractions,
                     trackColor = Color.White.copy(alpha = trackAlpha),
                     bufferedColor = Color.White.copy(alpha = 0.20f),
-                    playedColor = org.siloserver.silo.tv.ui.theme.Aurora.VioletLight,
+                    playedColor = org.siloserver.silo.tv.ui.theme.Level.Accent,
                     playedFraction = totalProgress,
                     bufferedFraction = bufferedFrac.coerceAtLeast(totalProgress),
                     bands = markerBands,

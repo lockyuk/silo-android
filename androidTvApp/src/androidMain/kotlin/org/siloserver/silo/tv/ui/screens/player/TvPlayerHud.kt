@@ -728,7 +728,8 @@ internal fun visibleHudTabs(
     chapters: List<VersionChapter>,
 ): List<HudTab> = buildList {
     add(HudTab.Info)
-    if (stats.hasHudRows()) add(HudTab.Stats)
+    // Vantage: stream stats live on the Server page only, never in the player.
+    if (false && stats.hasHudRows()) add(HudTab.Stats)
     add(HudTab.Video)
     if (audioTracks.isNotEmpty()) add(HudTab.Audio)
     // Subtitles is always available (unlike tvOS, which hides it when empty):

@@ -692,6 +692,8 @@ fun TvMainShell(
             avatar = activeProfile?.avatarRef() ?: ProfileAvatarRef.None,
             subtitle = subtitle,
             serverName = activeServerEntry?.displayName.orEmpty(),
+            isAdmin = user.role.trim().lowercase().let { it == "admin" || it == "owner" } &&
+                activeProfile?.isPrimary != false,
         )
     }
 
@@ -1490,6 +1492,11 @@ fun TvMainShell(
                         entryRequest = forYouEntryRequest,
                     )
                 }
+                shellComposable(TvMainRoute.Server.route) {
+                    org.siloserver.silo.tv.ui.screens.server.TvServerScreen(
+                        serverName = accountSnapshot.serverName.ifBlank { "Silo" },
+                    )
+                }
                 shellComposable(TvMainRoute.Requests.route) {
                     TvRequestsPage(
                         onOpenLibraryItem = onOpenItemDetail,
@@ -1682,6 +1689,9 @@ fun TvMainShell(
             showRequests = requestsEnabled,
             requestsSelected = currentRoute == TvMainRoute.Requests.route,
             onRequestsClick = openRequests,
+            showServer = accountSnapshot.isAdmin,
+            serverSelected = currentRoute == TvMainRoute.Server.route,
+            onServerClick = { navigateToSecondary(TvMainRoute.Server.route) },
             // Request detail is a full detail page like a library title's,
             // which has no bar either (tvOS pushes it over the tab).
             visibility = if (currentRoute == TvMainRoute.Settings.route || currentRoute == TvMainRoute.RequestDetail.ROUTE) {

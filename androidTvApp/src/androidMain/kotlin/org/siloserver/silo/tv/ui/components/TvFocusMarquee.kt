@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -177,62 +178,50 @@ private fun TvMarqueeBlock(
 
     Column(
         modifier = Modifier.widthIn(max = MarqueeContentWidth),
-        verticalArrangement = Arrangement.spacedBy(0.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // Label: RESUME / the row's name, the episode and the time left, in accent mono.
+        // Vantage tagline: CONTINUE / the row's name, the episode and the time left.
         val position = src.positionSeconds
         val duration = src.durationSeconds
         val labelParts = buildList {
-            add(if (position != null) "Resume" else (eyebrow ?: ""))
+            add(if (position != null && position > 0) "Continue" else (eyebrow ?: ""))
             val season = src.seasonNumber
             val episode = src.episodeNumber
-            if (season != null && episode != null) add("S$season\u00B7E$episode")
-            if (position != null && duration != null && duration > position) {
+            if (season != null && episode != null) add("S$season E$episode")
+            if (position != null && duration != null && duration > position && position > 0) {
                 add("${((duration - position) / 60.0).toInt().coerceAtLeast(1)} min left")
             }
         }.filter { it.isNotBlank() }
         if (labelParts.isNotEmpty()) {
-            Text(
-                text = labelParts.joinToString(" \u00B7 ").uppercase(),
-                color = level.Accent,
-                fontFamily = LevelMonoFamily,
-                fontWeight = FontWeight.Medium,
-                fontSize = 9.5.sp,
-                letterSpacing = 1.3.sp,
-                maxLines = 1,
-            )
+            org.siloserver.silo.tv.ui.components.vantage.VTag(labelParts.joinToString(" \u00B7 "))
         }
-        // The title in condensed display type: text, never a logo image.
-        Text(
-            text = content.title.uppercase(),
-            color = level.Fg,
-            fontFamily = LevelDisplayFamily,
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = 60.sp,
-            lineHeight = 56.sp,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            onTextLayout = { titleLineCount = it.lineCount },
-            modifier = Modifier.padding(top = 4.dp),
-        )
-        // Chips: certificate, year, scores and quality.
+        // The clear logo; the title in Outfit when there is none.
+        VantageLogo(content, onLines = { titleLineCount = it })
+        // Chips: certificate (solid), year, genre, quality; then IMDb / RT / TMDB scores.
         Row(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp * 0.75f),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(top = 6.dp),
         ) {
-            content.badges.forEach { LevelChip(it) }
-            src.year.takeIf { it > 0 }?.let { LevelChip(it.toString()) }
-            src.ratingImdb?.let { LevelChip(String.format("%.1f", it), tag = "IMDb") }
-            src.ratingRtCritic?.let { LevelChip("$it%", tag = "RT") }
-            val quality = content.specLine?.split(" \u00B7 ")?.firstOrNull { it.isNotBlank() }?.let { q ->
+            val cert = src.contentRating?.takeIf { it.isNotBlank() } ?: content.badges.firstOrNull()
+            cert?.let { org.siloserver.silo.tv.ui.components.vantage.VChip(it.uppercase(), org.siloserver.silo.tv.ui.components.vantage.ChipTone.Solid) }
+            src.year.takeIf { it > 0 }?.let { org.siloserver.silo.tv.ui.components.vantage.VChip(it.toString()) }
+            src.genres.firstOrNull()?.let { org.siloserver.silo.tv.ui.components.vantage.VChip(it.uppercase()) }
+            val spec = content.specLine?.split(" \u00B7 ")?.filter { it.isNotBlank() }.orEmpty()
+            val quality = spec.firstOrNull()?.let { q ->
                 when {
                     q.contains("4K", true) || q.contains("2160") -> "4K"
-                    q.contains("1080") || q.contains("720") || q.contains("HD", true) -> "HD"
+                    q.contains("1080") -> "1080p"
+                    q.contains("720") -> "720p"
                     else -> q.uppercase()
                 }
             }
-            quality?.let { LevelChip(it) }
+            if (quality != null) {
+                val extra = spec.drop(1).take(2).joinToString(" \u00B7 ") { it.uppercase() }
+                org.siloserver.silo.tv.ui.components.vantage.VChip(if (extra.isBlank()) "" else " $extra", bold = quality)
+            }
+            src.ratingImdb?.let { VantageRate("IMDb", Color(0xFFF5C518), Color.Black, String.format("%.1f", it)) }
+            src.ratingRtCritic?.let { VantageRate("RT", Color(0xFFFA320A), Color.White, "$it%") }
+            if (src.ratingImdb == null) src.ratingTmdb?.let { VantageRate("TM", Color(0xFF01B4E4), Color.White, String.format("%.1f", it)) }
         }
 
         synopsisText?.let { synopsis ->
@@ -248,19 +237,60 @@ private fun TvMarqueeBlock(
             }
             Text(
                 text = synopsis,
-                color = level.Muted,
-                fontSize = 13.sp,
-                lineHeight = 18.5.sp,
-                maxLines = if (titleLineCount > 1) 2 else 3,
+                style = org.siloserver.silo.tv.ui.components.vantage.ui(15, FontWeight.Normal, level.Synopsis),
+                lineHeight = 18.sp,
+                maxLines = if (titleLineCount > 1) 3 else 5,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
-                    .padding(top = 8.dp)
                     .widthIn(max = MarqueeSynopsisMaxWidth)
                     .drawAlpha { pulse?.value ?: 1f },
             )
         }
 
         footer?.invoke(content)
+    }
+}
+
+/** The clear logo (with its drop shadow), falling back to the title in Outfit. */
+@Composable
+private fun VantageLogo(content: TvMarqueeContent, onLines: (Int) -> Unit) {
+    val logoUrl = titleLogoUrl(content.logoUrl)
+    var failed by remember(logoUrl) { mutableStateOf(false) }
+    if (logoUrl.isNullOrBlank() || failed) {
+        Text(
+            text = content.title,
+            style = org.siloserver.silo.tv.ui.components.vantage.ui(54, FontWeight.SemiBold),
+            lineHeight = 46.sp,
+            letterSpacing = (-0.8).sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            onTextLayout = { onLines(it.lineCount) },
+        )
+    } else {
+        Box(Modifier.height(MarqueeLogoMaxHeight).widthIn(max = MarqueeLogoMaxWidth), contentAlignment = Alignment.CenterStart) {
+            ThumbhashImage(
+                url = logoUrl,
+                thumbhash = null,
+                contentDescription = content.title,
+                contentScale = ContentScale.Fit,
+                alignment = Alignment.CenterStart,
+                transparent = true,
+                crossfadeMillis = 0,
+                onError = { failed = true },
+                modifier = Modifier.fillMaxHeight().widthIn(max = MarqueeLogoMaxWidth),
+            )
+        }
+    }
+}
+
+/** A score: a coloured brand tag and the value in mono (.rate). */
+@Composable
+private fun VantageRate(tag: String, bg: Color, fg: Color, value: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.background(bg, RoundedCornerShape(4.dp)).padding(horizontal = 4.dp, vertical = 2.dp)) {
+            Text(tag, style = org.siloserver.silo.tv.ui.components.vantage.mono(9, FontWeight.Bold, fg))
+        }
+        Text(value, style = org.siloserver.silo.tv.ui.components.vantage.mono(13))
     }
 }
 
@@ -321,10 +351,10 @@ private fun MarqueeBadge(label: String) {
 // Skyline marquee metrics. Geometry stays ~0.5x of the tvOS 1920×1080 tokens;
 // body text stays at the 10-ft legibility floor; the compact outlined badges
 // intentionally follow the smaller tvOS metadata treatment.
-private val MarqueeContentWidth = 470.dp
-private val MarqueeSynopsisMaxWidth = 470.dp
-private val MarqueeLogoMaxWidth = 440.dp
-private val MarqueeLogoMaxHeight = 72.dp
+private val MarqueeContentWidth = 420.dp
+private val MarqueeSynopsisMaxWidth = 405.dp
+private val MarqueeLogoMaxWidth = 340.dp
+private val MarqueeLogoMaxHeight = 92.dp
 private val MarqueeDetailLineHeight = 20.dp
 private val MarqueeTitleSize = 44.sp
 private val MarqueeMetaSize = 14.sp

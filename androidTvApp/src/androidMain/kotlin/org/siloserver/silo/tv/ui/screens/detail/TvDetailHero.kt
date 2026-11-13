@@ -120,12 +120,12 @@ internal fun TvDetailHero(
             .height(heroHeight)
             .then(if (compactSeries) Modifier else Modifier.clipToBounds()),
     ) {
-        val artworkWidth = maxWidth * ARTWORK_WIDTH_FRACTION
-        val artworkHeight = maxWidth * 9f / 16f * ARTWORK_HEIGHT_FRACTION
-
-        // Crisp artwork in the top-right. DstIn multiplies the horizontal and
-        // vertical alpha ramps without painting black over the sampled page.
+        // Vantage: the backdrop is full-bleed behind the whole first screen, darkened to the left
+        // and into the page at the bottom so the logo and copy read on top of it.
+        val artworkWidth = maxWidth
+        val artworkHeight = maxWidth * 9f / 16f
         if (!backdropUrl.isNullOrEmpty() || !backdropThumbhash.isNullOrEmpty()) {
+            val bg = org.siloserver.silo.tv.ui.theme.Level.Bg
             ThumbhashImage(
                 url = backdropUrl,
                 thumbhash = backdropThumbhash,
@@ -133,33 +133,27 @@ internal fun TvDetailHero(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    // Movie and Series artwork share the same top edge. A
-                    // layout offset here exposed the sampled page tint as a
-                    // grey strip above only the Series image.
                     .width(artworkWidth)
                     .height(artworkHeight)
-                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
                     .drawWithContent {
                         drawContent()
                         drawRect(
-                            brush = Brush.horizontalGradient(
-                                0.00f to Color.Transparent,
-                                0.68f to Color.Black,
-                                1.00f to Color.Black,
+                            Brush.horizontalGradient(
+                                0.00f to bg.copy(alpha = 0.90f),
+                                0.45f to bg.copy(alpha = 0.50f),
+                                0.75f to Color.Transparent,
                             ),
-                            blendMode = BlendMode.DstIn,
                         )
+                        // The hero box is shorter than the artwork: fade to the page by its bottom.
+                        val fadeEnd = (heroHeight.toPx() / size.height).coerceIn(0.3f, 1f)
                         drawRect(
-                            brush = Brush.verticalGradient(
-                                0.00f to Color.Black,
-                                0.38f to Color.Black,
-                                0.52f to Color.Black.copy(alpha = 0.88f),
-                                0.68f to Color.Black.copy(alpha = 0.58f),
-                                0.81f to Color.Black.copy(alpha = 0.24f),
-                                0.90f to Color.Transparent,
+                            Brush.verticalGradient(
+                                0f to Color.Transparent,
+                                fadeEnd * 0.55f to Color.Transparent,
+                                fadeEnd * 0.82f to bg.copy(alpha = 0.6f),
+                                fadeEnd to bg,
+                                1f to bg,
                             ),
-                            size = Size(size.width, size.height),
-                            blendMode = BlendMode.DstIn,
                         )
                     },
             )
@@ -360,10 +354,11 @@ private fun EditorialColumn(
 private fun HeroCreditLine(line: String) {
     Text(
         text = line,
+        fontFamily = org.siloserver.silo.tv.ui.theme.VantageMonoFamily,
         fontWeight = FontWeight.Medium,
-        fontSize = 12.sp,
+        fontSize = 11.sp,
         lineHeight = 14.sp,
-        color = Color.White.copy(alpha = 0.62f),
+        color = org.siloserver.silo.tv.ui.theme.Level.Dim,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
     )
@@ -409,7 +404,7 @@ private fun HeroTextTitle(title: String) {
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Text(
-            text = parts.first.uppercase(),
+            text = parts.first,
             style = heroDisplayHero,
             color = Color.White,
             textAlign = TextAlign.Start,
@@ -417,9 +412,9 @@ private fun HeroTextTitle(title: String) {
         )
         parts.second?.let { sub ->
             Text(
-                text = sub.uppercase(),
+                text = sub,
                 style = heroDisplayHero.copy(
-                    fontWeight = FontWeight.ExtraBold,
+                    fontWeight = FontWeight.Medium,
                     fontSize = 20.sp,
                     lineHeight = 22.sp,
                     // tvOS `.tracking(1.5)` → 0.75sp at half scale.
@@ -455,7 +450,7 @@ private fun EpisodeHierarchyTitle(
             )
         } else {
             Text(
-                text = seriesTitle.uppercase(),
+                text = seriesTitle,
                 style = heroDisplayHero,
                 color = Color.White,
                 textAlign = TextAlign.Start,
@@ -465,7 +460,7 @@ private fun EpisodeHierarchyTitle(
         Text(
             text = episodeTitle,
             style = heroDisplayHero.copy(
-                fontWeight = FontWeight.ExtraBold,
+                fontWeight = FontWeight.Medium,
                 // The episode hierarchy shares the compact Series hero with
                 // its persistent actions. A slightly smaller two-line title
                 // keeps long episode names readable without colliding with
@@ -521,10 +516,12 @@ private fun MetadataRow(
     val factTokens = tokens - ratingTokens.toSet()
     val style = LocalTextStyle.current.merge(
         TextStyle(
+            fontFamily = org.siloserver.silo.tv.ui.theme.VantageMonoFamily,
             fontWeight = FontWeight.Medium,
-            fontSize = 14.sp,
-            lineHeight = 16.sp,
-            color = Color.White.copy(alpha = 0.88f),
+            fontSize = 12.sp,
+            lineHeight = 15.sp,
+            letterSpacing = 0.5.sp,
+            color = org.siloserver.silo.tv.ui.theme.Level.Dim,
         ),
     )
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -550,30 +547,8 @@ private fun MetadataRow(
 
 @Composable
 private fun RatingChip(text: String, compact: Boolean) {
-    Box(
-        modifier = Modifier
-            .border(
-                width = 0.75.dp,
-                color = Color.White.copy(alpha = 0.7f),
-                shape = RoundedCornerShape(2.5.dp),
-            )
-            .padding(
-                horizontal = if (compact) 6.dp else 8.dp,
-                vertical = if (compact) 2.dp else 3.dp,
-            ),
-    ) {
-        // Compact detail ratings use the tvOS 20pt badge mapped to Android's
-        // half-scale canvas.
-        Text(
-            text = text,
-            fontWeight = FontWeight.Black,
-            fontSize = if (compact) 10.5.sp else 14.sp,
-            lineHeight = if (compact) 12.sp else 16.sp,
-            letterSpacing = if (compact) 0.35.sp else 0.5.sp,
-            color = Color.White,
-            maxLines = 1,
-        )
-    }
+    // Vantage: the certificate is the solid white chip.
+    org.siloserver.silo.tv.ui.components.vantage.VChip(text.uppercase(), org.siloserver.silo.tv.ui.components.vantage.ChipTone.Solid)
 }
 
 private fun splitDisplayTitle(raw: String): Pair<String, String?> {
@@ -625,8 +600,8 @@ private val heroCondensedFamily = FontFamily(
  * local so the shared home `heroDisplay` token stays unchanged.
  */
 private val heroDisplayHero = TextStyle(
-    fontFamily = heroCondensedFamily,
-    fontWeight = FontWeight.Black,
+    fontFamily = org.siloserver.silo.tv.ui.theme.VantageUiFamily,
+    fontWeight = FontWeight.SemiBold,
     // tvOS uses 92pt in its 1920x1080 POINT canvas; Android TV is a 960x540 DP
     // canvas (≈half) → 46sp, trimmed to 42sp per design review (2026-07-11).
     fontSize = 42.sp,

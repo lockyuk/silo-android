@@ -6,25 +6,25 @@ import androidx.compose.ui.graphics.Color
 // every accent. Token names from the legacy lavender palette are kept so existing
 // consumers compile unchanged; values now resolve to tvOS-faithful tones.
 
-val SiloPrimary = Color(0xFFEDEDED)
-val SiloOnSurface = Color(0xFFEDEDED)
+val SiloPrimary = Color(0xFFF4F6FB)
+val SiloOnSurface = Color(0xFFF4F6FB)
 // 0.75 (was 0.60): 10-ft legibility floor for supporting text — audit 2026-07-20.
-val SiloSecondaryText = Color(0xFFEDEDED).copy(alpha = 0.75f)
+val SiloSecondaryText = Color(0xFFF4F6FB).copy(alpha = 0.75f)
 
-val DarkBackground = Color(0xFF07060D)
-val DarkSurface = Color(0xFF0D0B14)
-val DarkSurfaceVariant = Color(0xFF14121E)
-val DarkSurfaceElevated = Color(0xFF1B1828)
+val DarkBackground = Color(0xFF07080C)
+val DarkSurface = Color(0xFF10121A)
+val DarkSurfaceVariant = Color(0xFF171A24)
+val DarkSurfaceElevated = Color(0xFF1E2230)
 
 val DarkOnBackground = SiloOnSurface
 val DarkOnSurface = SiloOnSurface
 val DarkOnSurfaceVariant = SiloSecondaryText
 val DarkOnPrimary = DarkBackground
 
-val ErrorRed = Color(0xFFB00020)
-val SuccessGreen = Color(0xFF34C759)
+val ErrorRed = Color(0xFFFF6B6B)
+val SuccessGreen = Color(0xFF5BE3A8)
 
-val DarkOutline = Color.White.copy(alpha = 0.12f)
+val DarkOutline = Color.White.copy(alpha = 0.14f)
 val DarkOutlineVariant = Color.White.copy(alpha = 0.08f)
 val Scrim = Color(0xFF000000)
 

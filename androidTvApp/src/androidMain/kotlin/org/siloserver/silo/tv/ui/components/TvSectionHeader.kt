@@ -52,16 +52,21 @@ fun TvSectionHeader(
                     color = Color.White.copy(alpha = 0.7f),
                 )
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                // Vantage .sec: the row title in Outfit, then a quiet mono note.
                 Text(
-                    text = title.uppercase(),
-                    color = org.siloserver.silo.tv.ui.theme.Level.Muted,
-                    fontFamily = org.siloserver.silo.tv.ui.theme.LevelMonoFamily,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
-                    fontSize = 9.5.sp,
-                    letterSpacing = 1.3.sp,
+                    text = title,
+                    style = org.siloserver.silo.tv.ui.components.vantage.ui(17, androidx.compose.ui.text.font.FontWeight.SemiBold),
                     maxLines = 1,
                 )
+                sectionNote(title)?.let {
+                    Text(
+                        text = it,
+                        style = org.siloserver.silo.tv.ui.components.vantage.mono(11, androidx.compose.ui.text.font.FontWeight.Normal, org.siloserver.silo.tv.ui.theme.Level.Faint),
+                        maxLines = 1,
+                        modifier = Modifier.padding(bottom = 1.dp),
+                    )
+                }
             }
         }
         if (onSeeAllClick != null) {
@@ -91,5 +96,16 @@ fun TvSectionHeader(
                 )
             }
         }
+    }
+}
+
+/** The mono note beside a row title, for rows whose order is worth saying. */
+private fun sectionNote(title: String): String? {
+    val t = title.lowercase()
+    return when {
+        "continue" in t || "resume" in t -> "last played first"
+        "next up" in t || "up next" in t -> "next episodes"
+        "recently added" in t || "new" == t || "latest" in t -> "newest first"
+        else -> null
     }
 }
