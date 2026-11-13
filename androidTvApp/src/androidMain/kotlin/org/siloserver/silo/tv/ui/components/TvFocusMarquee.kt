@@ -94,9 +94,11 @@ fun TvFocusMarquee(
             // topPadding reserves the top-menu-bar zone: the block is
             // bottom-anchored, so any growth (typography floors) pushes it
             // upward — without this clamp it renders beneath the bar.
-            .padding(start = startPadding, top = topPadding, bottom = bottomPadding)
+            // Vantage: the block hangs from just under the menu bar, so the logo always starts
+            // at the same height and nothing leaves a gap at the top left.
+            .padding(start = startPadding, top = topPadding + MarqueeTopGap, bottom = bottomPadding)
             .clipToBounds(),
-        contentAlignment = Alignment.BottomStart,
+        contentAlignment = Alignment.TopStart,
     ) {
         // tvOS first-frame parity: the FIRST content snaps in with no
         // animation — a cold entry paints the finished marquee block instead
@@ -122,7 +124,7 @@ fun TvFocusMarquee(
             ) { value ->
                 Box(
                     modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.BottomStart,
+                    contentAlignment = Alignment.TopStart,
                 ) {
                     if (value != null) {
                         // A layer for the item still shown takes its current
@@ -259,11 +261,16 @@ private fun TvMarqueeBlock(
     }
 }
 
-/** The clear logo (with its drop shadow), falling back to the title in Outfit. */
+/**
+ * The clear logo, falling back to the title in Outfit. Logos come in every shape, so each is
+ * sized to the same visual weight: about the same area, whatever its aspect ratio, within a
+ * fixed height and width range. A wide wordmark and a stacked square logo then look alike.
+ */
 @Composable
 private fun VantageLogo(content: TvMarqueeContent, onLines: (Int) -> Unit) {
     val logoUrl = titleLogoUrl(content.logoUrl)
     var failed by remember(logoUrl) { mutableStateOf(false) }
+    var aspect by remember(logoUrl) { mutableStateOf<Float?>(null) }
     if (logoUrl.isNullOrBlank() || failed) {
         Text(
             text = content.title,
@@ -275,21 +282,38 @@ private fun VantageLogo(content: TvMarqueeContent, onLines: (Int) -> Unit) {
             onTextLayout = { onLines(it.lineCount) },
         )
     } else {
-        Box(Modifier.height(MarqueeLogoMaxHeight).widthIn(max = MarqueeLogoMaxWidth), contentAlignment = Alignment.CenterStart) {
-            ThumbhashImage(
-                url = logoUrl,
-                thumbhash = null,
+        val a = aspect ?: 3.2f
+        // Same area for every logo: width = sqrt(area * aspect), clamped.
+        val width = kotlin.math.sqrt(LogoArea * a).coerceIn(LogoMinWidth, LogoMaxWidth)
+        val height = (width / a).coerceIn(LogoMinHeight, LogoMaxHeight)
+        Box(
+            Modifier
+                .height(height.dp)
+                .width(width.dp)
+                .graphicsLayer { alpha = if (aspect == null) 0f else 1f },
+            contentAlignment = Alignment.BottomStart,
+        ) {
+            coil3.compose.AsyncImage(
+                model = logoUrl,
                 contentDescription = content.title,
                 contentScale = ContentScale.Fit,
-                alignment = Alignment.CenterStart,
-                transparent = true,
-                crossfadeMillis = 0,
+                alignment = Alignment.BottomStart,
+                onSuccess = { state ->
+                    val img = state.result.image
+                    if (img.width > 0 && img.height > 0) aspect = img.width.toFloat() / img.height
+                },
                 onError = { failed = true },
-                modifier = Modifier.fillMaxHeight().widthIn(max = MarqueeLogoMaxWidth),
+                modifier = Modifier.fillMaxSize(),
             )
         }
     }
 }
+
+private const val LogoArea = 300f * 74f
+private const val LogoMinWidth = 130f
+private const val LogoMaxWidth = 360f
+private const val LogoMinHeight = 44f
+private const val LogoMaxHeight = 104f
 
 /** A score: a coloured brand tag and the value in mono (.rate). */
 @Composable
@@ -360,6 +384,9 @@ private fun MarqueeBadge(label: String) {
 // body text stays at the 10-ft legibility floor; the compact outlined badges
 // intentionally follow the smaller tvOS metadata treatment.
 private val MarqueeContentWidth = 420.dp
+
+/** Space between the menu bar and the top of the block. */
+private val MarqueeTopGap = 14.dp
 private val MarqueeSynopsisMaxWidth = 405.dp
 private val MarqueeLogoMaxWidth = 340.dp
 private val MarqueeLogoMaxHeight = 92.dp
