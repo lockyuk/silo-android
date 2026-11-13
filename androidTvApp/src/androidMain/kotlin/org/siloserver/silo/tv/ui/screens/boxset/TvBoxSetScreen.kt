@@ -12,6 +12,48 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import org.siloserver.silo.model.catalog.yearsLabel
+import org.siloserver.silo.tv.ui.components.vantage.ChipTone
+import org.siloserver.silo.tv.ui.components.vantage.VBar
+import org.siloserver.silo.tv.ui.components.vantage.VButton
+import org.siloserver.silo.tv.ui.components.vantage.VChip
+import org.siloserver.silo.tv.ui.components.vantage.VDot
+import org.siloserver.silo.tv.ui.components.vantage.VArt
+import org.siloserver.silo.tv.ui.components.vantage.VLabel
+import org.siloserver.silo.tv.ui.components.vantage.VPanel
+import org.siloserver.silo.tv.ui.components.vantage.VRing
+import org.siloserver.silo.tv.ui.components.vantage.VSection
+import org.siloserver.silo.tv.ui.components.vantage.VTag
+import org.siloserver.silo.tv.ui.theme.animatedAccent
+import org.siloserver.silo.tv.ui.components.vantage.mono
+import org.siloserver.silo.tv.ui.components.vantage.mx
+import org.siloserver.silo.tv.ui.components.vantage.ui
+import org.siloserver.silo.tv.ui.theme.Level
+import org.siloserver.silo.tv.ui.theme.VantageCard
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -116,14 +158,19 @@ private fun BoxSetContent(
     onOpenMovie: (contentId: String) -> Unit,
 ) {
     val boxSet = detail.boxSet
-    val next = boxSetNextMovie(detail.items)
+    // Story order is offered only for box sets with a hand-kept list (see BoxSetStoryOrder).
+    val storyItems = remember(detail.items, boxSet.id) { BoxSetStoryOrder.apply(boxSet.id, detail.items) }
+    var storyOrder by rememberSaveable(boxSet.id) { mutableStateOf(false) }
+    val showStory = storyOrder && storyItems != null
+    val items = if (showStory) storyItems!! else detail.items
+    val next = boxSetNextMovie(items)
     // Each movie's card menu marks it watched or adds it to a list, as on the
     // library grid; the view model moves the hero's count and play target.
     val coordinator: MediaActionsCoordinator = koinInject()
     val context = LocalContext.current.applicationContext
     val membershipActions by coordinator.memberships.actions.collectAsState()
-    val movies = remember(detail.items, membershipActions) {
-        detail.items.map { movie ->
+    val movies = remember(items, membershipActions) {
+        items.map { movie ->
             movie.toSectionItem().copy(
                 userState = coordinator.withMembershipChanges(movie.contentId, movie.userState, membershipActions),
             )
@@ -199,91 +246,136 @@ private fun BoxSetContent(
     val tint = rememberAmbientBackdropTintState()
     LaunchedEffect(boxSet.backdropUrl) { tint.set(item = null, url = boxSet.backdropUrl) }
     val listState = rememberLazyListState()
+
+    // The clear logo belongs to the movies, not the collection: use the one for the movie Play starts.
+    val catalogApi: org.siloserver.silo.network.api.CatalogApi = koinInject()
+    val logoSource = (next ?: items.firstOrNull())?.contentId
+    var logoUrl by remember(logoSource) { mutableStateOf<String?>(null) }
+    LaunchedEffect(logoSource) {
+        val id = logoSource ?: return@LaunchedEffect
+        val r = runCatching { catalogApi.getItemDetail(id) }.getOrNull()
+        if (r is org.siloserver.silo.network.ApiResult.Success) logoUrl = r.data.logoUrl
+    }
+    val facts = remember(detail.items) { BoxSetFacts.of(detail.items) }
+    val firstCardFocus = remember(movies.size) { List(movies.size) { FocusRequester() } }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .onFocusChanged { screenHasFocus = it.hasFocus }
-            .background(org.siloserver.silo.tv.ui.theme.Level.Bg),
+            .background(Level.Bg),
     ) {
-        // Vantage: the backdrop fills the page behind the hero and the row.
         org.siloserver.silo.tv.ui.screens.detail.TvVantagePageBackdrop(boxSet.backdropUrl, boxSet.backdropThumbhash, listState)
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            state = listState,
-            contentPadding = PaddingValues(bottom = TvDetailPageBottomPadding),
+
+        val grid = org.siloserver.silo.tv.ui.theme.TvGrid
+        // Kicker, logo, facts, synopsis and Play sit on the shared title-page grid.
+        Row(
+            Modifier.offset(x = grid.edge, y = grid.kickerTop).width(grid.leftW).height(grid.kickerH),
+            horizontalArrangement = Arrangement.spacedBy(8.mx), verticalAlignment = Alignment.CenterVertically,
         ) {
-            item(key = "hero", contentType = "detail-hero") {
-                TvDetailHero(
-                    title = boxSet.title,
-                    seriesTitle = null,
-                    logoUrl = null,
-                    backdropUrl = null,
-                    backdropThumbhash = null,
-                    sourceTokens = listOf("COLLECTION"),
-                    ratingChip = null,
-                    overview = boxSet.overview,
-                    tagline = null,
-                    factsLine = (listOf("Box set") + boxSet.heroFacts()).map { TvHeroFactToken.TextToken(it) },
-                    directorText = null,
-                    actions = {
-                        if (next != null) {
-                            TvPrimaryPillButton(
-                                stableHero = true,
-                                icon = Icons.Filled.PlayArrow,
-                                title = boxSet.playLabel(next),
-                                onClick = { onPlayMovie(next.contentId, next.boxSetResumePosition()) },
-                                focusRequester = playFocus,
-                                modifier = Modifier
-                                    .onFocusChanged { playFocused = it.hasFocus }
-                                    // Down starts the row at its first movie, not
-                                    // whichever card sits under the button.
-                                    .focusProperties { down = firstMovieFocus },
-                            )
-                        }
-                    },
+            VChip("COLLECTION")
+            VChip(boxSetFilmCount(boxSet.movieCount).uppercase().replace("FILMS", "MOVIES").replace("FILM", "MOVIE"))
+            boxSet.yearsLabel()?.let { Spacer(Modifier.width(6.mx)); VTag(it) }
+        }
+        Box(Modifier.offset(x = grid.edge, y = grid.logoTop).size(grid.logoW, grid.logoH), contentAlignment = Alignment.CenterStart) {
+            if (!logoUrl.isNullOrBlank()) {
+                coil3.compose.AsyncImage(
+                    model = logoUrl,
+                    contentDescription = boxSet.title,
+                    contentScale = ContentScale.Fit,
+                    alignment = Alignment.CenterStart,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Text(boxSet.title.uppercase(), style = ui(58, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        Row(
+            Modifier.offset(x = grid.edge, y = grid.factsTop).width(grid.leftW).height(grid.factsH),
+            horizontalArrangement = Arrangement.spacedBy(8.mx), verticalAlignment = Alignment.CenterVertically,
+        ) {
+            facts.contentRating?.let { VChip(it, tone = ChipTone.Solid) }
+            facts.genres.forEach { VChip(it.uppercase()) }
+            facts.totalRuntime?.let { VChip(it) }
+            facts.avgImdb?.let { Text("IMDb %.1f".format(it), style = mono(13), modifier = Modifier.padding(start = 6.mx)) }
+        }
+        Box(Modifier.offset(x = grid.edge, y = grid.synopsisTop).width(grid.synopsisW).height(grid.synopsisH).clipToBounds()) {
+            boxSet.overview?.takeIf { it.isNotBlank() }?.let {
+                Text(it, style = ui(14, FontWeight.Normal, Level.Dim), maxLines = 5, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        Row(
+            Modifier.offset(x = grid.edge, y = grid.actionTop).height(grid.actionH),
+            horizontalArrangement = Arrangement.spacedBy(12.mx),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val downToRow = Modifier.focusProperties { down = firstCardFocus.getOrElse(if (returnIndex >= 0) returnIndex else 0) { firstMovieFocus } }
+            if (next != null) {
+                VButton(
+                    text = boxSet.playLabel(next),
+                    primary = true,
+                    height = 46.mx,
+                    textPx = 15,
+                    small = next.boxSetResumePosition()?.let { clockLabel(it) },
+                    leading = { c -> androidx.compose.material3.Icon(Icons.Filled.PlayArrow, null, tint = c, modifier = Modifier.size(18.dp)) },
+                    onClick = { onPlayMovie(next.contentId, next.boxSetResumePosition()) },
+                    focusRequester = playFocus,
+                    modifier = Modifier
+                        .onFocusChanged { playFocused = it.hasFocus }
+                        .then(downToRow),
                 )
             }
-            item(key = "collection-strip", contentType = "box-set-strip") {
-                val years = listOfNotNull(boxSet.firstYear, boxSet.lastYear).distinct().joinToString(" – ")
-                val left = (boxSet.movieCount - boxSet.playedCount).coerceAtLeast(0)
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.padding(start = TvDetailHorizontalInset, end = TvDetailHorizontalInset, top = 20.dp, bottom = 8.dp),
-                ) {
-                    org.siloserver.silo.tv.ui.screens.detail.TvVantageFactsStrip(
-                        cells = buildList {
-                            add("Collection" to boxSetFilmCount(boxSet.movieCount))
-                            if (years.isNotBlank()) add("Years" to years)
-                            add("Watched" to "${boxSet.playedCount} of ${boxSet.movieCount}")
-                            add("Still to watch" to if (left == 0) "All done" else boxSetFilmCount(left))
-                        },
-                    )
-                    org.siloserver.silo.tv.ui.components.vantage.VBar(boxSet.watchedFraction ?: 0f)
-                }
+            if (storyItems != null) {
+                org.siloserver.silo.tv.ui.components.vantage.VTabChip("Release order", selected = !storyOrder, onFocus = { storyOrder = false }, modifier = downToRow)
+                org.siloserver.silo.tv.ui.components.vantage.VTabChip("Story order", selected = storyOrder, onFocus = { storyOrder = true }, modifier = downToRow)
             }
-            item(key = "movies", contentType = "box-set-movies") {
-                Column(verticalArrangement = Arrangement.spacedBy(TvBoxSetRowHeaderGap)) {
-                    TvDetailSectionHeader(
-                        title = "Movies",
-                        modifier = Modifier.padding(horizontal = TvDetailHorizontalInset),
-                    )
-                    TvMediaRow(
-                        title = "Movies",
-                        showHeader = false,
-                        items = movies,
-                        showProgress = true,
-                        cardActions = cardActions,
-                        onItemClick = { contentId ->
-                            returnIndex = movies.indexOfFirst { it.contentId == contentId }
-                            onOpenMovie(contentId)
+        }
+
+        // Right: progress card.
+        VPanel(
+            Modifier.align(Alignment.TopEnd).padding(top = grid.rightTop, end = grid.edge).width(grid.rightW).height(grid.progressH),
+            gap = 10.mx,
+        ) {
+            VLabel("Your progress")
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.mx)) {
+                org.siloserver.silo.tv.ui.screens.detail.TvGridRing((facts.fraction(detail.items) * 100).toInt(), "${boxSet.playedCount}/${boxSet.movieCount}")
+                Text(
+                    "${facts.watched} watched\n${facts.inProgress} in progress\n${facts.toGo} to go",
+                    style = mono(12, color = Level.Dim), lineHeight = androidx.compose.ui.unit.TextUnit(19f, androidx.compose.ui.unit.TextUnitType.Sp),
+                )
+            }
+            VBar(facts.fraction(detail.items))
+            facts.timeLeft?.let { Text("About $it left", style = mono(11, color = Level.Faint)) }
+        }
+
+        // Bottom: the movies, in release order.
+        Column(
+            modifier = Modifier.offset(x = grid.edge, y = grid.bodyTop).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(grid.rowTop - grid.bodyTop - 16.dp),
+        ) {
+            VSection(if (showStory) "In story order" else "In release order", if (showStory) "the order the story happens" else "the order they came out")
+            androidx.compose.foundation.lazy.LazyRow(
+                contentPadding = PaddingValues(end = 44.mx),
+                horizontalArrangement = Arrangement.spacedBy(grid.cardGap),
+                modifier = Modifier.focusProperties { up = playFocus },
+            ) {
+                itemsIndexed(items, key = { _, m -> m.contentId }) { index, movie ->
+                    BoxSetCard(
+                        movie = movie,
+                        isNext = movie.contentId == next?.contentId,
+                        ordinal = if (showStory) index + 1 else null,
+                        focusRequester = firstCardFocus[index],
+                        onFocused = { focusedMovieIndex = index },
+                        onClick = {
+                            returnIndex = index
+                            onOpenMovie(movie.contentId)
                         },
-                        upFocusRequester = playFocus.takeIf { next != null },
-                        firstItemFocusRequester = firstMovieFocus,
-                        restoreFocusIndex = returnIndex,
-                        restoreFocusRequester = movieReturnFocus.takeIf { returnIndex >= 0 },
-                        restoreFocusRequest = restoreRequest.takeIf { returnIndex >= 0 } ?: 0,
-                        onItemFocusedAtIndex = { _, index -> focusedMovieIndex = index },
-                        onRowFocusChanged = { focused -> if (!focused) focusedMovieIndex = -1 },
+                        onToggleWatched = {
+                            val watched = movie.userState?.played != true
+                            movies.getOrNull(index)?.let { cardActions(it).onSetWatched?.invoke(!(movie.userState?.played == true)) }
+                            Unit
+                        },
+                        modifier = if (index == 0) Modifier.focusRequester(firstMovieFocus) else Modifier,
                     )
                 }
             }
@@ -291,7 +383,125 @@ private fun BoxSetContent(
     }
 }
 
-private val TvBoxSetRowHeaderGap = 20.dp
+/** Totals the page shows, from the box set's movies. */
+private class BoxSetFacts(
+    val contentRating: String?,
+    val genres: List<String>,
+    val totalRuntime: String?,
+    val avgImdb: Double?,
+    val avgRt: Int?,
+    val watched: Int,
+    val inProgress: Int,
+    val toGo: Int,
+    val timeLeft: String?,
+) {
+    fun fraction(items: List<BrowseItem>): Float {
+        if (items.isEmpty()) return 0f
+        val sum = items.sumOf { m ->
+            when {
+                m.userState?.played == true -> 1.0
+                (m.positionSeconds ?: 0.0) > 0 && (m.durationSeconds ?: 0.0) > 0 -> (m.positionSeconds!! / m.durationSeconds!!).coerceIn(0.0, 1.0)
+                else -> 0.0
+            }
+        }
+        return (sum / items.size).toFloat()
+    }
+
+    companion object {
+        fun of(items: List<BrowseItem>): BoxSetFacts {
+            fun hm(min: Int) = if (min >= 60) "${min / 60}h ${min % 60}m" else "${min}m"
+            val played = { m: BrowseItem -> m.userState?.played == true }
+            val inProg = { m: BrowseItem -> !played(m) && (m.positionSeconds ?: 0.0) > 0 }
+            val total = items.sumOf { it.runtime ?: 0 }
+            var leftMin = 0.0
+            items.forEach { m ->
+                val rt = (m.runtime ?: 0).toDouble()
+                leftMin += when {
+                    played(m) -> 0.0
+                    inProg(m) -> (rt - (m.positionSeconds ?: 0.0) / 60.0).coerceAtLeast(0.0)
+                    else -> rt
+                }
+            }
+            val imdb = items.mapNotNull { it.ratingImdb }.takeIf { it.isNotEmpty() }?.average()
+            val rt = items.mapNotNull { it.ratingRtCritic }.takeIf { it.isNotEmpty() }?.average()?.toInt()
+            val genres = items.flatMap { it.genres }.groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.take(2).map { it.key }
+            return BoxSetFacts(
+                contentRating = items.mapNotNull { it.contentRating?.takeIf { r -> r.isNotBlank() } }.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key,
+                genres = genres,
+                totalRuntime = total.takeIf { it > 0 }?.let(::hm),
+                avgImdb = imdb,
+                avgRt = rt,
+                watched = items.count(played),
+                inProgress = items.count(inProg),
+                toGo = items.count { !played(it) && !inProg(it) },
+                timeLeft = leftMin.takeIf { it >= 1 }?.let { hm(it.toInt()) },
+            )
+        }
+    }
+}
+
+private fun clockLabel(sec: Double): String {
+    val t = sec.toLong(); val h = t / 3600; val m = (t % 3600) / 60; val s = t % 60
+    return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
+}
+
+/** One movie: backdrop art with a watched tick or progress bar, then year, length and title beneath. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun BoxSetCard(
+    movie: BrowseItem,
+    isNext: Boolean,
+    ordinal: Int? = null,
+    focusRequester: FocusRequester,
+    onFocused: () -> Unit,
+    onClick: () -> Unit,
+    onToggleWatched: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val source = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val focused by source.collectIsFocusedAsState()
+    var menu by remember { mutableStateOf(false) }
+    val played = movie.userState?.played == true
+    val pos = movie.positionSeconds ?: 0.0
+    val dur = movie.durationSeconds ?: ((movie.runtime ?: 0) * 60.0)
+    val progress = if (!played && pos > 0 && dur > 0) (pos / dur).toFloat() else null
+    val scale by animateFloatAsState(if (focused) 1.07f else 1f, label = "boxCard")
+    val accent = animatedAccent()
+    Column(modifier.width(176.mx), verticalArrangement = Arrangement.spacedBy(10.mx)) {
+        Box(
+            Modifier
+                .focusRequester(focusRequester)
+                .onFocusChanged { if (it.isFocused) onFocused() }
+                .scale(scale)
+                .then(if (focused) Modifier.border(3.dp, Level.Fg, VantageCard) else Modifier)
+                .combinedClickable(interactionSource = source, indication = null, onClick = onClick, onLongClick = { menu = true }),
+        ) {
+            VArt(movie.backdropUrl ?: movie.posterUrl, 176.mx, 99.mx, progress = progress)
+            if (played) {
+                Box(
+                    Modifier.align(Alignment.TopEnd).padding(9.mx).size(22.mx).background(Level.Good, androidx.compose.foundation.shape.CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) { Text("\u2713", style = ui(13, FontWeight.Bold, Color(0xFF06130D))) }
+            }
+            androidx.compose.material3.DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(if (played) "Mark unwatched" else "Mark watched") },
+                    onClick = { menu = false; onToggleWatched() },
+                )
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.mx)) {
+            val dotColor = when { played -> Level.Good; progress != null -> accent; else -> Color.White.copy(alpha = 0.3f) }
+            VDot(dotColor, 7.mx)
+            Text(ordinal?.toString() ?: if (movie.year > 0) "${movie.year}" else "", style = mono(13, FontWeight.SemiBold), maxLines = 1)
+            movie.runtime?.takeIf { it > 0 }?.let { Text(if (it >= 60) "${it / 60}h ${it % 60}m" else "${it}m", style = mono(11, color = Level.Faint), maxLines = 1) }
+        }
+        Text(
+            movie.title, style = ui(13, FontWeight.SemiBold, if (isNext || focused) Level.Fg else Level.Dim),
+            maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.defaultMinSize(minHeight = 34.mx),
+        )
+    }
+}
 
 private fun BrowseItem.toSectionItem(): SectionItem = SectionItem(
     contentId = contentId,

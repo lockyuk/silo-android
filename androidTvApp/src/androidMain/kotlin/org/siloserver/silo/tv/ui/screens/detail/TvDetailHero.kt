@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.getValue
@@ -98,34 +100,18 @@ internal fun TvDetailHero(
     /** Vantage: the Details and Your progress glass cards at the top right. */
     sidePanel: (@Composable () -> Unit)? = null,
 ) {
-    // Growth from an expanded synopsis: the hero gets taller, the rest of the page moves down.
-    var expandedExtra by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0.dp) }
-    // The "Read more" pill takes room under the synopsis; reserve it so the actions are not squeezed or clipped.
-    var pillPresent by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
-    val synopsisExtra = expandedExtra + if (pillPresent) SYNOPSIS_PILL_HEIGHT else 0.dp
-    // tvOS 690pt on a 1080pt canvas. Android TV's 1920×1080 emulator reports
-    // a 960×540dp layout canvas, so the same fraction produces 345dp.
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    // At the Large card size the Series episode rail's two-line caption runs
-    // past the bottom of the pinned first screen, so the Series hero gives up
-    // that much of its empty top inset; the rest of the page moves up with it.
-    val seriesLift = if (compactSeries && LocalCardPresentation.current.posterSize == CardPosterSize.Large) {
-        SERIES_LARGE_CARD_LIFT
-    } else {
-        0.dp
-    }
-    val heroHeight = screenHeight * HERO_HEIGHT_FRACTION + extraHeight - seriesLift + synopsisExtra - HERO_TOP_TIGHTEN + (if (compactSeries) 17.dp else 26.dp)
+    val grid = org.siloserver.silo.tv.ui.theme.TvGrid
+    val seriesContext = seriesTitle?.trim()?.takeIf { it.isNotEmpty() }
+    val shownLogoUrl = titleLogoUrl(logoUrl)
 
+    // The hero ends where the first body section starts on the grid.
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .height(heroHeight)
-            .then(if (compactSeries) Modifier else Modifier.clipToBounds()),
+            .height(grid.bodyTop)
+            .clipToBounds(),
     ) {
-        // Vantage: the backdrop is full-bleed behind the whole first screen, darkened to the left
-        // and into the page at the bottom so the logo and copy read on top of it.
-        val artworkWidth = maxWidth
-        val artworkHeight = maxWidth * 9f / 16f
+        // Callers that still hand the hero its own backdrop get it behind the grid.
         if (!backdropUrl.isNullOrEmpty() || !backdropThumbhash.isNullOrEmpty()) {
             val bg = org.siloserver.silo.tv.ui.theme.Level.Bg
             ThumbhashImage(
@@ -135,8 +121,8 @@ internal fun TvDetailHero(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .width(artworkWidth)
-                    .height(artworkHeight)
+                    .width(maxWidth)
+                    .height(maxWidth * 9f / 16f)
                     .drawWithContent {
                         drawContent()
                         drawRect(
@@ -146,82 +132,101 @@ internal fun TvDetailHero(
                                 0.75f to Color.Transparent,
                             ),
                         )
-                        // The hero box is shorter than the artwork: fade to the page by its bottom.
-                        val fadeEnd = (heroHeight.toPx() / size.height).coerceIn(0.3f, 1f)
-                        drawRect(
-                            Brush.verticalGradient(
-                                0f to Color.Transparent,
-                                fadeEnd * 0.55f to Color.Transparent,
-                                fadeEnd * 0.82f to bg.copy(alpha = 0.6f),
-                                fadeEnd to bg,
-                                1f to bg,
-                            ),
-                        )
                     },
             )
         }
 
+        // Right column: Details and progress cards.
         if (sidePanel != null) {
             Box(
                 Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = HERO_TOP_INSET + 17.dp - seriesLift, end = TvDetailHorizontalInset),
+                    .padding(top = grid.rightTop, end = grid.edge),
             ) { sidePanel() }
         }
 
-        Column(
+        // Kicker: type chips, and the episode name for an episode.
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(top = HERO_TOP_INSET - seriesLift, start = TvDetailHorizontalInset, end = TvDetailHorizontalInset),
-            horizontalAlignment = Alignment.Start,
-            verticalArrangement = Arrangement.spacedBy(if (compactSeries) 2.dp else HERO_CONTENT_SPACING),
+                .offset(x = grid.edge, y = grid.kickerTop)
+                .width(grid.leftW)
+                .height(grid.kickerH),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            EditorialColumn(
-                title = title,
-                seriesTitle = seriesTitle,
-                logoUrl = logoUrl,
-                sourceTokens = sourceTokens,
-                ratingChip = ratingChip,
-                overview = overview,
-                tagline = tagline,
-                factsLine = factsLine,
-                directorText = directorText,
-                contentMaxWidth = HERO_CONTENT_MAX_WIDTH,
-                verticalSpacing = EDITORIAL_SPACING,
-                collapsedSynopsisLines = 4,
-                compactSeries = compactSeries,
-                translation = translation.takeUnless { compactSeries },
-                machineTranslated = machineTranslated && !compactSeries,
-                playbackSummary = playbackSummary,
-                synopsisExtra = synopsisExtra,
-                onSynopsisExtraHeight = { expandedExtra = it },
-                synopsisPillFocusRequester = synopsisPillFocusRequester,
-                onSynopsisPillPresent = { present -> pillPresent = present; onSynopsisPillPresent?.invoke(present) },
-            )
-
-            Box(
-                modifier = Modifier
-                    .padding(top = 1.dp)
-                    .fillMaxWidth()
-                    .focusGroup(),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                // Keep actions() at one call site: moving it between branches
-                // would recreate the row and drop focus from a focused button
-                // whenever the translation state changes.
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.weight(1f)) { actions() }
-                    // Series reserves fixed editorial slots, so the marker sits
-                    // at the end of the action row where the translate button
-                    // would; it is not focusable and adds no D-pad stop.
-                    if (compactSeries && translation != null) {
-                        translation()
-                    } else if (compactSeries && machineTranslated) {
-                        TvMachineTranslatedLabel()
-                    }
-                }
+            sourceTokens.take(3).forEach { org.siloserver.silo.tv.ui.components.vantage.VChip(it.uppercase()) }
+            if (seriesContext != null) {
+                org.siloserver.silo.tv.ui.components.vantage.VTag(title)
             }
         }
+
+        // Clear logo: always the same box, fitted with no waste.
+        Box(
+            modifier = Modifier
+                .offset(x = grid.edge, y = grid.logoTop)
+                .size(grid.logoW, grid.logoH),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            if (!shownLogoUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = shownLogoUrl,
+                    contentDescription = seriesContext ?: title,
+                    contentScale = ContentScale.Fit,
+                    alignment = Alignment.CenterStart,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                HeroTextTitle(title = seriesContext ?: title)
+            }
+        }
+
+        // Facts: certificate, year, runtime, ratings on one line.
+        Box(
+            modifier = Modifier
+                .offset(x = grid.edge, y = grid.factsTop)
+                .width(grid.leftW)
+                .height(grid.factsH)
+                .clipToBounds(),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            MetadataRow(
+                tokens = factsLine,
+                sourceTokens = emptyList(),
+                ratingChip = ratingChip,
+                compactRating = true,
+            )
+        }
+
+        // Synopsis: five lines tall even when the text is shorter.
+        Box(
+            modifier = Modifier
+                .offset(x = grid.edge, y = grid.synopsisTop)
+                .width(grid.synopsisW)
+                .height(grid.synopsisH)
+                .clipToBounds(),
+        ) {
+            overview?.takeIf { it.isNotBlank() }?.let { line ->
+                TvExpandableSynopsis(
+                    overview = line,
+                    tagline = tagline,
+                    collapsedMaxLines = 5,
+                    dialogTitle = title,
+                    pillFocusRequester = synopsisPillFocusRequester,
+                    onPillPresent = onSynopsisPillPresent,
+                    onExtraHeight = null,
+                )
+            }
+        }
+
+        // Actions.
+        Box(
+            modifier = Modifier
+                .offset(x = grid.edge, y = grid.actionTop)
+                .width(grid.leftW)
+                .height(grid.actionH)
+                .focusGroup(),
+            contentAlignment = Alignment.CenterStart,
+        ) { actions() }
     }
 }
 
@@ -252,7 +257,7 @@ private fun EditorialColumn(
     Column(
         modifier = Modifier.widthIn(max = contentMaxWidth)
             // tvOS reserves 435pt for Series editorial content and its disclosure block.
-            .then(if (compactSeries) Modifier.height(217.5.dp + synopsisExtra) else Modifier),
+            .then(if (compactSeries) Modifier.height(246.dp + synopsisExtra) else Modifier),
         horizontalAlignment = Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(if (compactSeries) 2.dp else verticalSpacing),
     ) {

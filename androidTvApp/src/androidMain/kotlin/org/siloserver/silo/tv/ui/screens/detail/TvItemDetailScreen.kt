@@ -1037,6 +1037,13 @@ private fun TvDetailContent(
                             machineTranslated = heroMachineTranslated && !hidesHeroOverview &&
                                 !activeEpisodeTranslating,
                             compactSeries = isSeriesDetail,
+                            sidePanel = {
+                                TvVantageDetailPanels(
+                                    detail = detail,
+                                    seasons = state.seasons,
+                                    nextUp = state.nextUpEpisode,
+                                )
+                            },
                             playbackSummary = {
                                 TvDetailPlaybackSelectionSummary(
                                     detail = detail,
@@ -1330,13 +1337,6 @@ private fun TvDetailContent(
                                     .detailBodySectionAnchor(listState, coroutineScope),
                             ) {
                             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            if (!isAudiobook) {
-                                TvVantageDetailsStrip(
-                                    detail = detail,
-                                    seasons = state.seasons,
-                                    modifier = Modifier.padding(start = TvDetailHorizontalInset, end = TvDetailHorizontalInset, top = 22.dp),
-                                )
-                            }
                             TvCastCrewSection(
                                 cast = detail.cast,
                                 horizontalContentPadding = TvDetailHorizontalInset,
@@ -2349,7 +2349,7 @@ private fun EpisodesSection(
 ) {
     val isSeries = detail.type == "series"
     val railEpisodes = if (isSeries) state.carouselEpisodes.ifEmpty { state.episodes } else state.episodes
-    Column(verticalArrangement = Arrangement.spacedBy(if (isSeries) 7.dp else 20.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(if (isSeries) 14.5.dp else 20.dp)) {
         if (!isSeries) {
             Row(
                 modifier = Modifier

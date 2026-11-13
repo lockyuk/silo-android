@@ -241,7 +241,7 @@ fun TvEpisodeCard(
  * Default width for episode / next-up cards. tvOS uses 360×200pt; Skyline maps
  * that to Android TV as 180×100dp.
  */
-val TvEpisodeCardWidth: Dp = RowDimens.BackdropWidth
+val TvEpisodeCardWidth: Dp = org.siloserver.silo.tv.ui.theme.TvGrid.cardW
 
 /** [TvEpisodeCardWidth] scaled by the active poster-size preference. */
 @Composable

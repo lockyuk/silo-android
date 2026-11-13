@@ -1176,16 +1176,14 @@ fun TvSkylineSectionFeed(
                     autoTranslate = isFeaturedMarqueeContent(marquee.content, rows),
                     onTranslated = onMarqueeTranslated,
                 ),
-                startPadding = TvSkyline.safeAreaX,
-                // Keep the marquee out of the top-menu-bar zone: the block is
-                // bottom-anchored and grows upward, and the raised typography
-                // floors made it tall enough to collide with the bar.
-                topPadding = TvSkyline.barTopInset + TvSkyline.barHeight,
+                startPadding = org.siloserver.silo.tv.ui.theme.TvGrid.edge,
+                // The hero block hangs from the shared title-page grid: the kicker always at y84.
+                topPadding = org.siloserver.silo.tv.ui.theme.TvGrid.kickerTop - 2.dp,
                 bottomPadding = refBandHeight + TvSkylineMarqueeBottomGap + TvSkylineHeroTextRaise + (if (actionsMode) TvSkylineActionsBlock else 0.dp),
                 eyebrow = if (actionsMode) rows.firstOrNull()?.title else null,
                 modifier = Modifier
-                    .fillMaxSize()
-                    .offset(y = contentVerticalOffset + TvSkylineContentDrop),
+                    // No page offset: the hero block sits at fixed grid coordinates.
+                    .fillMaxSize(),
             )
 
             if (actionsMode) {
@@ -1470,7 +1468,7 @@ private const val HeroFocusPrefetchRadius = 2
 internal val TvSkylineItemSpacing = 12.dp
 
 /** A little breathing room between adjacent Home sections. */
-internal val TvSkylineRowPreviewSpacing = 14.dp
+internal val TvSkylineRowPreviewSpacing = 26.dp
 
 /** tvOS rowBandCardVerticalPadding 14pt maps to 7dp. */
 internal val TvSkylineRowCardVerticalPadding = 7.dp

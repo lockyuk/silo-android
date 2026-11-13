@@ -143,7 +143,11 @@ fun siloCardDefaults(
         border = if (outlined) {
             CardDefaults.border(border = outline, focusedBorder = outline)
         } else {
-            CardDefaults.border(focusedBorder = outline)
+            // A very faint hairline at rest so every card and image reads against the page.
+            CardDefaults.border(
+                border = Border(border = BorderStroke(1.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = 0.12f)), shape = shape),
+                focusedBorder = outline,
+            )
         },
         glow = CardDefaults.glow(
             focusedGlow = Glow(

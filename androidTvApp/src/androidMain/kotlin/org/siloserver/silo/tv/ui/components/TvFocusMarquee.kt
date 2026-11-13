@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -180,8 +181,8 @@ private fun TvMarqueeBlock(
     var titleLineCount by remember(content.id) { mutableStateOf(1) }
 
     Column(
-        modifier = Modifier.widthIn(max = MarqueeContentWidth),
-        verticalArrangement = Arrangement.spacedBy(7.dp),
+        modifier = Modifier.widthIn(max = org.siloserver.silo.tv.ui.theme.TvGrid.leftW),
+        verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
         // Every row below has a fixed height, so the chips, ratings, synopsis and buttons sit
         // at the same place for every title, whatever its logo, season or synopsis length.
@@ -196,7 +197,7 @@ private fun TvMarqueeBlock(
         }.filter { it.isNotBlank() }
         val season = src.seasonNumber
         val episode = src.episodeNumber
-        Box(Modifier.height(HeroEyebrowHeight), contentAlignment = Alignment.CenterStart) {
+        Box(Modifier.height(org.siloserver.silo.tv.ui.theme.TvGrid.kickerH), contentAlignment = Alignment.CenterStart) {
         if (season != null || episode != null || tagParts.isNotEmpty()) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 season?.let { org.siloserver.silo.tv.ui.components.vantage.VChip("SEASON $it") }
@@ -210,11 +211,14 @@ private fun TvMarqueeBlock(
         }
         }
         // The clear logo; the title in Outfit when there is none. One fixed slot for all of them.
-        Box(Modifier.height(HeroLogoSlotHeight).fillMaxWidth(), contentAlignment = Alignment.BottomStart) {
+        androidx.compose.foundation.layout.Spacer(Modifier.height(6.dp))
+        Box(Modifier.size(org.siloserver.silo.tv.ui.theme.TvGrid.logoW, org.siloserver.silo.tv.ui.theme.TvGrid.logoH), contentAlignment = Alignment.CenterStart) {
             VantageLogo(content, onLines = { titleLineCount = it })
         }
+        androidx.compose.foundation.layout.Spacer(Modifier.height(12.dp))
         // Chips: certificate (solid), year, genre, quality; then IMDb / RT / TMDB scores.
         Row(
+            modifier = Modifier.height(org.siloserver.silo.tv.ui.theme.TvGrid.factsH),
             horizontalArrangement = Arrangement.spacedBy(8.dp * 0.75f),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -235,19 +239,14 @@ private fun TvMarqueeBlock(
                 val extra = spec.drop(1).take(1).joinToString(" \u00B7 ") { it.uppercase() }
                 org.siloserver.silo.tv.ui.components.vantage.VChip(if (extra.isBlank()) "" else " $extra", bold = quality)
             }
-        }
-        // IMDb, Rotten Tomatoes and TMDB under the chips, in a slot that is always there.
-        Box(Modifier.height(HeroRatingsHeight), contentAlignment = Alignment.CenterStart) {
             if (src.ratingImdb != null || src.ratingRtCritic != null || src.ratingTmdb != null) {
-                Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    src.ratingImdb?.let { VantageRate("IMDb", Color(0xFFF5C518), Color.Black, String.format("%.1f", it)) }
-                    src.ratingRtCritic?.let { VantageRate("RT", Color(0xFFFA320A), Color.White, "$it%") }
-                    src.ratingTmdb?.let { VantageRate("TMDB", Color(0xFF01B4E4), Color.White, String.format("%.1f", it)) }
-                }
+                androidx.compose.foundation.layout.Spacer(Modifier.width(6.dp))
+                src.ratingImdb?.let { VantageRate("IMDb", Color(0xFFF5C518), Color.Black, String.format("%.1f", it)) }
+                src.ratingRtCritic?.let { VantageRate("RT", Color(0xFFFA320A), Color.White, "$it%") }
             }
         }
-
-        Box(Modifier.height(HeroSynopsisHeight)) {
+        androidx.compose.foundation.layout.Spacer(Modifier.height(9.dp))
+        Box(Modifier.height(org.siloserver.silo.tv.ui.theme.TvGrid.synopsisH)) {
         synopsisText?.let { synopsis ->
             val pulse: State<Float>? = if (translating) {
                 rememberInfiniteTransition(label = "marqueeTranslating").animateFloat(
@@ -261,13 +260,13 @@ private fun TvMarqueeBlock(
             }
             Text(
                 text = synopsis,
-                style = org.siloserver.silo.tv.ui.components.vantage.ui(15, FontWeight.Normal, level.Synopsis),
-                lineHeight = 18.sp,
-                minLines = 6,
-                maxLines = 6,
+                style = org.siloserver.silo.tv.ui.components.vantage.ui(14, FontWeight.Normal, level.Synopsis),
+                lineHeight = 18.3.sp,
+                minLines = 5,
+                maxLines = 5,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
-                    .widthIn(max = MarqueeSynopsisMaxWidth)
+                    .widthIn(max = org.siloserver.silo.tv.ui.theme.TvGrid.synopsisW)
                     .drawAlpha { pulse?.value ?: 1f },
             )
         }
@@ -298,22 +297,12 @@ private fun VantageLogo(content: TvMarqueeContent, onLines: (Int) -> Unit) {
             onTextLayout = { onLines(it.lineCount) },
         )
     } else {
-        val a = aspect ?: 3.2f
-        // Same area for every logo: width = sqrt(area * aspect), clamped.
-        val width = kotlin.math.sqrt(LogoArea * a).coerceIn(LogoMinWidth, LogoMaxWidth)
-        val height = (width / a).coerceIn(LogoMinHeight, LogoMaxHeight)
-        Box(
-            Modifier
-                .height(height.dp)
-                .width(width.dp)
-                .graphicsLayer { alpha = if (aspect == null) 0f else 1f },
-            contentAlignment = Alignment.BottomStart,
-        ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
             coil3.compose.AsyncImage(
                 model = logoUrl,
                 contentDescription = content.title,
                 contentScale = ContentScale.Fit,
-                alignment = Alignment.BottomStart,
+                alignment = Alignment.CenterStart,
                 onSuccess = { state ->
                     val img = state.result.image
                     if (img.width > 0 && img.height > 0) aspect = img.width.toFloat() / img.height

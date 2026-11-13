@@ -58,6 +58,7 @@ private val SiloTvShapes = Shapes(
 )
 
 private const val TvUiFontScale = 0.86f
+private const val TvCanvasWidthDp = 960f
 
 /** Missing-artwork marks may grow larger on TV posters than on phone. */
 private val TvDefaultArtworkMarkMaxSize = 64.dp
@@ -71,9 +72,12 @@ fun SiloTvTheme(
     // Skyline geometry tokens are already mapped from the 1920x1080 tvOS
     // canvas to Android TV's 960x540dp layout. Keep dp geometry at the device
     // density and apply the tvOS calibration only to text.
+    // Every TV is laid out on the same 960 x 540 dp canvas, whatever its resolution
+    // or density, so sizes, images and cards always keep the same proportions.
+    val widthPx = androidx.compose.ui.platform.LocalConfiguration.current.let { it.screenWidthDp * deviceDensity.density }
     val tvDensity = Density(
-        density = deviceDensity.density,
-        fontScale = deviceDensity.fontScale * TvUiFontScale,
+        density = (widthPx / TvCanvasWidthDp).takeIf { it.isFinite() && it > 0f } ?: deviceDensity.density,
+        fontScale = TvUiFontScale,
     )
 
     MaterialTheme(

@@ -113,7 +113,7 @@ internal fun TvSeriesEpisodeRailSkeleton() {
             .height(tvSeriesEpisodeRailHeight())
             .clipToBounds()
             .padding(horizontal = TvDetailHorizontalInset, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(20.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         repeat(5) {
             Column(
@@ -326,7 +326,7 @@ internal fun TvDetailEpisodeRail(
             // fixed primary viewport beneath the selector and season controls.
             vertical = if (usesSeriesGeometry) 6.dp else 16.dp,
         ),
-        horizontalArrangement = Arrangement.spacedBy(if (usesSeriesGeometry) 20.dp else 18.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (usesSeriesGeometry) 12.dp else 18.dp),
     ) {
         if (hasPreviousEpisodes) {
             item(key = PreviousSeasonPlaceholderKey, contentType = "episode-loading") {

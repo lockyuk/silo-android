@@ -72,12 +72,12 @@ internal fun TvVantageDetailPanels(
             if (detail.runtime > 0) add("Runtime" to if (detail.runtime >= 60) "${detail.runtime / 60}h ${detail.runtime % 60}m" else "${detail.runtime}m")
             detail.studios.firstOrNull()?.let { add("Studio" to it) }
         }
-    }.take(6)
+    }.take(5)
     val provider = (detail.networks.firstOrNull() ?: detail.studios.firstOrNull())
 
-    Column(modifier.width(376.mx), verticalArrangement = Arrangement.spacedBy(14.mx)) {
+    Column(modifier.width(org.siloserver.silo.tv.ui.theme.TvGrid.rightW), verticalArrangement = Arrangement.spacedBy(12.mx)) {
         if (rows.isNotEmpty()) {
-            VPanel(Modifier.fillMaxWidth(), title = "Details", sub = provider, gap = 9.mx) {
+            VPanel(Modifier.fillMaxWidth().height(org.siloserver.silo.tv.ui.theme.TvGrid.detailsH), title = "Details", sub = provider, gap = 8.mx, padding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.mx, vertical = 14.mx)) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.mx)) {
                     rows.forEach { (k, v) ->
                         Row(verticalAlignment = Alignment.Top) {
@@ -98,60 +98,60 @@ internal fun TvVantageDetailPanels(
 
 @Composable
 private fun ProgressCard(detail: ItemDetail, seasons: List<Season>, nextUp: EpisodeListItem?, isSeries: Boolean) {
+    val accent = org.siloserver.silo.tv.ui.theme.animatedAccent()
+    val ringPct: Int
+    val ringLabel: String
+    val lines: String
+    val fraction: Float
+    val note: String?
     if (isSeries) {
         val real = seasons.filter { !it.isSpecials }
         val total = real.sumOf { it.episodeCount }
         if (total <= 0) return
         val watched = real.sumOf { it.userData?.watchedCount ?: 0 }
         val pos = nextUp?.userData?.positionSeconds?.takeIf { it > 0 && nextUp.userData?.played != true }
-        VPanel(Modifier.fillMaxWidth(), gap = 0.dp) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    VLabel("Your progress")
-                    Spacer(Modifier.padding(top = 4.mx))
-                    VBig("$watched", "of $total episodes", 32)
-                    VBar(watched.toFloat() / total, modifier = Modifier.padding(top = 10.mx))
-                }
-                Spacer(Modifier.width(14.mx))
-                Text(
-                    buildString {
-                        when {
-                            pos != null -> append("left off ${clock(pos)}\nS${nextUp!!.seasonNumber} E${nextUp.episodeNumber}")
-                            watched >= total -> append("all watched")
-                            nextUp != null -> append("next up\nS${nextUp.seasonNumber} E${nextUp.episodeNumber}")
-                            else -> append("${total - watched} to go")
-                        }
-                    },
-                    style = mono(11, color = Level.Dim),
-                    textAlign = TextAlign.End,
-                    lineHeight = androidx.compose.ui.unit.TextUnit(15f, androidx.compose.ui.unit.TextUnitType.Sp),
-                )
-            }
+        val inProgress = if (pos != null) 1 else 0
+        ringPct = (watched * 100 / total).coerceIn(0, 100)
+        ringLabel = "$watched/$total"
+        lines = "$watched watched\n$inProgress in progress\n${(total - watched - inProgress).coerceAtLeast(0)} to go"
+        fraction = watched.toFloat() / total
+        note = when {
+            pos != null -> "Left off ${clock(pos)} · S${nextUp!!.seasonNumber} E${nextUp.episodeNumber}"
+            watched >= total -> "All watched"
+            nextUp != null -> "Next up · S${nextUp.seasonNumber} E${nextUp.episodeNumber}"
+            else -> null
         }
     } else {
         val ud = detail.userData ?: return
         val dur = ud.durationSeconds ?: (detail.runtime * 60.0).takeIf { it > 0 } ?: return
         val pos = ud.positionSeconds ?: 0.0
         if (!ud.played && pos <= 0) return
-        VPanel(Modifier.fillMaxWidth(), gap = 0.dp) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    VLabel("Your progress")
-                    Spacer(Modifier.padding(top = 4.mx))
-                    if (ud.played) VBig("Watched", null, 32)
-                    else VBig("${(pos / dur * 100).toInt()}%", "of ${clock(dur)}", 32)
-                    VBar(if (ud.played) 1f else (pos / dur).toFloat(), modifier = Modifier.padding(top = 10.mx))
-                }
-                Spacer(Modifier.width(14.mx))
-                Text(
-                    if (ud.played) "seen it" else "left off ${clock(pos)}\n${((dur - pos) / 60).toInt()} min left",
-                    style = mono(11, color = Level.Dim),
-                    textAlign = TextAlign.End,
-                )
-            }
+        val frac = if (ud.played) 1f else (pos / dur).toFloat().coerceIn(0f, 1f)
+        ringPct = (frac * 100).toInt()
+        ringLabel = if (ud.played) "Seen" else "$ringPct%"
+        lines = if (ud.played) "Watched" else "left off ${clock(pos)}\n${((dur - pos) / 60).toInt()} min left"
+        fraction = frac
+        note = null
+    }
+    VPanel(
+        Modifier.fillMaxWidth().height(org.siloserver.silo.tv.ui.theme.TvGrid.progressH),
+        gap = 10.mx,
+        padding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.mx, vertical = 14.mx),
+    ) {
+        VLabel("Your progress")
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.mx)) {
+            TvGridRing(ringPct, ringLabel)
+            Text(
+                lines,
+                style = mono(12, color = Level.Dim),
+                lineHeight = androidx.compose.ui.unit.TextUnit(19.2f * 0.75f, androidx.compose.ui.unit.TextUnitType.Sp),
+            )
         }
+        VBar(fraction)
+        note?.let { Text(it, style = mono(11, color = Level.Faint), maxLines = 1) }
     }
 }
+
 
 private fun clock(sec: Double): String {
     val t = sec.toLong(); val h = t / 3600; val m = (t % 3600) / 60; val s = t % 60
@@ -295,3 +295,19 @@ internal fun TvVantagePageBackdrop(
 }
 
 private fun Modifier.androidx_graphicsAlpha(a: Float): Modifier = this.graphicsLayer { alpha = a }
+
+/** The progress ring of the title pages: 64 px, label inside (mock-up .ringw). */
+@Composable
+internal fun TvGridRing(percent: Int, label: String) {
+    val accent = org.siloserver.silo.tv.ui.theme.animatedAccent()
+    androidx.compose.foundation.layout.Box(Modifier.height(64.mx).width(64.mx), contentAlignment = Alignment.Center) {
+        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+            val stroke = 4.mx.toPx()
+            val inset = stroke / 2 + 1.mx.toPx()
+            val arc = androidx.compose.ui.geometry.Size(size.width - inset * 2, size.height - inset * 2)
+            drawArc(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.14f), 0f, 360f, false, androidx.compose.ui.geometry.Offset(inset, inset), arc, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke))
+            drawArc(accent, -90f, 360f * percent.coerceIn(0, 100) / 100f, false, androidx.compose.ui.geometry.Offset(inset, inset), arc, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+        }
+        Text(label, style = org.siloserver.silo.tv.ui.components.vantage.ui(14, FontWeight.SemiBold))
+    }
+}

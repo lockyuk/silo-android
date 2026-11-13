@@ -121,7 +121,7 @@ fun TvServerScreen(
     LaunchedEffect(Unit) {
         while (true) {
             overview = runCatching { repo.overview(serverName) }.getOrNull() ?: overview
-            delay(1_000)
+            delay(500)
         }
     }
 
@@ -788,7 +788,7 @@ private fun SystemPage(repo: TvServerRepository, serverName: String) {
                 }
                 prev = now; stats = now
             }
-            delay(1_000)
+            delay(500)
         }
     }
     val s = stats ?: run { Loading(); return }

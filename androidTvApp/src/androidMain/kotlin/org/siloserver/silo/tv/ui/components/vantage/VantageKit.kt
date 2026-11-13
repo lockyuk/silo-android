@@ -84,8 +84,7 @@ fun ui(px: Number, weight: FontWeight = FontWeight.Medium, color: Color = Level.
     TextStyle(fontFamily = VantageUiFamily, fontWeight = weight, fontSize = (px.toFloat() * 0.872f).sp, color = color)
 
 fun mono(px: Number, weight: FontWeight = FontWeight.Medium, color: Color = Level.Fg, tracking: Float = 0f): TextStyle {
-    // Nothing is set smaller than 12.5 mock-up px, so mono text stays readable at TV distance.
-    val size = maxOf(px.toFloat(), 12.5f) * 0.872f
+    val size = px.toFloat() * 0.872f
     return TextStyle(
         fontFamily = VantageMonoFamily, fontWeight = weight, fontSize = size.sp, color = color,
         letterSpacing = (size * tracking).sp,

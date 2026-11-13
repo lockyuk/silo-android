@@ -155,8 +155,8 @@ internal fun TvHomeHeroPanel(
         TvFocusMarquee(
             content = content,
             eyebrow = eyebrow,
-            startPadding = TvSkyline.safeAreaX,
-            topPadding = TvSkyline.barTopInset + TvSkyline.barHeight,
+            startPadding = org.siloserver.silo.tv.ui.theme.TvGrid.edge,
+            topPadding = org.siloserver.silo.tv.ui.theme.TvGrid.kickerTop - 2.dp,
             // No buttons any more: the text block runs down to just above the first row's title.
             bottomPadding = (maxHeight - TvHeroTextBottom).coerceAtLeast(0.dp),
             modifier = Modifier.fillMaxSize(),
