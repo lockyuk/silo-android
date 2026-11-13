@@ -95,6 +95,8 @@ internal fun TvDetailHero(
     /** Lets a page start focus on the synopsis "Read more" pill when there is one. */
     synopsisPillFocusRequester: androidx.compose.ui.focus.FocusRequester? = null,
     onSynopsisPillPresent: ((Boolean) -> Unit)? = null,
+    /** Vantage: the Details and Your progress glass cards at the top right. */
+    sidePanel: (@Composable () -> Unit)? = null,
 ) {
     // Growth from an expanded synopsis: the hero gets taller, the rest of the page moves down.
     var expandedExtra by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0.dp) }
@@ -157,6 +159,14 @@ internal fun TvDetailHero(
                         )
                     },
             )
+        }
+
+        if (sidePanel != null) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = HERO_TOP_INSET + 17.dp - seriesLift, end = TvDetailHorizontalInset),
+            ) { sidePanel() }
         }
 
         Column(
@@ -570,7 +580,7 @@ private const val ARTWORK_WIDTH_FRACTION = 0.64f
 private const val ARTWORK_HEIGHT_FRACTION = 0.70f
 private val HERO_TOP_INSET = 58.dp
 private val SERIES_LARGE_CARD_LIFT = 16.dp
-private val HERO_CONTENT_MAX_WIDTH = 540.dp
+private val HERO_CONTENT_MAX_WIDTH = 450.dp
 private val HERO_CONTENT_SPACING = 9.dp
 private val EDITORIAL_SPACING = 7.dp
 private val SERIES_METADATA_SLOT_HEIGHT = 18.dp

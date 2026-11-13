@@ -42,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -545,27 +546,32 @@ internal fun TvHeroPositionBar(
     modifier: Modifier = Modifier,
 ) {
     if (count <= 1) return
-    // Aurora pager: the current item is a wide pill filled by the timer, the others short dim pills.
+    // Vantage pager: "1 / 6", then the current item as a long white dash filled by the timer.
     Row(
-        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier,
     ) {
+        Text(
+            "${current + 1} / $count",
+            style = org.siloserver.silo.tv.ui.components.vantage.mono(10.5, color = org.siloserver.silo.tv.ui.theme.Level.Faint, tracking = 0.15f),
+            modifier = Modifier.padding(end = 4.dp),
+        )
         for (index in 0 until count) {
-            val width by androidx.compose.animation.core.animateDpAsState(if (index == current) 40.dp else 12.dp, label = "heroPagerWidth")
+            val width by androidx.compose.animation.core.animateDpAsState(if (index == current) 34.dp else 13.dp, label = "heroPagerWidth")
             Box(
                 Modifier
                     .width(width)
-                    .height(4.dp)
+                    .height(3.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(Color.White.copy(alpha = 0.22f)),
+                    .background(Color.White.copy(alpha = 0.3f)),
             ) {
                 if (index == current) Box(
                     Modifier
                         .fillMaxHeight()
                         .graphicsLayer { scaleX = progress().coerceIn(0f, 1f); transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f) }
                         .fillMaxWidth()
-                        .background(Aurora.Gradient),
+                        .background(org.siloserver.silo.tv.ui.theme.Level.Fg),
                 )
             }
         }
@@ -591,7 +597,7 @@ internal fun TvHeroActionRow(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .focusProperties { enter = { playFocusRequester } }
@@ -606,43 +612,58 @@ internal fun TvHeroActionRow(
                 }
             },
     ) {
+        // Vantage: Resume (white, accent halo) · Details · ＋ / ✓ for the watchlist.
         AuroraActionPill(label = playLabel, icon = Icons.Filled.PlayArrow, primary = true, onClick = onPlay, modifier = Modifier.focusRequester(playFocusRequester))
-        if (showWatchlist) AuroraActionPill(label = if (inWatchlist) "Listed" else "List", icon = if (inWatchlist) Icons.Filled.Check else Icons.Filled.Add, primary = false, onClick = onToggleWatchlist)
-        AuroraActionPill(label = null, icon = Icons.Outlined.Info, primary = false, onClick = onMoreInfo)
+        AuroraActionPill(label = "Details", icon = null, primary = false, onClick = onMoreInfo)
+        if (showWatchlist) AuroraActionPill(label = null, icon = if (inWatchlist) Icons.Filled.Check else Icons.Filled.Add, primary = false, onClick = onToggleWatchlist)
     }
 }
 
 @Composable
 private fun AuroraActionPill(
     label: String?,
-    icon: ImageVector,
+    icon: ImageVector?,
     primary: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Vantage .btn / .btn.p: 48px-tall pills; primary is white with the accent halo, the others
+    // are light glass with a hairline and turn white with the halo when focused.
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.05f else 1f, label = "auroraPillScale")
-    val shape = org.siloserver.silo.tv.ui.theme.LevelChamfer
+    val scale by animateFloatAsState(if (focused) 1.05f else 1f, label = "vantagePillScale")
+    val level = org.siloserver.silo.tv.ui.theme.Level
+    val accent = org.siloserver.silo.tv.ui.theme.animatedAccent()
+    val shape = org.siloserver.silo.tv.ui.theme.VantagePill
+    val lit = primary || focused
+    val ink = if (lit) level.Ink else level.Fg
     Row(
         horizontalArrangement = Arrangement.spacedBy(7.dp),
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .then(if (focused) Modifier.border(2.5.dp, org.siloserver.silo.tv.ui.theme.Level.Fg, shape) else Modifier)
-            .background(if (primary) org.siloserver.silo.tv.ui.theme.Level.Accent else if (focused) org.siloserver.silo.tv.ui.theme.Level.Line else org.siloserver.silo.tv.ui.theme.Level.Surface2, shape)
+            .drawBehind {
+                if (lit) {
+                    val grow = (if (focused) 4.dp else 3.5.dp).toPx()
+                    val r = size.height / 2 + grow
+                    drawRoundRect(
+                        accent.copy(alpha = if (focused) 0.55f else 0.35f),
+                        androidx.compose.ui.geometry.Offset(-grow, -grow),
+                        androidx.compose.ui.geometry.Size(size.width + grow * 2, size.height + grow * 2),
+                        androidx.compose.ui.geometry.CornerRadius(r, r),
+                    )
+                }
+            }
+            .background(if (lit) level.Fg else level.Glass2, shape)
+            .border(1.dp, if (lit) Color.Transparent else level.Edge, shape)
             .onFocusChanged { focused = it.isFocused }
             .clickable(onClick = onClick)
-            .padding(horizontal = if (label == null) 13.dp else 20.dp, vertical = 10.dp),
+            .height(36.dp)
+            .padding(horizontal = if (label == null) 13.dp else 18.dp),
     ) {
-        val ink = if (primary) org.siloserver.silo.tv.ui.theme.Level.Ink else org.siloserver.silo.tv.ui.theme.Level.Fg
-        Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(17.dp))
+        if (icon != null) Icon(icon, contentDescription = label, tint = ink, modifier = Modifier.size(if (label == null) 18.dp else 13.dp))
         if (label != null) Text(
-            text = label.uppercase(),
-            color = ink,
-            fontFamily = org.siloserver.silo.tv.ui.theme.LevelMonoFamily,
-            fontSize = 12.sp,
-            letterSpacing = 1.sp,
-            fontWeight = FontWeight.SemiBold,
+            text = label,
+            style = org.siloserver.silo.tv.ui.components.vantage.ui(15, FontWeight.SemiBold, ink),
             maxLines = 1,
         )
     }
@@ -663,7 +684,7 @@ internal fun TvHeroBillboardBackdrop(content: TvMarqueeContent?, modifier: Modif
             label = "tvHeroBillboardArt",
         ) { (url, thumbhash) ->
             if (url != null) {
-                Box(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.8f)) {
+                Box(modifier = Modifier.fillMaxSize()) {
                     ThumbhashImage(
                         url = url,
                         thumbhash = thumbhash,
@@ -679,10 +700,9 @@ internal fun TvHeroBillboardBackdrop(content: TvMarqueeContent?, modifier: Modif
                     Box(
                         Modifier.fillMaxSize().background(
                             Brush.horizontalGradient(
-                                0.00f to page.copy(alpha = 0.96f),
-                                0.30f to page.copy(alpha = 0.80f),
-                                0.55f to page.copy(alpha = 0.25f),
-                                0.80f to Color.Transparent,
+                                0.00f to page.copy(alpha = 0.92f),
+                                0.38f to page.copy(alpha = 0.55f),
+                                0.68f to Color.Transparent,
                             ),
                         ),
                     )
@@ -690,8 +710,8 @@ internal fun TvHeroBillboardBackdrop(content: TvMarqueeContent?, modifier: Modif
                     Box(
                         Modifier.fillMaxSize().background(
                             Brush.verticalGradient(
-                                0.00f to Color.Transparent,
-                                0.62f to Color.Transparent,
+                                0.45f to Color.Transparent,
+                                0.70f to page.copy(alpha = 0.6f),
                                 1.00f to page,
                             ),
                         ),

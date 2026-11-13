@@ -195,74 +195,40 @@ private fun CornerAnchoredArt(
     thumbhash: String?,
     level: Int? = null,
 ) {
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        // Silo Level: the art sits in a chamfered window (866 x 222 dp at 47, 70) that fades into
-        // the ground on the left, with the item's watch level at the top right.
+    // Vantage: the featured backdrop fills the screen, darkened to the left and into the ground
+    // at the bottom (the mock-up's two scrims) so the logo, copy and rows read over it.
+    Box(modifier = Modifier.fillMaxSize()) {
+        ThumbhashImage(
+            url = url,
+            thumbhash = thumbhash,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            transparent = true,
+            // The Skyline feed preloads this frame and owns the one
+            // shared art + copy crossfade. A second Coil fade would
+            // make the image visibly lag behind the text.
+            crossfadeMillis = 0,
+            modifier = Modifier.fillMaxSize(),
+        )
+        val bg = org.siloserver.silo.tv.ui.theme.Level.Bg
         Box(
-            modifier = Modifier
-                .offset(x = 47.dp, y = 70.dp)
-                .size(maxWidth - 94.dp, 222.dp)
-                .clip(org.siloserver.silo.tv.ui.theme.LevelChamferLarge),
-        ) {
-            ThumbhashImage(
-                url = url,
-                thumbhash = thumbhash,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                transparent = true,
-                // The Skyline feed preloads this frame and owns the one
-                // shared art + copy crossfade. A second Coil fade would
-                // make the image visibly lag behind the text.
-                crossfadeMillis = 0,
-                modifier = Modifier.fillMaxSize(),
-            )
-            val bg = org.siloserver.silo.tv.ui.theme.Level.Bg
-            Box(
-                Modifier.fillMaxSize().background(
-                    Brush.horizontalGradient(
-                        0.00f to bg,
-                        0.42f to bg.copy(alpha = 0.82f),
-                        0.78f to Color.Transparent,
-                    ),
+            Modifier.fillMaxSize().background(
+                Brush.horizontalGradient(
+                    0.00f to bg.copy(alpha = 0.92f),
+                    0.38f to bg.copy(alpha = 0.55f),
+                    0.68f to Color.Transparent,
                 ),
-            )
-            if (level != null) {
-                androidx.compose.foundation.layout.Column(
-                    horizontalAlignment = Alignment.End,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 20.dp, end = 23.dp),
-                ) {
-                    androidx.tv.material3.Text(
-                        text = "LEVEL WATCHED",
-                        color = org.siloserver.silo.tv.ui.theme.Level.Muted,
-                        fontFamily = org.siloserver.silo.tv.ui.theme.LevelMonoFamily,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
-                        fontSize = 9.5.sp,
-                        letterSpacing = 1.3.sp,
-                        maxLines = 1,
-                    )
-                    androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.Bottom) {
-                        androidx.tv.material3.Text(
-                            text = level.toString(),
-                            color = org.siloserver.silo.tv.ui.theme.Level.Accent,
-                            fontFamily = org.siloserver.silo.tv.ui.theme.LevelDisplayFamily,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
-                            fontSize = 54.sp,
-                            lineHeight = 54.sp,
-                        )
-                        androidx.tv.material3.Text(
-                            text = "%",
-                            color = org.siloserver.silo.tv.ui.theme.Level.Accent,
-                            fontFamily = org.siloserver.silo.tv.ui.theme.LevelDisplayFamily,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
-                            fontSize = 22.sp,
-                            modifier = Modifier.padding(bottom = 8.dp),
-                        )
-                    }
-                }
-            }
-        }
+            ),
+        )
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.verticalGradient(
+                    0.45f to Color.Transparent,
+                    0.70f to bg.copy(alpha = 0.6f),
+                    1.00f to bg,
+                ),
+            ),
+        )
     }
 }
 

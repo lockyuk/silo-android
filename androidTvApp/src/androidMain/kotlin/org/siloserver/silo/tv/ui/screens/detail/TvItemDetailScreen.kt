@@ -993,6 +993,13 @@ private fun TvDetailContent(
                             machineTranslated = heroMachineTranslated && !hidesHeroOverview &&
                                 !activeEpisodeTranslating,
                             compactSeries = isSeriesDetail,
+                            sidePanel = {
+                                TvVantageDetailPanels(
+                                    detail = detail,
+                                    seasons = state.seasons,
+                                    nextUp = state.nextUpEpisode,
+                                )
+                            },
                             playbackSummary = {
                                 TvDetailPlaybackSelectionSummary(
                                     detail = detail,
@@ -2829,7 +2836,7 @@ private fun Double.formatHms(): String {
 /** Approved tvOS 64pt body rhythm and 140pt page tail at Android's 0.5 scale. */
 internal val TvDetailSectionGap = 32.dp
 internal val TvDetailPageBottomPadding = 160.dp
-internal val TvDetailHorizontalInset = 50.dp
+internal val TvDetailHorizontalInset = 33.dp
 
 /** Pending-return id of the box set row's Explore all card; content ids never contain NUL. */
 private const val BoxSetExploreAllReturnId = "\u0000box-set-explore-all"

@@ -1175,7 +1175,7 @@ fun TvSkylineSectionFeed(
                     autoTranslate = isFeaturedMarqueeContent(marquee.content, rows),
                     onTranslated = onMarqueeTranslated,
                 ),
-                startPadding = 70.dp,
+                startPadding = TvSkyline.safeAreaX,
                 // Keep the marquee out of the top-menu-bar zone: the block is
                 // bottom-anchored and grows upward, and the raised typography
                 // floors made it tall enough to collide with the bar.
@@ -1195,7 +1195,7 @@ fun TvSkylineSectionFeed(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(
-                                start = 70.dp,
+                                start = TvSkyline.safeAreaX,
                                 bottom = refBandHeight + TvSkylineMarqueeBottomGap + TvSkylineHeroTextRaise,
                             )
                             .offset(y = contentVerticalOffset + TvSkylineContentDrop),
@@ -1451,7 +1451,7 @@ private data class HeroPreloadSizes(
 private const val HeroFocusPrefetchRadius = 2
 
 /** tvOS MediaRow cardSpacing 40pt maps to 20dp. */
-internal val TvSkylineItemSpacing = 6.dp
+internal val TvSkylineItemSpacing = 12.dp
 
 /** A little breathing room between adjacent Home sections. */
 internal val TvSkylineRowPreviewSpacing = 14.dp
@@ -1493,7 +1493,7 @@ internal fun tvSkylineRowBandHeight(presentation: CardPresentation): Dp {
 
 /** The band height at Medium cards with no card text (how the hero has looked so far): the fixed reference for the hero's layout. */
 internal fun tvSkylineReferenceBandHeight(): Dp {
-    val cardHeight = TvSpineHeight
+    val cardHeight = RowDimens.BackdropWidth * 9f / 16f
     return TvSkylineRowHeaderHeight + TvSkylineRowHeaderGap +
         TvSkylineRowCardVerticalPadding * 2 + cardHeight +
         TvSkylineRowPreviewSpacing + TvSkylineRowPreviewPeek

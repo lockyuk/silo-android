@@ -171,7 +171,7 @@ object RowDimens {
 
     /** 16:9 episode/backdrop card — tvOS 360×200pt → 180×100dp. */
     val BackdropHeight = 100.dp
-    val BackdropWidth = 180.dp
+    val BackdropWidth = 167.dp
 
     /** Watched badge geometry scales with the active poster width. */
     const val WatchedBadgeSizeFraction = 0.24f

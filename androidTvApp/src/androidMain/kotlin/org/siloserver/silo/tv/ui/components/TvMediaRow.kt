@@ -483,22 +483,6 @@ fun TvMediaRow(
                         onLongClick = itemLongClick,
                     )
                     TvRowCardLayout.Default -> when (style) {
-                        TvRowStyle.Backdrop, TvRowStyle.Poster -> TvSpineCard(
-                            title = item.title,
-                            imageUrl = item.posterUrl ?: rowItem.backdropUrl,
-                            imageThumbhash = if (item.posterUrl != null) item.posterThumbhash else rowItem.backdropThumbhash,
-                            hideImage = rowItem.hidesArtwork,
-                            mediaType = item.type,
-                            progress = rowItem.progress,
-                            quality = spineQuality(rowItem.overlay.resolution),
-                            onClick = { onItemClick(item.contentId) },
-                            focusRequester = itemFocusRequester,
-                            cardModifier = appliedCardModifier,
-                            userState = item.userState,
-                            actions = itemActions,
-                            contentKey = item.contentId,
-                            onLongClick = itemLongClick,
-                        )
                         TvRowStyle.Backdrop -> TvEpisodeCard(
                             title = item.title,
                             stillUrl = rowItem.backdropUrl,
