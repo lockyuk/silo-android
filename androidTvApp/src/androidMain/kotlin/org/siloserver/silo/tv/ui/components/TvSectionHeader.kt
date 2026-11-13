@@ -101,11 +101,6 @@ fun TvSectionHeader(
 
 /** The mono note beside a row title, for rows whose order is worth saying. */
 private fun sectionNote(title: String): String? {
-    val t = title.lowercase()
-    return when {
-        "continue" in t || "resume" in t -> "last played first"
-        "next up" in t || "up next" in t -> "next episodes"
-        "recently added" in t || "new" == t || "latest" in t -> "newest first"
-        else -> null
-    }
+    // Vantage: no ordering captions beside row titles.
+    return null
 }

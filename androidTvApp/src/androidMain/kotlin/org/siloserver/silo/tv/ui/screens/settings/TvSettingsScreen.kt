@@ -82,6 +82,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.selected
@@ -499,10 +500,30 @@ private fun SettingsSplitLayout(
     onSubtitleDeviceOverrideEnabledChanged: (Boolean) -> Unit,
     onSubtitleMatchesDeviceChanged: (Boolean) -> Unit,
 ) {
+    // Settings always uses the default light blue, not the last backdrop's colour.
+    androidx.compose.runtime.LaunchedEffect(Unit) { org.siloserver.silo.tv.ui.theme.Level.followBackdrop(null) }
+    val vantageAccent = org.siloserver.silo.tv.ui.theme.animatedAccent()
     Row(
         modifier = Modifier
             .fillMaxSize()
             .background(SettingsBackground)
+            // Vantage: two soft accent glows over the ink ground.
+            .drawBehind {
+                drawRect(
+                    Brush.radialGradient(
+                        listOf(vantageAccent.copy(alpha = 0.22f), Color.Transparent),
+                        center = androidx.compose.ui.geometry.Offset(size.width * 0.86f, size.height * 0.06f),
+                        radius = size.width * 0.55f,
+                    ),
+                )
+                drawRect(
+                    Brush.radialGradient(
+                        listOf(vantageAccent.copy(alpha = 0.10f), Color.Transparent),
+                        center = androidx.compose.ui.geometry.Offset(size.width * 0.05f, size.height * 1.0f),
+                        radius = size.width * 0.5f,
+                    ),
+                )
+            }
             // tvOS TVSettingsView: safeAreaX 88pt + HStack spacing 52pt, with a
             // 490pt rail — halved to Android dp. Full-screen surface (the shell
             // hides the top bar on this route), so only the safe-area inset.
@@ -707,11 +728,11 @@ private fun SettingsRailCategoryRow(
         ),
         border = ClickableSurfaceDefaults.border(
             border = if (selected) {
-                Border(BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)), shape = RowShape)
+                Border(BorderStroke(1.dp, org.siloserver.silo.tv.ui.theme.Level.Edge), shape = RowShape)
             } else {
                 Border.None
             },
-            focusedBorder = Border.None,
+            focusedBorder = Border(BorderStroke(3.dp, org.siloserver.silo.tv.ui.theme.Level.Accent.copy(alpha = 0.75f)), shape = RowShape),
             pressedBorder = Border.None,
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.0f),
@@ -994,7 +1015,7 @@ internal fun SettingsPaneHeader(icon: ImageVector, title: String, blurb: String)
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = Color.White,
+                tint = org.siloserver.silo.tv.ui.theme.Level.Accent,
                 modifier = Modifier.size(18.dp),
             )
         }
@@ -2642,8 +2663,8 @@ internal fun SettingsGroup(
     Column(verticalArrangement = Arrangement.spacedBy(SettingsGroupRowSpacing)) {
         Text(
             text = title.uppercase(),
-            style = SettingsGroupHeaderStyle(),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = SettingsGroupHeaderStyle().copy(fontFamily = org.siloserver.silo.tv.ui.theme.VantageMonoFamily),
+            color = org.siloserver.silo.tv.ui.theme.Level.Accent,
             modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 2.dp),
         )
         content()
@@ -2709,10 +2730,10 @@ private val RailRowHeight = 50.dp
  * The one settings-surface ground color: black, like the Apple apps'
  * `siloBackground`. Shared so no screen re-hardcodes it.
  */
-internal val SettingsBackground = Color(0xFF000000)
+internal val SettingsBackground = org.siloserver.silo.tv.ui.theme.Level.Bg
 
 /** Graphite tile behind the pane header glyph (Apple `siloIconTile`). */
-private val PaneHeaderTile = Color(0xFF3A3A3C)
+private val PaneHeaderTile get() = org.siloserver.silo.tv.ui.theme.Level.Accent.copy(alpha = 0.22f)
 
 /** Picker and confirmation cards (Apple `siloSurfaceElevated`), 30pt corners. */
 
@@ -3048,7 +3069,7 @@ internal fun SettingsFooterText(text: String, modifier: Modifier = Modifier) {
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun invertedRowColors() = ClickableSurfaceDefaults.colors(
-    containerColor = Color.White.copy(alpha = 0.07f),
+    containerColor = org.siloserver.silo.tv.ui.theme.Level.Glass,
     contentColor = Color.White,
     focusedContainerColor = FocusedContainer,
     focusedContentColor = FocusedContent,
@@ -3063,9 +3084,9 @@ private fun invertedRowColors() = ClickableSurfaceDefaults.colors(
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun invertedRowBorder() = ClickableSurfaceDefaults.border(
-    border = Border(BorderStroke(1.dp, Color.White.copy(alpha = 0.09f)), shape = RowShape),
-    focusedBorder = Border.None,
-    pressedBorder = Border.None,
+    border = Border(BorderStroke(1.dp, org.siloserver.silo.tv.ui.theme.Level.Edge), shape = RowShape),
+    focusedBorder = Border(BorderStroke(3.dp, org.siloserver.silo.tv.ui.theme.Level.Accent.copy(alpha = 0.75f)), shape = RowShape),
+    pressedBorder = Border(BorderStroke(3.dp, org.siloserver.silo.tv.ui.theme.Level.Accent), shape = RowShape),
 )
 
 // ---------------------------------------------------------------------------

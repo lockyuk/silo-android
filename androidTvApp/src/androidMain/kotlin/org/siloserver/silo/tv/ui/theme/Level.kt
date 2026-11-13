@@ -40,8 +40,8 @@ object Level {
     /** Hairline edge on glass (rgba(255,255,255,.14)). */
     val Edge = Color(0x24FFFFFF)
     val Fg = Color(0xFFF4F6FB)
-    val Dim = Color(0xFFA3ABBD)
-    val Faint = Color(0xFF6B7389)
+    val Dim = Color(0xFFC9D0DE)
+    val Faint = Color(0xFF9FA8BD)
     val Good = Color(0xFF5BE3A8)
     val Warn = Color(0xFFFFC15A)
     val Bad = Color(0xFFFF6B6B)

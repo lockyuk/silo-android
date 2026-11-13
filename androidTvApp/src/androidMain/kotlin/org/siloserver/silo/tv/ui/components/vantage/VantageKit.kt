@@ -83,16 +83,19 @@ val Double.fx: TextUnit get() = (this * 0.872f).sp
 fun ui(px: Number, weight: FontWeight = FontWeight.Medium, color: Color = Level.Fg) =
     TextStyle(fontFamily = VantageUiFamily, fontWeight = weight, fontSize = (px.toFloat() * 0.872f).sp, color = color)
 
-fun mono(px: Number, weight: FontWeight = FontWeight.Medium, color: Color = Level.Fg, tracking: Float = 0f) =
-    TextStyle(
-        fontFamily = VantageMonoFamily, fontWeight = weight, fontSize = (px.toFloat() * 0.872f).sp, color = color,
-        letterSpacing = (px.toFloat() * 0.872f * tracking).sp,
+fun mono(px: Number, weight: FontWeight = FontWeight.Medium, color: Color = Level.Fg, tracking: Float = 0f): TextStyle {
+    // Nothing is set smaller than 12.5 mock-up px, so mono text stays readable at TV distance.
+    val size = maxOf(px.toFloat(), 12.5f) * 0.872f
+    return TextStyle(
+        fontFamily = VantageMonoFamily, fontWeight = weight, fontSize = size.sp, color = color,
+        letterSpacing = (size * tracking).sp,
     )
+}
 
 /** The small uppercase mono label (.lbl). */
 @Composable
 fun VLabel(text: String, color: Color = Level.Faint, modifier: Modifier = Modifier) {
-    Text(text.uppercase(), style = mono(10.5, color = color, tracking = 0.15f), maxLines = 1, modifier = modifier)
+    Text(text.uppercase(), style = mono(12.5, FontWeight.SemiBold, color = color, tracking = 0.12f), maxLines = 1, modifier = modifier)
 }
 
 /** The accent kicker above a page title (.kick). */

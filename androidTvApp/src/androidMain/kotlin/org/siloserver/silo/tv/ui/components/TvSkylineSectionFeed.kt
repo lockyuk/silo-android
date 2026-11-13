@@ -699,11 +699,6 @@ fun TvSkylineSectionFeed(
     val currentContentUpFallback = rememberUpdatedState<(Boolean) -> Boolean> { isRepeat ->
         // The hero's buttons sit above the first row and below the top menu.
         if (heroFocused) return@rememberUpdatedState false
-        if (heroActive && focusedRowIndex == 0 && !isRepeat) {
-            if (runCatching { resolvedFirstRowFocusRequester.requestFocus() }.isSuccess) {
-                return@rememberUpdatedState true
-            }
-        }
         val bandTopRow = rowBandState.firstVisibleItemIndex
         // See tvSkylineEffectiveRow: the reported focused row can lag or be
         // clamped; the band's top row is the ground truth it is checked against.
@@ -1093,6 +1088,9 @@ fun TvSkylineSectionFeed(
             val refBandHeight = tvSkylineReferenceBandHeight()
                 .coerceAtMost(maxHeight * TvSkylineRowBandMaxFraction)
             val bandAnchorShift = bandHeight - refBandHeight
+            // Every row sits in the same slot, whatever its card shape, so the next section's title
+            // under the row is in exactly the same place on every row and page.
+            val rowSlotHeight = (bandHeight - TvSkylineRowPreviewPeek - TvSkylineRowPreviewSpacing).coerceAtLeast(0.dp)
 
             // Base content changes drive matching 240 ms backdrop and copy
             // crossfades. Detail enrichment stays independent, mirroring tvOS:
@@ -1168,7 +1166,7 @@ fun TvSkylineSectionFeed(
             // Aurora action row (Resume, +, info) under the first-row hero text.
             val actionsFocusRequester = remember { FocusRequester() }
             val actionsWatchlist = remember { mutableStateMapOf<String, Boolean>() }
-            val actionsMode = !heroZone && autoAdvanceFirstRow && onPlayFirstRowItem != null && focusedRowIndex <= 0
+            val actionsMode = false
             if (!heroZone) TvFocusMarquee(
                 content = marquee.content,
                 detailLine = marquee.enrichment?.detailLine,
@@ -1230,16 +1228,11 @@ fun TvSkylineSectionFeed(
                     .offset(y = contentVerticalOffset + heroBandShift + TvSkylineContentDrop + bandAnchorShift)
                     .clipToBounds()
                     .drawWithContent {
-                        clipRect(bottom = heroBandReveal.toPx()) { this@drawWithContent.drawContent() }
+                        // The rows' own peek of the next title is hidden: the fixed title above replaces it.
+                        clipRect(bottom = minOf(heroBandReveal.toPx(), (rowSlotHeight + 8.dp).toPx())) { this@drawWithContent.drawContent() }
                     }
                     .onFocusChanged { feedHasFocus = it.hasFocus }
                     .onPreviewKeyEvent { event ->
-                        // Up from the hero row's cards goes to the hero's Resume button.
-                        if (heroZone && hero != null && focusedRowIndex <= 0 &&
-                            event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp
-                        ) {
-                            if (runCatching { heroResumeRequester.requestFocus() }.isSuccess) return@onPreviewKeyEvent true
-                        }
                         // Up from the first row's cards goes to the Resume / + / info buttons above them.
                         if (actionsMode && focusedRowIndex == 0 && marquee.content != null &&
                             event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp
@@ -1288,6 +1281,7 @@ fun TvSkylineSectionFeed(
                             animationSpec = tween(200),
                             label = "railAlpha",
                         )
+                        Box(Modifier.fillMaxWidth().height(rowSlotHeight).clipToBounds()) {
                         TvMediaRow(
                             railAlpha = railAlpha,
                             title = section.title,
@@ -1308,7 +1302,7 @@ fun TvSkylineSectionFeed(
                             posterWidth = RowDimens.DensePosterWidth *
                                 presentation.posterSize.posterScale,
                             firstItemFocusRequester = resolvedFirstRowFocusRequester
-                                .takeIf { isFirstRow && !heroActive },
+                                .takeIf { isFirstRow },
                             rowContainerFocusRequester = when {
                                 isFirstRow -> firstRowContainerFocusRequester
                                 isReturnRow -> detailReturnRowContainerFocusRequester
@@ -1368,6 +1362,7 @@ fun TvSkylineSectionFeed(
                             onExploreAllFocused = { onExploreAllFocused(section, rowIndex) },
                             keyEpisodesBySeries = section.isTvProgressRow(),
                         )
+                        }
                     }
                 }
                 val heroRowCount = rows.firstOrNull()?.items?.size ?: 0
@@ -1383,6 +1378,18 @@ fun TvSkylineSectionFeed(
                             .fillMaxWidth(),
                     )
                 }
+            }
+            // The next section's title under the row, always at the same spot on every row and page.
+            val nextTitle = rows.getOrNull(focusedRowIndex.coerceAtLeast(0) + 1)?.title
+            if (nextTitle != null) {
+                androidx.tv.material3.Text(
+                    text = nextTitle,
+                    style = org.siloserver.silo.tv.ui.components.vantage.ui(17, androidx.compose.ui.text.font.FontWeight.SemiBold),
+                    maxLines = 1,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = TvSkyline.safeAreaX, bottom = 14.dp),
+                )
             }
 
         }

@@ -25,6 +25,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Button
@@ -59,6 +62,8 @@ internal fun TvPersonCredits(
     person: Person,
     onOpenItemDetail: (String) -> Unit,
     onOpenRequest: (mediaType: String, tmdbId: Int) -> Unit,
+    /** Up from the filter buttons: the page scrolls back to its top, whatever is (or is not) focusable above. */
+    onUpFromFilters: () -> Unit = {},
 ) {
     val api: FilmographyPluginApi = koinInject()
     val tokens: TokenManager = koinInject()
@@ -88,7 +93,15 @@ internal fun TvPersonCredits(
             fontWeight = FontWeight.Bold,
             color = Color.White,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.onPreviewKeyEvent { event ->
+                if (event.type == androidx.compose.ui.input.key.KeyEventType.KeyDown &&
+                    event.key == androidx.compose.ui.input.key.Key.DirectionUp
+                ) onUpFromFilters()
+                false
+            },
+        ) {
             PluginLibraryFilter.entries.forEach { f ->
                 Button(onClick = { library = f; showAll = false }) {
                     Text(if (f == library) "● ${f.title}" else f.title, fontSize = 14.sp)

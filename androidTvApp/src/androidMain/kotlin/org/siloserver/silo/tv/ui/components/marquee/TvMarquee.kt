@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -83,7 +84,7 @@ object TvMarqueeMetrics {
     val ButtonPadding = 20.dp
     val FieldHeight = 42.dp
     val FieldFont = 15.sp
-    val FieldCorner = 8.dp
+    val FieldCorner = 21.dp
     val HeroFont = 44.sp
     val LeadFont = 14.sp
     val CopyWidth = 450.dp
@@ -192,16 +193,31 @@ fun TvMarqueeScreen(
     copy: @Composable ColumnScope.() -> Unit,
     card: @Composable () -> Unit,
 ) {
+    val accent = org.siloserver.silo.tv.ui.theme.Level.DefaultAccent
     Box(modifier.fillMaxSize()) {
         MarqueeScrim(MarqueeScrimStyle.Leading)
+        // Vantage: two soft accent glows over the ground, as on Settings.
+        Box(
+            Modifier.fillMaxSize().drawBehind {
+                drawRect(
+                    androidx.compose.ui.graphics.Brush.radialGradient(
+                        listOf(accent.copy(alpha = 0.22f), Color.Transparent),
+                        center = androidx.compose.ui.geometry.Offset(size.width * 0.86f, size.height * 0.1f),
+                        radius = size.width * 0.55f,
+                    ),
+                )
+                drawRect(
+                    androidx.compose.ui.graphics.Brush.radialGradient(
+                        listOf(accent.copy(alpha = 0.10f), Color.Transparent),
+                        center = androidx.compose.ui.geometry.Offset(size.width * 0.05f, size.height),
+                        radius = size.width * 0.5f,
+                    ),
+                )
+            },
+        )
         Column(Modifier.fillMaxSize().padding(horizontal = 45.dp, vertical = 30.dp)) {
             Row(Modifier.fillMaxWidth().height(32.dp), verticalAlignment = Alignment.CenterVertically) {
-                Image(
-                    painter = painterResource(R.drawable.silo_wordmark),
-                    contentDescription = "Silo",
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.width(75.dp),
-                )
+                org.siloserver.silo.tv.ui.shell.TvSiloWordmark()
                 Spacer(Modifier.weight(1f))
                 accessory()
             }
@@ -231,14 +247,14 @@ fun TvMarqueeCard(
     width: Dp = TvMarqueeMetrics.CardWidth,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val shape = RoundedCornerShape(20.dp)
+    val shape = org.siloserver.silo.tv.ui.theme.VantagePanel
     Column(
         modifier
             .width(width)
             .shadow(20.dp, shape, clip = false)
             .clip(shape)
-            .background(Color(0xFF1F1F1F).copy(alpha = 0.72f))
-            .border(1.dp, MarqueeColors.Hairline, shape)
+            .background(org.siloserver.silo.tv.ui.theme.Level.Glass)
+            .border(1.dp, org.siloserver.silo.tv.ui.theme.Level.Edge, shape)
             .padding(26.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         content = content,
@@ -252,8 +268,9 @@ fun TvMarqueeHeadline(text: String, modifier: Modifier = Modifier, maxLines: Int
         text,
         modifier = modifier.semantics { heading() },
         color = MarqueeColors.Ink,
+        fontFamily = org.siloserver.silo.tv.ui.theme.VantageUiFamily,
         fontSize = TvMarqueeMetrics.HeroFont,
-        fontWeight = FontWeight.ExtraBold,
+        fontWeight = FontWeight.SemiBold,
         letterSpacing = (-1).sp,
         lineHeight = 48.sp,
         maxLines = maxLines,

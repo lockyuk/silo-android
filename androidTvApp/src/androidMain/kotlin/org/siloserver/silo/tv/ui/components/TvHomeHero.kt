@@ -157,59 +157,10 @@ internal fun TvHomeHeroPanel(
             eyebrow = eyebrow,
             startPadding = TvSkyline.safeAreaX,
             topPadding = TvSkyline.barTopInset + TvSkyline.barHeight,
-            bottomPadding = (maxHeight - TvHeroButtonsTop + 12.dp).coerceAtLeast(0.dp),
+            // No buttons any more: the text block runs down to just above the first row's title.
+            bottomPadding = (maxHeight - TvHeroTextBottom).coerceAtLeast(0.dp),
             modifier = Modifier.fillMaxSize(),
         )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .offset(x = TvSkyline.safeAreaX, y = TvHeroButtonsTop)
-                // Entering the buttons from the menu or the row always lands on
-                // Play, whichever button is nearest.
-                .focusProperties { enter = { playFocusRequester } }
-                .focusGroup()
-                .onFocusChanged { onFocusedChange(it.hasFocus) }
-                .onPreviewKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
-                        onDown()
-                        true
-                    } else {
-                        false
-                    }
-                },
-        ) {
-            // Left from Resume goes to the previous item and Right from the last
-            // button to the next one.
-            AuroraActionPill(
-                label = playLabel,
-                icon = Icons.Filled.PlayArrow,
-                primary = true,
-                onClick = onPlay,
-                modifier = Modifier
-                    .focusRequester(playFocusRequester)
-                    .focusRequester(resumeReq)
-                    .heroKeys(
-                        left = { onPrevious?.invoke(); onPrevious != null },
-                        right = { detailsReq.requestFocus(); true },
-                    ),
-            )
-            AuroraActionPill(
-                label = "Details", icon = null, primary = false, onClick = onMoreInfo,
-                modifier = Modifier
-                    .focusRequester(detailsReq)
-                    .heroKeys(left = { resumeReq.requestFocus(); true }, right = { heartReq.requestFocus(); true }),
-            )
-            AuroraActionPill(
-                label = null,
-                icon = if (inWatchlist) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                primary = false,
-                onClick = onToggleWatchlist,
-                modifier = Modifier
-                    .focusRequester(heartReq)
-                    .heroKeys(left = { detailsReq.requestFocus(); true }, right = { onNext?.invoke(); onNext != null }),
-            )
-        }
     }
 }
 
@@ -226,6 +177,9 @@ private fun Modifier.heroKeys(left: () -> Boolean, right: () -> Boolean): Modifi
 
 /** Where the hero's Resume · Details · ＋ pills sit (dp from the top of the screen). */
 internal val TvHeroButtonsTop = 322.dp
+
+/** Where the hero's text block must end (dp from the top of the screen), above the first row's title. */
+internal val TvHeroTextBottom = 342.dp
 
 @Composable
 private fun HeroInfo(content: TvMarqueeContent, eyebrow: String) {
@@ -585,7 +539,7 @@ internal fun TvHeroPositionBar(
                     .width(width)
                     .height(3.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(Color.White.copy(alpha = 0.3f)),
+                    .background(if (index < current) org.siloserver.silo.tv.ui.theme.Level.Fg.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.3f)),
             ) {
                 if (index == current) Box(
                     Modifier

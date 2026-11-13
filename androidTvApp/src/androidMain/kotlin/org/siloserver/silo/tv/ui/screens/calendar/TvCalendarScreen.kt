@@ -13,11 +13,15 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -178,6 +182,7 @@ fun TvCalendarScreen(
     viewModel: CalendarViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    var monthView by rememberSaveable { mutableStateOf(false) }
 
     // First focusable element is the segmented filter capsule so the D-pad
     // lands there when the Calendar tab swaps in; gate the jump so a silent
@@ -417,6 +422,7 @@ fun TvCalendarScreen(
                 // claims, and still reported initial content focus — and only
                 // another calendar zone gaining focus could clear it, which the
                 // skipped handoff could never cause.
+                .background(org.siloserver.silo.tv.ui.theme.Level.Bg)
                 .onFocusChanged { if (!it.hasFocus) calendarFilterHasFocus = false },
         ) {
             TvRootHeroBackdrop(
@@ -460,6 +466,8 @@ fun TvCalendarScreen(
                     onPrevWeek = viewModel::prevWeek,
                     onNextWeek = viewModel::nextWeek,
                     onToday = viewModel::goToToday,
+                    monthView = monthView,
+                    onSelectMonthView = { monthView = it },
                 )
             }
 
@@ -467,6 +475,7 @@ fun TvCalendarScreen(
             // week strip are the first list item, so focusing a poster shelf
             // naturally pushes both controls upward instead of pinning them.
             CalendarList(
+                monthView = monthView,
                 onContentUpFallbackChanged = onContentUpFallbackChanged,
                 onMoveUpToMenu = onMoveUpToMenu,
                 state = state,
@@ -547,6 +556,8 @@ private fun CalendarControls(
     onPrevWeek: () -> Unit,
     onNextWeek: () -> Unit,
     onToday: () -> Unit,
+    monthView: Boolean = false,
+    onSelectMonthView: (Boolean) -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -554,7 +565,7 @@ private fun CalendarControls(
             // item a stable minimum measure (filter capsule + spacing + 48dp
             // week strip + bottom inset), otherwise restoring item zero after
             // browsing shelves can reuse a clipped one-line measurement.
-            .heightIn(min = 108.dp)
+            .heightIn(min = if (monthView) 0.dp else 108.dp)
             .padding(
                 start = Spacing.safeArea,
                 end = Spacing.safeArea,
@@ -569,9 +580,11 @@ private fun CalendarControls(
             firstSegmentFocusRequester = firstSegmentFocusRequester,
             segmentFocusRequesters = segmentFocusRequesters,
             onControlFocused = onControlFocused,
+            monthView = monthView,
+            onSelectMonthView = onSelectMonthView,
         )
 
-        WeekStrip(
+        if (!monthView) WeekStrip(
             weekDates = weekDates,
             today = today,
             selectedDay = selectedDay,
@@ -596,12 +609,14 @@ private fun CalendarControlRow(
     firstSegmentFocusRequester: FocusRequester,
     segmentFocusRequesters: Map<String, FocusRequester>,
     onControlFocused: (CalendarControlFocusZone) -> Unit,
+    monthView: Boolean = false,
+    onSelectMonthView: (Boolean) -> Unit = {},
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .focusGroup(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         FilterBar(
@@ -611,6 +626,26 @@ private fun CalendarControlRow(
             segmentFocusRequesters = segmentFocusRequesters,
             onControlFocused = onControlFocused,
         )
+        // Week / Month, as a second capsule beside the filter.
+        Row(
+            modifier = Modifier
+                .focusGroup()
+                .clip(RoundedCornerShape(100.dp))
+                .background(org.siloserver.silo.tv.ui.theme.Level.Glass)
+                .border(1.dp, org.siloserver.silo.tv.ui.theme.Level.Edge, RoundedCornerShape(100.dp))
+                .padding(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            FilterSegment(
+                label = "Week", selected = !monthView, onClick = { onSelectMonthView(false) },
+                focusRequester = null, onFocused = { onControlFocused(CalendarControlFocusZone.Filter) },
+            )
+            FilterSegment(
+                label = "Month", selected = monthView, onClick = { onSelectMonthView(true) },
+                focusRequester = null, onFocused = { onControlFocused(CalendarControlFocusZone.Filter) },
+            )
+        }
 
         Spacer(modifier = Modifier.weight(1f))
     }
@@ -639,7 +674,8 @@ private fun FilterBar(
         modifier = Modifier
             .focusGroup()
             .clip(RoundedCornerShape(100.dp))
-            .background(Color.White.copy(alpha = 0.06f))
+            .background(org.siloserver.silo.tv.ui.theme.Level.Glass)
+            .border(1.dp, org.siloserver.silo.tv.ui.theme.Level.Edge, RoundedCornerShape(100.dp))
             .padding(6.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -671,8 +707,8 @@ private fun FilterSegment(
         onClick = onClick,
         shape = ClickableSurfaceDefaults.shape(shape = shape),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (selected) Color.White.copy(alpha = 0.88f) else Color.Transparent,
-            contentColor = if (selected) DarkOnPrimary else Color.White.copy(alpha = 0.70f),
+            containerColor = if (selected) org.siloserver.silo.tv.ui.theme.Level.Fg else Color.Transparent,
+            contentColor = if (selected) org.siloserver.silo.tv.ui.theme.Level.Ink else org.siloserver.silo.tv.ui.theme.Level.Dim,
             focusedContainerColor = FocusedContainer,
             focusedContentColor = FocusedContent,
             pressedContainerColor = FocusedContainer,
@@ -681,7 +717,7 @@ private fun FilterSegment(
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
         border = ClickableSurfaceDefaults.border(
             border = Border.None,
-            focusedBorder = Border.None,
+            focusedBorder = Border(BorderStroke(3.dp, org.siloserver.silo.tv.ui.theme.Level.DefaultAccent.copy(alpha = 0.8f)), shape = shape),
         ),
         modifier = Modifier
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
@@ -791,8 +827,8 @@ private fun ChevronButton(
         onClick = onClick,
         shape = ClickableSurfaceDefaults.shape(shape = shape),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.White.copy(alpha = 0.08f),
-            contentColor = Color.White.copy(alpha = 0.70f),
+            containerColor = org.siloserver.silo.tv.ui.theme.Level.Glass,
+            contentColor = org.siloserver.silo.tv.ui.theme.Level.Dim,
             focusedContainerColor = FocusedContainer,
             focusedContentColor = FocusedContent,
             pressedContainerColor = FocusedContainer,
@@ -826,8 +862,8 @@ private fun TodayButton(onClick: () -> Unit, onFocused: () -> Unit) {
         onClick = onClick,
         shape = ClickableSurfaceDefaults.shape(shape = shape),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.White.copy(alpha = 0.08f),
-            contentColor = Color.White.copy(alpha = 0.82f),
+            containerColor = org.siloserver.silo.tv.ui.theme.Level.Glass,
+            contentColor = org.siloserver.silo.tv.ui.theme.Level.Fg,
             focusedContainerColor = FocusedContainer,
             focusedContentColor = FocusedContent,
             pressedContainerColor = FocusedContainer,
@@ -868,7 +904,7 @@ private fun DayCell(
     // tvOS CalendarDayButton is 84x96 pt with 18/26 pt type and an 8 pt
     // event dot. Type is floored at 14/16sp for 10-ft legibility, and the
     // cell grows past half scale (52x60) to hold it — audit 2026-07-20.
-    val shape = RoundedCornerShape(6.dp)
+    val shape = RoundedCornerShape(14.dp)
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
     val inverted = isSelected || isFocused
@@ -878,7 +914,7 @@ private fun DayCell(
         interactionSource = interactionSource,
         shape = ClickableSurfaceDefaults.shape(shape = shape),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isSelected) Color.White.copy(alpha = 0.88f) else Color.White.copy(alpha = 0.05f),
+            containerColor = if (isSelected) org.siloserver.silo.tv.ui.theme.Level.Fg else org.siloserver.silo.tv.ui.theme.Level.Glass,
             contentColor = if (isSelected) DarkOnPrimary else Color.White,
             focusedContainerColor = FocusedContainer,
             focusedContentColor = FocusedContent,
@@ -889,12 +925,12 @@ private fun DayCell(
         border = ClickableSurfaceDefaults.border(
             border = Border(
                 border = BorderStroke(
-                    width = if (isToday && !isSelected) 1.dp else 0.dp,
-                    color = if (isToday && !isSelected) Color.White.copy(alpha = 0.35f) else Color.Transparent,
+                    width = if (isToday && !isSelected) 2.dp else 1.dp,
+                    color = if (isToday && !isSelected) org.siloserver.silo.tv.ui.theme.Level.DefaultAccent else org.siloserver.silo.tv.ui.theme.Level.Edge,
                 ),
                 shape = shape,
             ),
-            focusedBorder = Border.None,
+            focusedBorder = Border(BorderStroke(3.dp, org.siloserver.silo.tv.ui.theme.Level.DefaultAccent.copy(alpha = 0.8f)), shape = shape),
         ),
         modifier = Modifier
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
@@ -1004,6 +1040,7 @@ internal fun calendarUpFallbackAction(
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class, ExperimentalTvMaterial3Api::class)
 @Composable
 private fun CalendarList(
+    monthView: Boolean = false,
     onContentUpFallbackChanged: ((((Boolean) -> Boolean)?) -> Unit)? = null,
     onMoveUpToMenu: () -> Unit = {},
     state: org.siloserver.silo.viewmodel.CalendarUiState,
@@ -1043,7 +1080,7 @@ private fun CalendarList(
         focusedControlZone = null
         onControlFocused(null)
     }
-    val firstFocusableDayIndex = state.weekDates.indexOfFirst { state.itemsFor(it).isNotEmpty() }
+    val firstFocusableDayIndex = if (monthView) -1 else 0
     val onShelfFocused: (Int) -> Unit = { index ->
         // Item zero is the filter/week control shell.
         if (!isReturningToControls) {
@@ -1197,35 +1234,50 @@ private fun CalendarList(
                 }
             }
             else -> {
-        // Render EVERY weekday so the week keeps its shape; event-less days get
-        // a "Nothing scheduled" stub instead of being skipped.
-        itemsIndexed(state.weekDates, key = { _, date -> "day-$date" }) { index, date ->
-            DayShelf(
-                date = date,
-                isToday = date == state.today,
-                items = state.itemsFor(date),
-                focusRequest = if (date == shelfFocusDay) shelfFocusRequest else 0,
-                focusItemIndex = if (date == shelfFocusDay) shelfFocusItemIndex else 0,
-                onFocusApplied = onShelfFocusConsumed,
-                onItemFocusChanged = { item, itemIndex, focused ->
-                    onItemFocused(date, item, itemIndex, focused)
-                },
-                onItemClicked = { item, itemIndex -> onItemClicked(date, item, itemIndex) },
-                // Snap the day whose shelf owns focus to the top of the list
-                // (QA 2026-07-08: default bring-into-view revealed only the
-                // focused CARD, stranding the previous day's caption strip
-                // above and clipping the focused row at the fold).
-                onShelfFocused = { onShelfFocused(index) },
-                onShelfFocusChanged = { focused ->
-                    if (focused) {
-                        focusedShelfIndex = index
-                        clearControlFocusZone()
-                    } else if (focusedShelfIndex == index) {
-                        focusedShelfIndex = null
-                    }
-                },
-                onOpenItemDetailSelection = onOpenItemDetailSelection,
-            )
+        if (monthView) {
+            item(key = "calendar-month") {
+                CalendarMonthView(
+                    filter = state.filter,
+                    today = state.today,
+                    onOpenItemDetailSelection = onOpenItemDetailSelection,
+                    onFocused = { focusedShelfIndex = null; clearControlFocusZone() },
+                )
+            }
+        } else {
+        // The week as a board: seven day columns side by side. Days with nothing
+        // scheduled stay quiet. Up from a column's first card returns to the controls.
+        item(key = "calendar-board") {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(CalendarBoardHeight)
+                    .padding(horizontal = Spacing.safeArea),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                state.weekDates.forEachIndexed { index, date ->
+                    DayColumn(
+                        date = date,
+                        isToday = date == state.today,
+                        items = state.itemsFor(date),
+                        focusRequest = if (date == shelfFocusDay) shelfFocusRequest else 0,
+                        focusItemIndex = if (date == shelfFocusDay) shelfFocusItemIndex else 0,
+                        onFocusApplied = onShelfFocusConsumed,
+                        onItemFocusChanged = { item, itemIndex, focused ->
+                            onItemFocused(date, item, itemIndex, focused)
+                            // The first card of any column counts as "first row": Up from it
+                            // returns to the controls; Up from a lower card moves within the column.
+                            if (focused) focusedShelfIndex = if (itemIndex == 0) 0 else 1
+                        },
+                        onItemClicked = { item, itemIndex -> onItemClicked(date, item, itemIndex) },
+                        onShelfFocusChanged = { focused ->
+                            if (focused) clearControlFocusZone() else if (focusedShelfIndex != null) focusedShelfIndex = null
+                        },
+                        onOpenItemDetailSelection = onOpenItemDetailSelection,
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                    )
+                }
+            }
+        }
         }
             }
         }
@@ -1413,11 +1465,12 @@ private fun CalendarEventCard(
     focusRequester: FocusRequester?,
     onFocusChanged: (Boolean) -> Unit,
     onClick: () -> Unit,
+    compact: Boolean = false,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
-    val posterWidth = CalendarPosterWidth.cardScaled()
-    val posterHeight = CalendarPosterHeight.cardScaled()
+    val posterWidth = if (compact) 100.dp else CalendarPosterWidth.cardScaled()
+    val posterHeight = if (compact) 150.dp else CalendarPosterHeight.cardScaled()
 
     // Both edges. Gain alone made the screen's record of "what has focus"
     // sticky, so a card focus passed over on the way somewhere else still
@@ -1728,3 +1781,320 @@ private fun CalendarResumeSignal(onResume: () -> Unit) {
 
 /** Focus must hold the target this long to count as arrived rather than passing. */
 private const val TvCalendarReturnSettleMillis: Long = 120L
+
+
+// MARK: - Vantage board
+
+private val CalendarBoardHeight = 296.dp
+
+/** One day of the week board: the date, then its episodes as stacked cards. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun DayColumn(
+    date: String,
+    isToday: Boolean,
+    items: List<CalendarItem>,
+    focusRequest: Int,
+    focusItemIndex: Int = 0,
+    onFocusApplied: () -> Unit = {},
+    onItemFocusChanged: (item: CalendarItem, index: Int, focused: Boolean) -> Unit,
+    onItemClicked: (item: CalendarItem, index: Int) -> Unit = { _, _ -> },
+    onShelfFocusChanged: (Boolean) -> Unit = {},
+    onOpenItemDetailSelection: (contentId: String, seasonNumber: Int?, episodeContentId: String?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val level = org.siloserver.silo.tv.ui.theme.Level
+    val localDate = remember(date) { LocalDate.parse(date) }
+    val locale = LocalConfiguration.current.locales[0]
+    val weekday = remember(date, locale) { localDate.format(DateTimeFormatter.ofPattern("EEE", locale)) }
+    val targetCardFocusRequester = remember { FocusRequester() }
+    val targetCardIndex = focusItemIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+    var columnHasFocus by remember { mutableStateOf(false) }
+    LaunchedEffect(focusRequest) {
+        if (focusRequest > 0 && items.isNotEmpty()) {
+            val landed = requestFocusUntilObserved(
+                maxAttempts = TvContentInitialFocusMaxAttempts,
+                awaitAttempt = { withFrameNanos { } },
+                requestFocus = targetCardFocusRequester::requestFocus,
+                isFocused = { columnHasFocus },
+            )
+            if (landed == TvObservedFocusResult.Focused) onFocusApplied()
+        }
+    }
+    val shape = RoundedCornerShape(16.dp)
+    val accent = level.DefaultAccent
+    Column(
+        modifier = modifier
+            .clip(shape)
+            .background(if (isToday) accent.copy(alpha = 0.12f) else level.Glass)
+            .border(if (isToday) 2.dp else 1.dp, if (isToday) accent else level.Edge, shape)
+            .onFocusChanged { f ->
+                if (f.hasFocus != columnHasFocus) onShelfFocusChanged(f.hasFocus)
+                columnHasFocus = f.hasFocus
+            }
+            .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                weekday.uppercase(),
+                style = org.siloserver.silo.tv.ui.components.vantage.mono(12.5, FontWeight.SemiBold, if (isToday) accent else level.Faint, 0.12f),
+                maxLines = 1,
+            )
+            Text(
+                localDate.dayOfMonth.toString(),
+                style = org.siloserver.silo.tv.ui.components.vantage.ui(24, FontWeight.SemiBold),
+                maxLines = 1,
+            )
+        }
+        if (items.isEmpty()) {
+            Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                Text("–", style = org.siloserver.silo.tv.ui.components.vantage.mono(13, color = level.Faint))
+            }
+        } else {
+            CompositionLocalProvider(LocalBringIntoViewSpec provides TvSmoothBringIntoViewSpec) {
+                Column(
+                    modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).focusGroup(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    items.forEachIndexed { index, item ->
+                        CalendarEventCard(
+                            item = item,
+                            focusRequester = targetCardFocusRequester.takeIf { index == targetCardIndex },
+                            onFocusChanged = { focused -> onItemFocusChanged(item, index, focused) },
+                            onClick = {
+                                onItemClicked(item, index)
+                                val target = tvCalendarDetailTarget(item)
+                                onOpenItemDetailSelection(target.contentId, target.seasonNumber, target.episodeContentId)
+                            },
+                            compact = true,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Month view
+
+/** A month grid with a dot for each episode, and the selected day's episodes beside it. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun CalendarMonthView(
+    filter: String,
+    today: String,
+    onOpenItemDetailSelection: (contentId: String, seasonNumber: Int?, episodeContentId: String?) -> Unit,
+    onFocused: () -> Unit,
+) {
+    val level = org.siloserver.silo.tv.ui.theme.Level
+    val repo: org.siloserver.silo.repository.CalendarRepository = org.koin.compose.koinInject()
+    var monthOffset by rememberSaveable { mutableIntStateOf(0) }
+    val todayDate = remember(today) { runCatching { LocalDate.parse(today) }.getOrDefault(LocalDate.now()) }
+    val firstOfMonth = remember(todayDate, monthOffset) { todayDate.withDayOfMonth(1).plusMonths(monthOffset.toLong()) }
+    val gridStart = remember(firstOfMonth) { firstOfMonth.minusDays((firstOfMonth.dayOfWeek.value - 1).toLong()) }
+    val gridEnd = remember(firstOfMonth, gridStart) {
+        val lastOfMonth = firstOfMonth.plusMonths(1).minusDays(1)
+        lastOfMonth.plusDays((7 - lastOfMonth.dayOfWeek.value).toLong())
+    }
+    var selected by remember(firstOfMonth) {
+        mutableStateOf(if (monthOffset == 0) todayDate else firstOfMonth)
+    }
+    val days by androidx.compose.runtime.produceState<Map<String, List<CalendarItem>>>(emptyMap(), gridStart, gridEnd, filter) {
+        val owner = repo.capture() ?: return@produceState
+        // The server answers at most 31 days at a time, and a month grid can span six weeks: two reads.
+        val found = HashMap<String, List<CalendarItem>>()
+        var from = gridStart
+        while (!from.isAfter(gridEnd)) {
+            val to = minOf(from.plusDays(20), gridEnd)
+            val result = repo.getCalendar(
+                start = from.toString(), end = to.toString(), filter = filter, libraryId = null,
+                timezone = java.time.ZoneId.systemDefault().id, owner = owner,
+            )
+            if (result is org.siloserver.silo.network.ApiResult.Success) {
+                result.data.events.forEach { found[it.date] = it.items }
+                value = HashMap(found)
+            }
+            from = to.plusDays(1)
+        }
+    }
+    val locale = LocalConfiguration.current.locales[0]
+    val monthTitle = remember(firstOfMonth, locale) { firstOfMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", locale)) }
+    val dayTitle = remember(selected, locale) { selected.format(DateTimeFormatter.ofPattern("EEEE d MMMM", locale)) }
+    val selectedItems = days[selected.toString()].orEmpty()
+    val agendaFocus = remember { FocusRequester() }
+    val accent = level.DefaultAccent
+    val dayCount = (java.time.temporal.ChronoUnit.DAYS.between(gridStart, gridEnd) + 1).toInt()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(CalendarBoardHeight)
+            .padding(horizontal = Spacing.safeArea)
+            .onFocusChanged { if (it.hasFocus) onFocused() },
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .width(430.dp)
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(18.dp))
+                .background(level.Glass)
+                .border(1.dp, level.Edge, RoundedCornerShape(18.dp))
+                .padding(12.dp)
+                .focusGroup(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MonthNavButton("‹") { monthOffset -= 1 }
+                Text(monthTitle, style = org.siloserver.silo.tv.ui.components.vantage.ui(17, FontWeight.SemiBold), modifier = Modifier.weight(1f), maxLines = 1)
+                MonthNavButton("›") { monthOffset += 1 }
+            }
+            (0 until dayCount / 7).forEach { week ->
+                Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    (0 until 7).forEach { dow ->
+                        val date = gridStart.plusDays((week * 7 + dow).toLong())
+                        MonthDayCell(
+                            date = date,
+                            inMonth = date.month == firstOfMonth.month,
+                            isToday = date == todayDate,
+                            isSelected = date == selected,
+                            count = days[date.toString()].orEmpty().size,
+                            onFocused = { selected = date },
+                            // OK on a day, or Right from the last column, moves into that day's episodes.
+                            onClick = { runCatching { agendaFocus.requestFocus() } },
+                            onRight = if (dow == 6) ({ days[date.toString()].orEmpty().isNotEmpty() && runCatching { agendaFocus.requestFocus() }.isSuccess }) else null,
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                        )
+                    }
+                }
+            }
+        }
+        Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(dayTitle, style = org.siloserver.silo.tv.ui.components.vantage.ui(22, FontWeight.SemiBold), maxLines = 1)
+                Text(
+                    if (selectedItems.isEmpty()) "nothing scheduled" else "${selectedItems.size} episode${if (selectedItems.size > 1) "s" else ""}",
+                    style = org.siloserver.silo.tv.ui.components.vantage.mono(12.5, color = level.Faint),
+                )
+            }
+            Column(
+                Modifier.weight(1f).verticalScroll(rememberScrollState()).focusGroup(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                CompositionLocalProvider(LocalBringIntoViewSpec provides TvSmoothBringIntoViewSpec) {
+                    selectedItems.forEachIndexed { agendaIndex, item ->
+                        MonthAgendaRow(item, if (agendaIndex == 0) agendaFocus else null) {
+                            val target = tvCalendarDetailTarget(item)
+                            onOpenItemDetailSelection(target.contentId, target.seasonNumber, target.episodeContentId)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun MonthNavButton(label: String, onClick: () -> Unit) {
+    val level = org.siloserver.silo.tv.ui.theme.Level
+    Surface(
+        onClick = onClick,
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(100.dp)),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = level.Glass2, contentColor = level.Fg,
+            focusedContainerColor = FocusedContainer, focusedContentColor = FocusedContent,
+        ),
+        modifier = Modifier.size(32.dp),
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(label, style = org.siloserver.silo.tv.ui.components.vantage.ui(18, FontWeight.SemiBold, Color.Unspecified))
+        }
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun MonthDayCell(
+    date: LocalDate,
+    inMonth: Boolean,
+    isToday: Boolean,
+    isSelected: Boolean,
+    count: Int,
+    onFocused: () -> Unit,
+    onClick: () -> Unit = {},
+    onRight: (() -> Boolean)? = null,
+    modifier: Modifier = Modifier,
+) {
+    val level = org.siloserver.silo.tv.ui.theme.Level
+    val shape = RoundedCornerShape(12.dp)
+    var focused by remember { mutableStateOf(false) }
+    Surface(
+        onClick = onClick,
+        shape = ClickableSurfaceDefaults.shape(shape),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = if (isSelected) level.Fg else level.Glass2,
+            contentColor = if (isSelected) level.Ink else level.Fg,
+            focusedContainerColor = FocusedContainer, focusedContentColor = FocusedContent,
+        ),
+        border = ClickableSurfaceDefaults.border(
+            border = Border(BorderStroke(if (isToday) 2.dp else 0.dp, if (isToday) level.DefaultAccent else Color.Transparent), shape = shape),
+            focusedBorder = Border(BorderStroke(3.dp, level.DefaultAccent.copy(alpha = 0.8f)), shape = shape),
+        ),
+        modifier = modifier
+            .alpha(if (inMonth) 1f else 0.4f)
+            .onFocusChanged { if (it.isFocused) { focused = true; onFocused() } else focused = false }
+            .onPreviewKeyEvent { ev ->
+                if (onRight != null && ev.type == androidx.compose.ui.input.key.KeyEventType.KeyDown &&
+                    ev.key == androidx.compose.ui.input.key.Key.DirectionRight
+                ) onRight() else false
+            },
+    ) {
+        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Text(date.dayOfMonth.toString(), style = org.siloserver.silo.tv.ui.components.vantage.ui(15, FontWeight.SemiBold, Color.Unspecified))
+            Row(horizontalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.height(7.dp).padding(top = 2.dp)) {
+                repeat(count.coerceAtMost(4)) {
+                    Box(Modifier.size(5.dp).clip(RoundedCornerShape(100.dp)).background(if (isSelected || focused) level.Ink else level.DefaultAccent))
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun MonthAgendaRow(item: CalendarItem, focusRequester: FocusRequester? = null, onClick: () -> Unit) {
+    val level = org.siloserver.silo.tv.ui.theme.Level
+    val shape = RoundedCornerShape(14.dp)
+    Surface(
+        onClick = onClick,
+        shape = ClickableSurfaceDefaults.shape(shape),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = level.Glass, contentColor = level.Fg,
+            focusedContainerColor = FocusedContainer, focusedContentColor = FocusedContent,
+        ),
+        border = ClickableSurfaceDefaults.border(
+            border = Border(BorderStroke(1.dp, level.Edge), shape = shape),
+            focusedBorder = Border(BorderStroke(3.dp, level.DefaultAccent.copy(alpha = 0.8f)), shape = shape),
+        ),
+        modifier = Modifier.fillMaxWidth().then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
+    ) {
+        Row(Modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            ThumbhashImage(
+                url = item.posterUrl, thumbhash = item.posterThumbhash, contentDescription = item.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(width = 46.dp, height = 69.dp).clip(RoundedCornerShape(8.dp)),
+                defaultArtwork = DefaultArtworkKind.forItemType(item.type),
+            )
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(item.title, style = org.siloserver.silo.tv.ui.components.vantage.ui(16, FontWeight.SemiBold, Color.Unspecified), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                cardSubtitle(item)?.let {
+                    Text(it, style = org.siloserver.silo.tv.ui.components.vantage.mono(13, color = Color.Unspecified), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            item.localDisplayAirTime()?.let {
+                Text(it, style = org.siloserver.silo.tv.ui.components.vantage.mono(13, FontWeight.SemiBold, Color.Unspecified))
+            }
+        }
+    }
+}

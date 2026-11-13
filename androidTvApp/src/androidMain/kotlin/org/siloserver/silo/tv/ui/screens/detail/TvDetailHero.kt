@@ -114,7 +114,7 @@ internal fun TvDetailHero(
     } else {
         0.dp
     }
-    val heroHeight = screenHeight * HERO_HEIGHT_FRACTION + extraHeight - seriesLift + synopsisExtra
+    val heroHeight = screenHeight * HERO_HEIGHT_FRACTION + extraHeight - seriesLift + synopsisExtra - HERO_TOP_TIGHTEN + (if (compactSeries) 17.dp else 26.dp)
 
     BoxWithConstraints(
         modifier = modifier
@@ -188,7 +188,7 @@ internal fun TvDetailHero(
                 directorText = directorText,
                 contentMaxWidth = HERO_CONTENT_MAX_WIDTH,
                 verticalSpacing = EDITORIAL_SPACING,
-                collapsedSynopsisLines = 3,
+                collapsedSynopsisLines = 4,
                 compactSeries = compactSeries,
                 translation = translation.takeUnless { compactSeries },
                 machineTranslated = machineTranslated && !compactSeries,
@@ -308,7 +308,7 @@ private fun EditorialColumn(
                         TvExpandableSynopsis(
                             overview = line,
                             tagline = tagline.takeUnless { isCombinedSeriesEpisode },
-                            collapsedMaxLines = 3,
+                            collapsedMaxLines = 5,
                             dialogTitle = title,
                             // The title is always isolated so the overview, not the
                             // title, sets the paragraph direction.
@@ -320,16 +320,18 @@ private fun EditorialColumn(
                     }
                 }
             } else {
-                overview?.takeIf { it.isNotBlank() }?.let { line ->
-                    TvExpandableSynopsis(
-                        overview = line,
-                        tagline = tagline,
-                        collapsedMaxLines = collapsedSynopsisLines,
-                        dialogTitle = title,
-                        pillFocusRequester = synopsisPillFocusRequester,
-                        onPillPresent = onSynopsisPillPresent,
-                        onExtraHeight = onSynopsisExtraHeight,
-                    )
+                Box(modifier = Modifier.height(SYNOPSIS_SLOT_HEIGHT + synopsisExtra)) {
+                    overview?.takeIf { it.isNotBlank() }?.let { line ->
+                        TvExpandableSynopsis(
+                            overview = line,
+                            tagline = tagline,
+                            collapsedMaxLines = collapsedSynopsisLines,
+                            dialogTitle = title,
+                            pillFocusRequester = synopsisPillFocusRequester,
+                            onPillPresent = onSynopsisPillPresent,
+                            onExtraHeight = onSynopsisExtraHeight,
+                        )
+                    }
                 }
             }
             if (machineTranslated && !overview.isNullOrBlank()) TvMachineTranslatedLabel()
@@ -402,7 +404,10 @@ private fun TitleBlock(
                 .height(80.dp)
                 .widthIn(max = 325.dp),
         )
-        else -> HeroTextTitle(title = title)
+        else -> Box(
+            modifier = Modifier.height(80.dp).clipToBounds(),
+            contentAlignment = Alignment.BottomStart,
+        ) { HeroTextTitle(title = title) }
     }
 }
 
@@ -578,7 +583,10 @@ private fun splitDisplayTitle(raw: String): Pair<String, String?> {
 private const val HERO_HEIGHT_FRACTION = 690f / 1080f
 private const val ARTWORK_WIDTH_FRACTION = 0.64f
 private const val ARTWORK_HEIGHT_FRACTION = 0.70f
-private val HERO_TOP_INSET = 58.dp
+private val HERO_TOP_INSET = 24.dp
+
+/** The top inset given back, so the rest of the page moves up with the title. */
+private val HERO_TOP_TIGHTEN = 34.dp
 private val SERIES_LARGE_CARD_LIFT = 16.dp
 private val HERO_CONTENT_MAX_WIDTH = 450.dp
 private val HERO_CONTENT_SPACING = 9.dp
@@ -586,7 +594,10 @@ private val EDITORIAL_SPACING = 7.dp
 private val SERIES_METADATA_SLOT_HEIGHT = 18.dp
 private val SYNOPSIS_PILL_HEIGHT = 36.dp
 private val SERIES_RATINGS_ROW_HEIGHT = 24.dp
-private val SERIES_EPISODE_SYNOPSIS_HEIGHT = 56.dp
+private val SERIES_EPISODE_SYNOPSIS_HEIGHT = 88.dp
+
+/** Four synopsis lines (17.5dp each): the synopsis slot is always this tall. */
+private val SYNOPSIS_SLOT_HEIGHT = 70.dp
 private val SERIES_CREDIT_SLOT_HEIGHT = 14.dp
 
 /**

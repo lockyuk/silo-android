@@ -181,8 +181,10 @@ private fun TvMarqueeBlock(
 
     Column(
         modifier = Modifier.widthIn(max = MarqueeContentWidth),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
+        // Every row below has a fixed height, so the chips, ratings, synopsis and buttons sit
+        // at the same place for every title, whatever its logo, season or synopsis length.
         // Vantage: SEASON x and EPISODE x pills, then a quiet tag (Continue / the row's name, time left).
         val position = src.positionSeconds
         val duration = src.durationSeconds
@@ -194,6 +196,7 @@ private fun TvMarqueeBlock(
         }.filter { it.isNotBlank() }
         val season = src.seasonNumber
         val episode = src.episodeNumber
+        Box(Modifier.height(HeroEyebrowHeight), contentAlignment = Alignment.CenterStart) {
         if (season != null || episode != null || tagParts.isNotEmpty()) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 season?.let { org.siloserver.silo.tv.ui.components.vantage.VChip("SEASON $it") }
@@ -205,8 +208,11 @@ private fun TvMarqueeBlock(
                 }
             }
         }
-        // The clear logo; the title in Outfit when there is none.
-        VantageLogo(content, onLines = { titleLineCount = it })
+        }
+        // The clear logo; the title in Outfit when there is none. One fixed slot for all of them.
+        Box(Modifier.height(HeroLogoSlotHeight).fillMaxWidth(), contentAlignment = Alignment.BottomStart) {
+            VantageLogo(content, onLines = { titleLineCount = it })
+        }
         // Chips: certificate (solid), year, genre, quality; then IMDb / RT / TMDB scores.
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp * 0.75f),
@@ -230,16 +236,18 @@ private fun TvMarqueeBlock(
                 org.siloserver.silo.tv.ui.components.vantage.VChip(if (extra.isBlank()) "" else " $extra", bold = quality)
             }
         }
-        // Ratings on their own line, under the certificate, year, genre and quality.
-        if (src.ratingImdb != null || src.ratingRtCritic != null || src.ratingTmdb != null) {
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                src.ratingImdb?.let { VantageRate("IMDb", Color(0xFFF5C518), Color.Black, String.format("%.1f", it)) }
-                src.ratingRtCritic?.let { VantageRate("RT", Color(0xFFFA320A), Color.White, "$it%") }
-                src.ratingRtAudience?.let { VantageRate("POP", Color(0xFFFFB400), Color.Black, "$it%") }
-                src.ratingTmdb?.let { VantageRate("TMDB", Color(0xFF01B4E4), Color.White, String.format("%.1f", it)) }
+        // IMDb, Rotten Tomatoes and TMDB under the chips, in a slot that is always there.
+        Box(Modifier.height(HeroRatingsHeight), contentAlignment = Alignment.CenterStart) {
+            if (src.ratingImdb != null || src.ratingRtCritic != null || src.ratingTmdb != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    src.ratingImdb?.let { VantageRate("IMDb", Color(0xFFF5C518), Color.Black, String.format("%.1f", it)) }
+                    src.ratingRtCritic?.let { VantageRate("RT", Color(0xFFFA320A), Color.White, "$it%") }
+                    src.ratingTmdb?.let { VantageRate("TMDB", Color(0xFF01B4E4), Color.White, String.format("%.1f", it)) }
+                }
             }
         }
 
+        Box(Modifier.height(HeroSynopsisHeight)) {
         synopsisText?.let { synopsis ->
             val pulse: State<Float>? = if (translating) {
                 rememberInfiniteTransition(label = "marqueeTranslating").animateFloat(
@@ -255,12 +263,14 @@ private fun TvMarqueeBlock(
                 text = synopsis,
                 style = org.siloserver.silo.tv.ui.components.vantage.ui(15, FontWeight.Normal, level.Synopsis),
                 lineHeight = 18.sp,
-                maxLines = if (titleLineCount > 1) 3 else 5,
+                minLines = 6,
+                maxLines = 6,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .widthIn(max = MarqueeSynopsisMaxWidth)
                     .drawAlpha { pulse?.value ?: 1f },
             )
+        }
         }
 
         footer?.invoke(content)
@@ -280,9 +290,9 @@ private fun VantageLogo(content: TvMarqueeContent, onLines: (Int) -> Unit) {
     if (logoUrl.isNullOrBlank() || failed) {
         Text(
             text = content.title,
-            style = org.siloserver.silo.tv.ui.components.vantage.ui(54, FontWeight.SemiBold),
-            lineHeight = 46.sp,
-            letterSpacing = (-0.8).sp,
+            style = org.siloserver.silo.tv.ui.components.vantage.ui(38, FontWeight.SemiBold),
+            lineHeight = 36.sp,
+            letterSpacing = (-0.6).sp,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             onTextLayout = { onLines(it.lineCount) },
@@ -318,8 +328,8 @@ private fun VantageLogo(content: TvMarqueeContent, onLines: (Int) -> Unit) {
 private const val LogoArea = 300f * 74f
 private const val LogoMinWidth = 130f
 private const val LogoMaxWidth = 360f
-private const val LogoMinHeight = 44f
-private const val LogoMaxHeight = 104f
+private const val LogoMinHeight = 36f
+private const val LogoMaxHeight = 72f
 
 /** A score: a coloured brand tag and the value in mono (.rate). */
 @Composable
@@ -390,9 +400,13 @@ private fun MarqueeBadge(label: String) {
 // body text stays at the 10-ft legibility floor; the compact outlined badges
 // intentionally follow the smaller tvOS metadata treatment.
 private val MarqueeContentWidth = 420.dp
+private val HeroEyebrowHeight = 20.dp
+private val HeroLogoSlotHeight = 72.dp
+private val HeroRatingsHeight = 18.dp
+private val HeroSynopsisHeight = 96.dp
 
 /** Space between the menu bar and the top of the block. */
-private val MarqueeTopGap = 14.dp
+private val MarqueeTopGap = 2.dp
 private val MarqueeSynopsisMaxWidth = 405.dp
 private val MarqueeLogoMaxWidth = 340.dp
 private val MarqueeLogoMaxHeight = 92.dp

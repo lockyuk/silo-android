@@ -224,18 +224,18 @@ internal fun TvCastCard(
     val isFocused by interactionSource.collectIsFocusedAsState()
     androidx.compose.foundation.layout.Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(11.dp),
         modifier = cardModifier
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .androidxDrawHalo(isFocused, accent)
             .background(if (isFocused) L.Fg else L.Glass, pill)
             .border(1.dp, if (isFocused) Color.Transparent else L.Edge, pill)
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
-            .padding(start = 4.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
+            .padding(start = 5.dp, end = 18.dp, top = 5.dp, bottom = 5.dp),
     ) {
         Box(
             modifier = Modifier
-                .size(30.dp)
+                .size(46.dp)
                 .clip(pill)
                 .background(DarkSurfaceElevated),
             contentAlignment = Alignment.Center,
@@ -253,14 +253,14 @@ internal fun TvCastCard(
                     imageVector = Icons.Filled.Person,
                     contentDescription = null,
                     tint = Color.White.copy(alpha = 0.6f),
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(22.dp),
                 )
             }
         }
         Column {
             Text(
                 text = member.name,
-                style = org.siloserver.silo.tv.ui.components.vantage.ui(12.5, FontWeight.SemiBold, if (isFocused) L.Ink else L.Fg),
+                style = org.siloserver.silo.tv.ui.components.vantage.ui(15.5, FontWeight.SemiBold, if (isFocused) L.Ink else L.Fg),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -268,7 +268,7 @@ internal fun TvCastCard(
             if (role != null) {
                 Text(
                     text = role,
-                    style = org.siloserver.silo.tv.ui.components.vantage.mono(10, color = if (isFocused) L.Ink.copy(alpha = 0.7f) else L.Dim),
+                    style = org.siloserver.silo.tv.ui.components.vantage.mono(12, color = if (isFocused) L.Ink.copy(alpha = 0.7f) else L.Dim),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )

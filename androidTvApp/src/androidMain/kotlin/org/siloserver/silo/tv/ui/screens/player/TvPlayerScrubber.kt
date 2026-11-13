@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -521,11 +522,19 @@ fun TvPlayerScrubber(
                 .padding(top = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = formatScrubberTime(labelPositionSec),
-                style = TvPlayerType.Time,
-                modifier = Modifier.weight(1f),
-            )
+            Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = formatScrubberTime(labelPositionSec),
+                    style = TvPlayerType.Time.copy(fontSize = 24.sp, lineHeight = 28.sp),
+                )
+                if (durationSec > 0) {
+                    Text(
+                        text = "  / ${formatScrubberTime(durationSec)}",
+                        style = TvPlayerType.Time.copy(color = TvPlayerChrome.Graphite),
+                        modifier = Modifier.padding(bottom = 2.dp),
+                    )
+                }
+            }
             val remainingSec = (durationSec - labelPositionSec).coerceAtLeast(0.0)
             val wallClockRemainingSec = if (playbackSpeed > 0.0) remainingSec / playbackSpeed else remainingSec
             Text(

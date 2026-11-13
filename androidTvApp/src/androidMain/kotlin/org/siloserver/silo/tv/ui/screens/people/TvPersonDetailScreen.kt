@@ -188,7 +188,12 @@ internal fun TvPersonDetailContent(
             Box(modifier = Modifier.onFocusChanged { if (it.hasFocus) pageScope.launch { pageScroll.animateScrollTo(0) } }) {
                 PersonHeader(person = person, bioFocusRequester = bioFocusRequester)
             }
-            TvPersonCredits(person = person, onOpenItemDetail = onOpenItemDetail, onOpenRequest = onOpenRequest)
+            TvPersonCredits(
+                person = person,
+                onOpenItemDetail = onOpenItemDetail,
+                onOpenRequest = onOpenRequest,
+                onUpFromFilters = { pageScope.launch { pageScroll.animateScrollTo(0) } },
+            )
         }
         }
     }

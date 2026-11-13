@@ -95,6 +95,7 @@ fun TvMarqueeField(
         singleLine = true,
         textStyle = TextStyle(
             color = ink,
+            fontFamily = org.siloserver.silo.tv.ui.theme.VantageUiFamily,
             fontSize = TvMarqueeMetrics.FieldFont,
             textDirection = TextDirection.Content,
         ),
@@ -113,11 +114,11 @@ fun TvMarqueeField(
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .background(if (focused) MarqueeColors.Ink else Color.White.copy(alpha = if (isError) 0.06f else 0.08f), shape)
             .border(
-                width = if (isError) 1.5.dp else 1.dp,
+                width = if (isError) 1.5.dp else if (focused) 3.dp else 1.dp,
                 color = when {
                     isError -> MarqueeColors.Error.copy(alpha = 0.75f)
-                    focused -> Color.Transparent
-                    else -> Color.White.copy(alpha = 0.12f)
+                    focused -> org.siloserver.silo.tv.ui.theme.Level.DefaultAccent.copy(alpha = 0.85f)
+                    else -> org.siloserver.silo.tv.ui.theme.Level.Edge
                 },
                 shape = shape,
             )

@@ -94,13 +94,16 @@ fun TvPlayerTransportCluster(
     // the scrubber above instead.
     val skipForwardFocus = remember { FocusRequester() }
     val firstSecondaryFocus = remember { FocusRequester() }
-    Row(
+    androidx.compose.foundation.layout.Box(
         modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
+        contentAlignment = Alignment.CenterStart,
     ) {
-        // Primary group — pinned left.
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // Vantage: the primary group is centred under the scrubber, the secondary group is
+        // pinned right and the title (when given) sits left.
+        Row(
+            modifier = Modifier.align(Alignment.Center),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             TransportIconButton(
                 icon = null,
                 seekGlyph = SeekGlyph(forward = false, seconds = skipBackSeconds),
@@ -132,13 +135,16 @@ fun TvPlayerTransportCluster(
         // The title, filling the gap between the groups.
         androidx.compose.foundation.layout.Box(
             modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 24.dp),
+                .align(Alignment.CenterStart)
+                .padding(end = 24.dp),
             contentAlignment = Alignment.CenterStart,
         ) { centerContent?.invoke() }
 
         // Secondary group — pushed right.
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.align(Alignment.CenterEnd),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             onUpNext?.let { showUpNext ->
                 TransportIconButton(
                     icon = Icons.Rounded.SkipNext,

@@ -39,6 +39,8 @@ import org.siloserver.silo.model.catalog.BrowseItem
 import org.siloserver.silo.model.catalog.CatalogBoxSetDetail
 import org.siloserver.silo.model.catalog.boxSetNextMovie
 import org.siloserver.silo.model.catalog.boxSetResumePosition
+import org.siloserver.silo.model.catalog.boxSetFilmCount
+import org.siloserver.silo.model.catalog.watchedFraction
 import org.siloserver.silo.model.catalog.heroFacts
 import org.siloserver.silo.model.catalog.playLabel
 import org.siloserver.silo.model.section.SectionItem
@@ -201,8 +203,10 @@ private fun BoxSetContent(
         modifier = Modifier
             .fillMaxSize()
             .onFocusChanged { screenHasFocus = it.hasFocus }
-            .background(tvDetailPageSurfaceColor(tint.accent)),
+            .background(org.siloserver.silo.tv.ui.theme.Level.Bg),
     ) {
+        // Vantage: the backdrop fills the page behind the hero and the row.
+        org.siloserver.silo.tv.ui.screens.detail.TvVantagePageBackdrop(boxSet.backdropUrl, boxSet.backdropThumbhash, listState)
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             state = listState,
@@ -213,9 +217,9 @@ private fun BoxSetContent(
                     title = boxSet.title,
                     seriesTitle = null,
                     logoUrl = null,
-                    backdropUrl = boxSet.backdropUrl,
-                    backdropThumbhash = boxSet.backdropThumbhash,
-                    sourceTokens = emptyList(),
+                    backdropUrl = null,
+                    backdropThumbhash = null,
+                    sourceTokens = listOf("COLLECTION"),
                     ratingChip = null,
                     overview = boxSet.overview,
                     tagline = null,
@@ -238,6 +242,24 @@ private fun BoxSetContent(
                         }
                     },
                 )
+            }
+            item(key = "collection-strip", contentType = "box-set-strip") {
+                val years = listOfNotNull(boxSet.firstYear, boxSet.lastYear).distinct().joinToString(" – ")
+                val left = (boxSet.movieCount - boxSet.playedCount).coerceAtLeast(0)
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.padding(start = TvDetailHorizontalInset, end = TvDetailHorizontalInset, top = 20.dp, bottom = 8.dp),
+                ) {
+                    org.siloserver.silo.tv.ui.screens.detail.TvVantageFactsStrip(
+                        cells = buildList {
+                            add("Collection" to boxSetFilmCount(boxSet.movieCount))
+                            if (years.isNotBlank()) add("Years" to years)
+                            add("Watched" to "${boxSet.playedCount} of ${boxSet.movieCount}")
+                            add("Still to watch" to if (left == 0) "All done" else boxSetFilmCount(left))
+                        },
+                    )
+                    org.siloserver.silo.tv.ui.components.vantage.VBar(boxSet.watchedFraction ?: 0f)
+                }
             }
             item(key = "movies", contentType = "box-set-movies") {
                 Column(verticalArrangement = Arrangement.spacedBy(TvBoxSetRowHeaderGap)) {

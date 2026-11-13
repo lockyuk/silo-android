@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -215,6 +217,15 @@ internal fun TvVantageDetailsStrip(
         (detail.networks.firstOrNull() ?: detail.studios.firstOrNull() ?: extra?.companies?.firstOrNull())
             ?.let { add((if (isSeries && detail.networks.isNotEmpty()) "Network" else "Studio") to it) }
     }.take(6)
+    TvVantageFactsStrip(cells, modifier)
+}
+
+/** The glass strip of label / value cells (also used by the page for a title that is not in the library). */
+@Composable
+internal fun TvVantageFactsStrip(
+    cells: List<Pair<String, String>>,
+    modifier: Modifier = Modifier,
+) {
     if (cells.isEmpty()) return
     androidx.compose.foundation.layout.Row(
         modifier = modifier
@@ -226,7 +237,7 @@ internal fun TvVantageDetailsStrip(
         cells.forEachIndexed { i, (k, v) ->
             Column(Modifier.weight(1f).padding(horizontal = 16.mx)) {
                 VLabel(k)
-                Text(v, style = mono(13), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 5.mx))
+                Text(v, style = org.siloserver.silo.tv.ui.components.vantage.ui(16, androidx.compose.ui.text.font.FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.mx))
             }
             if (i < cells.size - 1) {
                 androidx.compose.foundation.layout.Box(
@@ -237,10 +248,50 @@ internal fun TvVantageDetailsStrip(
     }
 }
 
-private fun money(v: Long?): String = when {
+internal fun money(v: Long?): String = when {
     v == null -> "–"
     v >= 1_000_000_000L -> "$%.1fB".format(v / 1e9)
     v >= 1_000_000L -> "$%.1fM".format(v / 1e6)
     v >= 1_000L -> "$%.0fK".format(v / 1e3)
     else -> "$$v"
 }
+
+
+/**
+ * The Vantage page backdrop: the picture covers the whole page and stays put while the page scrolls
+ * over it, softening once past the first screen (the layers the library title page uses).
+ */
+@Composable
+internal fun TvVantagePageBackdrop(
+    url: String?,
+    thumbhash: String?,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+) {
+    val scrolledPast by androidx.compose.runtime.remember {
+        androidx.compose.runtime.derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 120 }
+    }
+    val softAlpha by androidx.compose.animation.core.animateFloatAsState(
+        if (scrolledPast) 1f else 0f, androidx.compose.animation.core.tween(450), label = "pageSoftBackdrop",
+    )
+    val bg = Level.Bg
+    org.siloserver.silo.common.ui.components.ThumbhashImage(
+        url = url, thumbhash = thumbhash, contentDescription = null,
+        contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+    )
+    androidx.compose.foundation.layout.Box(
+        Modifier.fillMaxSize().background(
+            androidx.compose.ui.graphics.Brush.horizontalGradient(
+                0.00f to bg.copy(alpha = 0.88f), 0.45f to bg.copy(alpha = 0.45f), 0.75f to bg.copy(alpha = 0.08f),
+            ),
+        ),
+    )
+    androidx.compose.foundation.layout.Box(
+        Modifier.fillMaxSize().androidx_graphicsAlpha(0.55f + 0.35f * softAlpha).background(
+            androidx.compose.ui.graphics.Brush.verticalGradient(
+                0.35f to androidx.compose.ui.graphics.Color.Transparent, 0.75f to bg.copy(alpha = 0.55f), 1.00f to bg.copy(alpha = 0.85f),
+            ),
+        ),
+    )
+}
+
+private fun Modifier.androidx_graphicsAlpha(a: Float): Modifier = this.graphicsLayer { alpha = a }

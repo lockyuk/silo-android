@@ -6,6 +6,7 @@ import org.siloserver.silo.model.request.RequestMediaResult
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -198,7 +199,7 @@ fun TvRequestDetailScreen(
                 pageHasFocus = it.hasFocus
                 if (it.hasFocus) pageHadFocus = true
             }
-            .background(tvDetailPageSurfaceColor(pageTint.accent)),
+            .background(org.siloserver.silo.tv.ui.theme.Level.Bg),
     ) {
         val detail = state.detail
         when {
@@ -302,6 +303,43 @@ private fun RequestDetailContent(
         androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides bringIntoViewSpec,
         org.siloserver.silo.tv.ui.screens.detail.LocalTvPageScrollBy provides { dy: Float -> castScope.launch { listState.animateScrollBy(dy) } },
     ) {
+    Box(Modifier.fillMaxSize()) {
+    // Vantage: the backdrop covers the whole page and stays put while the page scrolls over it,
+    // softening once past the first screen (the same layers as the library title page).
+    run {
+        val scrolledPast by androidx.compose.runtime.remember {
+            androidx.compose.runtime.derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 120 }
+        }
+        val softAlpha by androidx.compose.animation.core.animateFloatAsState(
+            if (scrolledPast) 1f else 0f, androidx.compose.animation.core.tween(450), label = "requestSoftBackdrop",
+        )
+        val bg = org.siloserver.silo.tv.ui.theme.Level.Bg
+        org.siloserver.silo.common.ui.components.ThumbhashImage(
+            url = backdropUrl,
+            thumbhash = null,
+            contentDescription = null,
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            Modifier.fillMaxSize().background(
+                androidx.compose.ui.graphics.Brush.horizontalGradient(
+                    0.00f to bg.copy(alpha = 0.88f),
+                    0.45f to bg.copy(alpha = 0.45f),
+                    0.75f to bg.copy(alpha = 0.08f),
+                ),
+            ),
+        )
+        Box(
+            Modifier.fillMaxSize().graphicsLayer { alpha = 0.55f + 0.35f * softAlpha }.background(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    0.35f to androidx.compose.ui.graphics.Color.Transparent,
+                    0.75f to bg.copy(alpha = 0.55f),
+                    1.00f to bg.copy(alpha = 0.85f),
+                ),
+            ),
+        )
+    }
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
@@ -317,7 +355,8 @@ private fun RequestDetailContent(
                 title = detail.title,
                 seriesTitle = null,
                 logoUrl = extra?.logoUrl,
-                backdropUrl = backdropUrl,
+                // The page draws the backdrop behind everything, as the library title page does.
+                backdropUrl = null,
                 backdropThumbhash = null,
                 sourceTokens = detail.genres.take(3),
                 ratingChip = detail.contentRating.takeIf { it.isNotBlank() },
@@ -369,6 +408,36 @@ private fun RequestDetailContent(
                 },
             )
         }
+        val isSeriesTitle = detail.mediaType == RequestMediaType.Series
+        val stripCells = buildList {
+            if (isSeriesTitle && detail.creators.isNotEmpty()) add("Created by" to detail.creators.take(2).joinToString(", "))
+            (detail.director.takeIf { it.isNotBlank() } ?: extra?.directors?.takeIf { it.isNotEmpty() }?.take(2)?.joinToString(", "))
+                ?.let { add("Director" to it) }
+            (detail.genres.ifEmpty { extra?.genres.orEmpty() }).filter { it.isNotBlank() }.take(2)
+                .takeIf { it.isNotEmpty() }?.let { add("Genres" to it.joinToString(" · ")) }
+            val budget = extra?.budget?.takeIf { it > 0 }
+            val revenue = extra?.revenue?.takeIf { it > 0 }
+            if (budget != null || revenue != null) {
+                add("Budget / Revenue" to "${org.siloserver.silo.tv.ui.screens.detail.money(budget)} / ${org.siloserver.silo.tv.ui.screens.detail.money(revenue)}")
+            }
+            if (isSeriesTitle) {
+                detail.numberOfSeasons?.takeIf { it > 0 }?.let { s ->
+                    add("Seasons" to listOfNotNull("$s", detail.numberOfEpisodes?.takeIf { it > 0 }?.let { "$it episodes" }).joinToString(" · "))
+                }
+            } else {
+                detail.runtime?.takeIf { it > 0 }?.let { add("Runtime" to if (it >= 60) "${it / 60}h ${it % 60}m" else "${it}m") }
+            }
+            (detail.networks.firstOrNull() ?: detail.productionCompanies.firstOrNull() ?: extra?.companies?.firstOrNull())
+                ?.let { add((if (isSeriesTitle && detail.networks.isNotEmpty()) "Network" else "Studio") to it) }
+        }.take(6)
+        if (stripCells.isNotEmpty()) {
+            item(key = "facts-strip", contentType = "detail-facts-strip") {
+                org.siloserver.silo.tv.ui.screens.detail.TvVantageFactsStrip(
+                    cells = stripCells,
+                    modifier = Modifier.padding(start = TvDetailHorizontalInset, end = TvDetailHorizontalInset, top = 22.dp, bottom = 16.dp),
+                )
+            }
+        }
         if (castMembers.isNotEmpty()) {
             item(key = "cast", contentType = "detail-cast") {
                 TvCastCrewSection(
@@ -402,30 +471,7 @@ private fun RequestDetailContent(
                 )
             }
         }
-        val facts = org.siloserver.silo.model.catalog.DetailFacts.fromRequest(
-            isSeries = detail.mediaType == RequestMediaType.Series,
-            releaseDate = if (detail.mediaType == RequestMediaType.Series) detail.firstAirDate ?: detail.releaseDate else detail.releaseDate,
-            year = detail.year,
-            runtimeMinutes = detail.runtime,
-            studios = detail.productionCompanies,
-            networks = detail.networks,
-            seasons = detail.numberOfSeasons,
-            extra = extra,
-        )
-        if (!facts.isEmpty) {
-            item(key = "details", contentType = "detail-facts") {
-                // Focusable so Down from the cast row scrolls the table fully into view.
-                Column(
-                    modifier = Modifier
-                        .padding(horizontal = TvDetailHorizontalInset, vertical = 24.dp)
-                        .focusable(),
-                    verticalArrangement = Arrangement.spacedBy(20.dp),
-                ) {
-                    TvDetailSectionHeader(title = "Details")
-                    org.siloserver.silo.tv.ui.screens.detail.TvRequestFactsTable(facts)
-                }
-            }
-        }
+    }
     }
     }
 }

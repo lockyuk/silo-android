@@ -967,14 +967,6 @@ private fun TvDetailContent(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
-            ThumbhashImage(
-                url = heroArtwork.url,
-                thumbhash = heroArtwork.thumbhash,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                decodeSizePx = 40,
-                modifier = Modifier.fillMaxSize().graphicsLayer { alpha = softAlpha },
-            )
             Box(
                 Modifier.fillMaxSize().background(
                     Brush.horizontalGradient(
@@ -1342,7 +1334,7 @@ private fun TvDetailContent(
                                 TvVantageDetailsStrip(
                                     detail = detail,
                                     seasons = state.seasons,
-                                    modifier = Modifier.padding(horizontal = TvDetailHorizontalInset),
+                                    modifier = Modifier.padding(start = TvDetailHorizontalInset, end = TvDetailHorizontalInset, top = 22.dp),
                                 )
                             }
                             TvCastCrewSection(

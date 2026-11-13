@@ -739,7 +739,7 @@ data class TvAccountState(
 
 /** The Silo wordmark: a rounded tank outline holding an accent fill, and SILO in wide-tracked Outfit. */
 @Composable
-private fun TvSiloWordmark() {
+internal fun TvSiloWordmark() {
     androidx.compose.foundation.layout.Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),

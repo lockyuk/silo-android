@@ -1998,7 +1998,9 @@ class TvPlayerViewModel(
                             contentId = state.contentId,
                             fileId = state.mediaFileId,
                             versions = state.fileVersions,
-                            streaming = !state.sessionId.isNullOrEmpty(),
+                            // Direct play has no playback session, but it still streams from the
+                            // server, and the TV app has no offline playback.
+                            streaming = true,
                         )
                     }
                     .distinctUntilChanged()

@@ -501,7 +501,15 @@ fun rememberTvFocusMarqueeState(
         if (!state.beginEnrichmentRequest(contentId)) return@LaunchedEffect
         try {
             val detail = runCatching { fetch(contentId) }.getOrNull() ?: return@LaunchedEffect
-            state.applyEnrichment(contentId, TvMarqueeEnrichment.from(detail))
+            var enrichment = TvMarqueeEnrichment.from(detail)
+            // An episode with no description of its own shows the show's, so the hero is never empty.
+            if (enrichment.overview == null && state.content?.synopsis.isNullOrBlank()) {
+                val seriesId = detail.seriesId?.takeIf { it.isNotBlank() && it != contentId }
+                val showOverview = seriesId?.let { runCatching { fetch(it) }.getOrNull() }
+                    ?.overview?.takeIf { it.isNotBlank() }
+                if (showOverview != null) enrichment = enrichment.copy(overview = showOverview)
+            }
+            state.applyEnrichment(contentId, enrichment)
         } finally {
             state.finishEnrichmentRequest(contentId)
         }
