@@ -210,7 +210,7 @@ internal fun TvCastCard(
     cardModifier: Modifier,
     onClick: () -> Unit = {},
 ) {
-    val shape = CircleShape
+    val shape = org.siloserver.silo.tv.ui.theme.LevelChamfer
     val cardFocus = siloCardDefaults(shape = shape)
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()

@@ -124,14 +124,14 @@ fun TvMarqueeButton(
     Row(
         modifier = modifier
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .shadow(if (focused) 12.dp else 0.dp, CircleShape, clip = false)
+            .shadow(if (focused) 12.dp else 0.dp, org.siloserver.silo.tv.ui.theme.LevelChamfer, clip = false)
             .height(height)
-            .clip(CircleShape)
+            .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
             .then(
                 when {
                     focused -> Modifier.background(MarqueeColors.Ink)
                     kind == TvMarqueeButtonKind.Plain -> Modifier
-                    else -> Modifier.background(MarqueeColors.GlassFill).border(1.dp, MarqueeColors.Hairline, CircleShape)
+                    else -> Modifier.background(MarqueeColors.GlassFill).border(1.dp, MarqueeColors.Hairline, org.siloserver.silo.tv.ui.theme.LevelChamfer)
                 },
             )
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
@@ -291,9 +291,9 @@ fun TvMarqueeStatusChip(text: String, modifier: Modifier = Modifier, showsSpinne
     Row(
         modifier
             .height(30.dp)
-            .clip(CircleShape)
+            .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
             .background(MarqueeColors.GlassFill)
-            .border(1.dp, MarqueeColors.Hairline, CircleShape)
+            .border(1.dp, MarqueeColors.Hairline, org.siloserver.silo.tv.ui.theme.LevelChamfer)
             .padding(horizontal = 11.dp),
         horizontalArrangement = Arrangement.spacedBy(7.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -313,9 +313,9 @@ fun TvMarqueeCardSymbol(icon: ImageVector, tint: Color = MarqueeColors.Ink, size
     Box(
         Modifier
             .size(size)
-            .clip(CircleShape)
+            .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
             .background(MarqueeColors.GlassFill)
-            .border(1.dp, MarqueeColors.Hairline, CircleShape),
+            .border(1.dp, MarqueeColors.Hairline, org.siloserver.silo.tv.ui.theme.LevelChamfer),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(size * 0.46f))
@@ -369,9 +369,9 @@ fun TvMarqueeServerCard(name: String, address: String, markUrl: String?, secure:
         Row(
             Modifier
                 .height(19.dp)
-                .clip(CircleShape)
+                .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                 .background(if (warning) MarqueeColors.Warning.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.45f))
-                .border(1.dp, if (warning) MarqueeColors.Warning.copy(alpha = 0.35f) else MarqueeColors.Hairline, CircleShape)
+                .border(1.dp, if (warning) MarqueeColors.Warning.copy(alpha = 0.35f) else MarqueeColors.Hairline, org.siloserver.silo.tv.ui.theme.LevelChamfer)
                 .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

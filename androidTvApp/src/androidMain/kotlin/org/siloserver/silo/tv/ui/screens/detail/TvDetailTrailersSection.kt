@@ -182,7 +182,7 @@ private fun TvDetailTrailerCard(
             Box(
                 modifier = Modifier
                     .size(30.dp)
-                    .clip(CircleShape)
+                    .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                     .background(Color.Black.copy(alpha = if (isFocused) 0.72f else 0.55f)),
                 contentAlignment = Alignment.Center,
             ) {

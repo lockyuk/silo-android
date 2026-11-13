@@ -224,7 +224,7 @@ fun TvMediaCard(
                                 .align(Alignment.TopEnd)
                                 .padding(watchedBadgePadding)
                                 .size(watchedBadgeSize)
-                                .background(Color.White, CircleShape),
+                                .background(Color.White, org.siloserver.silo.tv.ui.theme.LevelChamfer),
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
@@ -248,8 +248,8 @@ fun TvMediaCard(
                             modifier = Modifier
                                 .align(Alignment.TopStart)
                                 .padding(6.dp)
-                                .background(Color.Black.copy(alpha = 0.55f), CircleShape)
-                                .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                                .background(Color.Black.copy(alpha = 0.55f), org.siloserver.silo.tv.ui.theme.LevelChamfer)
+                                .border(1.dp, Color.White.copy(alpha = 0.15f), org.siloserver.silo.tv.ui.theme.LevelChamfer)
                                 .padding(horizontal = 7.dp, vertical = 2.dp),
                         )
                     }

@@ -479,12 +479,12 @@ private fun ConnectedSelectorTrigger(
             Modifier.animateContentSize(animationSpec = tween(durationMillis = 280))
         })
             .height(23.dp)
-            .clip(CircleShape)
+            .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
             .background(fill)
             .border(
                 width = if (focused) 1.25.dp else 0.dp,
                 color = if (focused) Color.White.copy(alpha = 0.95f) else Color.Transparent,
-                shape = CircleShape,
+                shape = org.siloserver.silo.tv.ui.theme.LevelChamfer,
             )
             .focusRequester(focusRequester)
             .semantics { contentDescription = "$label, $value" }

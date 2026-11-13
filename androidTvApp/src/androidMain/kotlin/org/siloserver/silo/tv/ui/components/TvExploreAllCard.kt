@@ -77,7 +77,7 @@ internal fun TvExploreAllCard(
                 Box(
                     modifier = Modifier
                         .size(44.dp)
-                        .background(Color.White.copy(alpha = if (isFocused) 0.24f else 0.14f), CircleShape),
+                        .background(Color.White.copy(alpha = if (isFocused) 0.24f else 0.14f), org.siloserver.silo.tv.ui.theme.LevelChamfer),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(

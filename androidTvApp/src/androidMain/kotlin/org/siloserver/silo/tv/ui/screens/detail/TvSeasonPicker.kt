@@ -275,7 +275,7 @@ private fun TvSeriesModeTab(
             }
             .shadow(
                 elevation = if (isFocused) 6.dp else 0.dp,
-                shape = CircleShape,
+                shape = org.siloserver.silo.tv.ui.theme.LevelChamfer,
                 clip = false,
                 ambientColor = Color.White.copy(alpha = if (isFocused) 0.08f else 0f),
                 spotColor = Color.White.copy(alpha = if (isFocused) 0.08f else 0f),
@@ -284,8 +284,8 @@ private fun TvSeriesModeTab(
             // Same outward white focus outline as Play and the selector
             // controls, without changing this row's stable measurements.
             .seriesModeFocusRing(visible = isFocused)
-            .background(fill, CircleShape)
-            .border(borderWidth, borderColor, CircleShape)
+            .background(fill, org.siloserver.silo.tv.ui.theme.LevelChamfer)
+            .border(borderWidth, borderColor, org.siloserver.silo.tv.ui.theme.LevelChamfer)
             // tvOS treats Show and each season as focus-driven modes: moving
             // laterally updates the page immediately, without an extra Select.
             // The ViewModel ignores the already-selected season and generation-
@@ -344,11 +344,11 @@ private fun TvSeasonChip(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     var isFocused by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(TvControlCorner)
+    val shape = org.siloserver.silo.tv.ui.theme.LevelChamfer
 
     val fill by animateColorAsState(
         targetValue = when {
-            isSelected -> Color.White
+            isSelected -> Color.Transparent
             isFocused -> Color.White.copy(alpha = 0.18f)
             else -> Color.Transparent
         },
@@ -375,6 +375,7 @@ private fun TvSeasonChip(
                 scaleX = scale
                 scaleY = scale
             }
+            .then(if (isSelected) Modifier.background(org.siloserver.silo.tv.ui.theme.Aurora.Gradient, shape) else Modifier)
             .background(fill, shape)
             .border(borderWidth, borderColor, shape)
             .onFocusChanged { isFocused = it.isFocused }

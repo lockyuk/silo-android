@@ -249,7 +249,7 @@ internal fun SquaredPillSurface(
     val isPressed by interactionSource.collectIsPressedAsState()
     var isFocused by remember { mutableStateOf(false) }
 
-    val shape = if (capsule) RoundedCornerShape(percent = 50) else RoundedCornerShape(TvControlCorner)
+    val shape = if (capsule) org.siloserver.silo.tv.ui.theme.LevelChamfer else org.siloserver.silo.tv.ui.theme.LevelChamfer
     val primary = kind == PillKind.Primary
 
     // --- Body visuals (per kind) ---
@@ -272,7 +272,7 @@ internal fun SquaredPillSurface(
             if (isFocused) Aurora.VioletLight else Color.White.copy(alpha = 0.10f)
         } else when (kind) {
             PillKind.Primary -> if (isFocused) Aurora.VioletLight else Color.White.copy(alpha = 0.76f)
-            PillKind.Secondary -> if (isFocused) Aurora.VioletLight else Color.Black.copy(alpha = 0.52f)
+            PillKind.Secondary -> if (isFocused) Aurora.VioletLight else Color.White.copy(alpha = 0.08f)
         },
         animationSpec = focusSpring(),
         label = "pillFill",
@@ -300,7 +300,7 @@ internal fun SquaredPillSurface(
 
     // --- Compact focus treatment (shared by both pills) ---
     val focusOutlineColor = Aurora.Violet.copy(alpha = 0.95f)
-    val focusOutlineShape = if (capsule) RoundedCornerShape(percent = 50) else RoundedCornerShape(TvControlCorner + 2.dp)
+    val focusOutlineShape = if (capsule) org.siloserver.silo.tv.ui.theme.LevelChamfer else org.siloserver.silo.tv.ui.theme.LevelChamfer
     val shadowOpacity by animateFloatAsState(
         targetValue = if (isFocused) 0.24f else 0.14f,
         animationSpec = focusSpring(),
@@ -359,7 +359,10 @@ internal fun SquaredPillSurface(
                 inset = 1.5.dp,
                 corner = if (capsule) 50.dp else TvControlCorner + 2.dp,
             )
-            .background(fill, shape)
+            .then(
+                if (primary && !isFocused && !stableHero) Modifier.background(Aurora.Gradient, shape)
+                else Modifier.background(fill, shape),
+            )
             .then(if (stableHero) Modifier else Modifier.border(innerBorderWidth, innerBorderColor, shape))
             .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
             .onFocusChanged { isFocused = it.isFocused }
@@ -416,7 +419,7 @@ fun TvSquareToggleButton(
         label = "toggleWidth",
     )
 
-    val shape = CircleShape
+    val shape = org.siloserver.silo.tv.ui.theme.LevelChamfer
 
     val fill by animateColorAsState(
         targetValue = if (isFocused) Color.White else Color.White.copy(alpha = 0.10f),
@@ -451,7 +454,7 @@ fun TvSquareToggleButton(
     )
     val scale = focusScale * pressScale
 
-    val focusOutlineShape = CircleShape
+    val focusOutlineShape = org.siloserver.silo.tv.ui.theme.LevelChamfer
 
     Box(
         modifier = modifier

@@ -208,7 +208,7 @@ private fun TransportIconButton(
     val metrics = tvTransportControlMetrics(isPrimary)
     val buttonSize = metrics.buttonSizeDp.dp
     val symbolSize = metrics.symbolSizeDp.dp
-    val shape = RoundedCornerShape(percent = 50)
+    val shape = org.siloserver.silo.tv.ui.theme.LevelChamfer
 
     // Focus inverts the disc to Paper — no scale, so a button never crosses
     // its own hit target or nudges its neighbours.

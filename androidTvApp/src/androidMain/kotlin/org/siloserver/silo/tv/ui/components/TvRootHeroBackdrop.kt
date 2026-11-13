@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -162,6 +165,7 @@ fun TvRootHeroBackdrop(
                     CornerAnchoredArt(
                         url = art.heroBackdropUrl,
                         thumbhash = art.heroBackdropThumbhash,
+                        level = art.levelPercent(),
                     )
                 } else {
                     Box(modifier = Modifier.fillMaxSize())
@@ -171,6 +175,7 @@ fun TvRootHeroBackdrop(
             CornerAnchoredArt(
                 url = content.heroBackdropUrl,
                 thumbhash = content.heroBackdropThumbhash,
+                level = content.levelPercent(),
             )
         }
 
@@ -188,38 +193,85 @@ fun TvRootHeroBackdrop(
 private fun CornerAnchoredArt(
     url: String?,
     thumbhash: String?,
+    level: Int? = null,
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val artWidth = maxWidth * ArtWidthFraction
-        val artHeight = maxHeight * ArtHeightFraction
-
+        // Silo Level: the art sits in a chamfered window (866 x 222 dp at 47, 70) that fades into
+        // the ground on the left, with the item's watch level at the top right.
         Box(
             modifier = Modifier
-                .fillMaxSize(),
-            contentAlignment = Alignment.TopEnd,
+                .offset(x = 47.dp, y = 70.dp)
+                .size(maxWidth - 94.dp, 222.dp)
+                .clip(org.siloserver.silo.tv.ui.theme.LevelChamferLarge),
         ) {
+            ThumbhashImage(
+                url = url,
+                thumbhash = thumbhash,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                transparent = true,
+                // The Skyline feed preloads this frame and owns the one
+                // shared art + copy crossfade. A second Coil fade would
+                // make the image visibly lag behind the text.
+                crossfadeMillis = 0,
+                modifier = Modifier.fillMaxSize(),
+            )
+            val bg = org.siloserver.silo.tv.ui.theme.Level.Bg
             Box(
-                modifier = Modifier
-                    .size(artWidth, artHeight)
-                    // Aurora: the art sits in a panel with a large rounded bottom-left corner, softened into the glow.
-                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 100.dp))
-                    .graphicsLayer { alpha = 0.62f },
-            ) {
-                ThumbhashImage(
-                    url = url,
-                    thumbhash = thumbhash,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    transparent = true,
-                    // The Skyline feed preloads this frame and owns the one
-                    // shared art + copy crossfade. A second Coil fade would
-                    // make the image visibly lag behind the text.
-                    crossfadeMillis = 0,
-                    modifier = Modifier.fillMaxSize(),
-                )
+                Modifier.fillMaxSize().background(
+                    Brush.horizontalGradient(
+                        0.00f to bg,
+                        0.42f to bg.copy(alpha = 0.82f),
+                        0.78f to Color.Transparent,
+                    ),
+                ),
+            )
+            if (level != null) {
+                androidx.compose.foundation.layout.Column(
+                    horizontalAlignment = Alignment.End,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 20.dp, end = 23.dp),
+                ) {
+                    androidx.tv.material3.Text(
+                        text = "LEVEL WATCHED",
+                        color = org.siloserver.silo.tv.ui.theme.Level.Muted,
+                        fontFamily = org.siloserver.silo.tv.ui.theme.LevelMonoFamily,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                        fontSize = 9.5.sp,
+                        letterSpacing = 1.3.sp,
+                        maxLines = 1,
+                    )
+                    androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.Bottom) {
+                        androidx.tv.material3.Text(
+                            text = level.toString(),
+                            color = org.siloserver.silo.tv.ui.theme.Level.Accent,
+                            fontFamily = org.siloserver.silo.tv.ui.theme.LevelDisplayFamily,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
+                            fontSize = 54.sp,
+                            lineHeight = 54.sp,
+                        )
+                        androidx.tv.material3.Text(
+                            text = "%",
+                            color = org.siloserver.silo.tv.ui.theme.Level.Accent,
+                            fontFamily = org.siloserver.silo.tv.ui.theme.LevelDisplayFamily,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
+                            fontSize = 22.sp,
+                            modifier = Modifier.padding(bottom = 8.dp),
+                        )
+                    }
+                }
             }
         }
     }
+}
+
+/** How much of the item has been watched, 0 to 100; null for an item with no known length. */
+internal fun TvMarqueeContent.levelPercent(): Int? {
+    val pos = source.positionSeconds
+    val dur = source.durationSeconds
+    if (pos != null && dur != null && dur > 0.0) return ((pos / dur) * 100.0).toInt().coerceIn(0, 100)
+    return if (source.userState?.played == true) 100 else 0
 }
 
 /**
@@ -241,8 +293,8 @@ fun TvRootHeroBackdrop(
     TvRootHeroBackdrop(content = content, modifier = modifier)
 }
 
-private const val ArtWidthFraction = 0.52f
-private const val ArtHeightFraction = 0.65f
+private const val ArtWidthFraction = 0.62f
+private const val ArtHeightFraction = 0.76f
 private const val TintOnlyDitherAlpha = 0.28f
 private const val EmptyWashDitherAlpha = 0.34f
 

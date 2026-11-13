@@ -460,7 +460,7 @@ private fun RequestPrimaryActionPill(
                 is RequestPrimaryAction.OpenInLibrary ->
                     Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = foreground, modifier = Modifier.size(16.dp))
                 is RequestPrimaryAction.Status ->
-                    Box(modifier = Modifier.size(9.dp).background(action.state.tint.tvColor(), CircleShape))
+                    Box(modifier = Modifier.size(9.dp).background(action.state.tint.tvColor(), org.siloserver.silo.tv.ui.theme.LevelChamfer))
                 RequestPrimaryAction.Loading -> Unit
             }
             Text(
@@ -621,7 +621,7 @@ private fun SummaryField(label: String, value: String, dot: Color? = null) {
             maxLines = 1,
         )
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            if (dot != null) Box(modifier = Modifier.size(6.dp).background(dot, CircleShape))
+            if (dot != null) Box(modifier = Modifier.size(6.dp).background(dot, org.siloserver.silo.tv.ui.theme.LevelChamfer))
             Text(
                 text = value,
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),

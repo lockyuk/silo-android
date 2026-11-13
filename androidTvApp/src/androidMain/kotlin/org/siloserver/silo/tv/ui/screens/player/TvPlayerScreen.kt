@@ -3616,7 +3616,7 @@ private fun TvPlayerNextUpOverlay(
                         shuffle?.scopeLabel?.let { scope ->
                             Row(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(percent = 50))
+                                    .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                                     .background(Color.White.copy(alpha = 0.10f))
                                     .padding(horizontal = 14.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -3761,7 +3761,7 @@ private fun TvPlayerNextUpOverlay(
                                     style = androidx.tv.material3.MaterialTheme.typography.labelMedium,
                                     modifier = Modifier
                                         .onFocusChanged { autoPlayToggleFocused = it.isFocused }
-                                        .clip(RoundedCornerShape(percent = 50))
+                                        .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                                         .background(if (autoPlayToggleFocused) Color.White else Color.Transparent)
                                         .clickable { onToggleAutoPlay() }
                                         .padding(horizontal = 12.dp, vertical = 4.dp),
@@ -3779,7 +3779,7 @@ private fun TvPlayerNextUpOverlay(
                                         style = androidx.tv.material3.MaterialTheme.typography.labelMedium,
                                         modifier = Modifier
                                             .onFocusChanged { stopFocused = it.isFocused }
-                                            .clip(RoundedCornerShape(percent = 50))
+                                            .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                                             .background(if (stopFocused) Color.White else Color.Transparent)
                                             .clickable { onStopShuffling() }
                                             .padding(horizontal = 12.dp, vertical = 4.dp),
@@ -4436,7 +4436,7 @@ private fun TvPlayerOverlays(
             ) {
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(percent = 50))
+                        .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                         .background(Color.Black.copy(alpha = 0.55f))
                         .padding(horizontal = 14.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -4536,7 +4536,7 @@ private fun TvPlayerOverlays(
             ) {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(percent = 50))
+                        .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                         .background(Color.Black.copy(alpha = 0.72f))
                         .padding(horizontal = 20.dp, vertical = 10.dp),
                 ) {

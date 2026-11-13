@@ -738,7 +738,7 @@ private fun TvPartySuggestionCard(
                             .align(Alignment.TopEnd)
                             .padding(6.dp)
                             .size(22.dp)
-                            .background(SiloOnSurface, CircleShape),
+                            .background(SiloOnSurface, org.siloserver.silo.tv.ui.theme.LevelChamfer),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(Icons.Filled.Check, contentDescription = "Your vote", tint = Color.Black, modifier = Modifier.size(14.dp))

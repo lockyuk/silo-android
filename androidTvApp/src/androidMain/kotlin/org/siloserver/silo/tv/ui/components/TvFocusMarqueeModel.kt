@@ -308,6 +308,8 @@ data class TvMarqueeEnrichment(
     val backdropThumbhash: String?,
     /** The detail's provenance for [backdropUrl]; null when unknown. */
     val backdropIsEpisodeStill: Boolean? = null,
+    /** The full description; section payloads carry a shortened one. */
+    val overview: String? = null,
 ) {
     companion object {
         fun from(detail: ItemDetail): TvMarqueeEnrichment {
@@ -324,6 +326,7 @@ data class TvMarqueeEnrichment(
                 backdropUrl = detail.backdropUrl?.takeIf { it.isNotBlank() },
                 backdropThumbhash = detail.backdropThumbhash,
                 backdropIsEpisodeStill = detail.backdropIsEpisodeStill,
+                overview = detail.overview?.takeIf { it.isNotBlank() },
             )
         }
 

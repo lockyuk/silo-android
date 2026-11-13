@@ -101,7 +101,7 @@ fun TvHoldSeekIndicator(
             // Chip: direction-signed rate (large) + preview time.
             Surface(
                 color = Color.Black.copy(alpha = 0.42f),
-                shape = RoundedCornerShape(percent = 50),
+                shape = org.siloserver.silo.tv.ui.theme.LevelChamfer,
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),

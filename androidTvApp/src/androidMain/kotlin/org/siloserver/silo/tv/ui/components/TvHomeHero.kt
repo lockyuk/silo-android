@@ -92,7 +92,7 @@ internal const val TvHeroRotateMs = 7_000L
 // full-bleed backdrop, the rows starting beneath it.
 internal val TvHeroLeft = 47.dp
 internal val TvHeroTop = 114.dp
-internal val TvHeroDotsTop = 422.dp
+internal val TvHeroDotsTop = 396.dp
 
 
 /**
@@ -100,7 +100,7 @@ internal val TvHeroDotsTop = 422.dp
  * its title text is on screen and its cards are below the bottom edge. Fixed,
  * so every library's hero sits in the same place whatever its card size.
  */
-internal val TvHeroRowHeaderTop = 496.dp
+internal val TvHeroRowHeaderTop = 470.dp
 
 /** How far below the row band's top edge a row's header text starts. */
 internal val TvHeroRowHeaderInset = 8.dp
@@ -153,7 +153,7 @@ internal fun TvHomeHeroPanel(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .offset(x = 47.dp, y = 366.dp)
+                .offset(x = 47.dp, y = 334.dp)
                 // Entering the buttons from the menu or the row always lands on
                 // Play, whichever button is nearest.
                 .focusProperties { enter = { playFocusRequester } }
@@ -213,7 +213,7 @@ private fun HeroInfo(content: TvMarqueeContent, eyebrow: String) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(7.dp),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.offset(x = 47.dp, y = 85.dp),
+            modifier = Modifier.offset(x = 47.dp, y = 58.dp),
         ) {
             Box(Modifier.size(width = 3.dp, height = 13.dp).background(HeroAccent, RoundedCornerShape(2.dp)))
             Text(
@@ -225,9 +225,9 @@ private fun HeroInfo(content: TvMarqueeContent, eyebrow: String) {
             )
         }
 
-        Box(Modifier.offset(x = 49.dp, y = 102.dp)) { HeroLogo(content) }
+        Box(Modifier.offset(x = 49.dp, y = 74.dp)) { HeroLogo(content) }
 
-        Box(Modifier.offset(x = 48.dp, y = 172.dp)) { HeroRatings(item) }
+        Box(Modifier.offset(x = 48.dp, y = 144.dp)) { HeroRatings(item) }
 
         content.synopsis?.takeIf { it.isNotBlank() }?.let { synopsis ->
             Text(
@@ -235,13 +235,13 @@ private fun HeroInfo(content: TvMarqueeContent, eyebrow: String) {
                 color = HeroSynopsis,
                 fontSize = 15.sp,
                 lineHeight = 21.sp,
-                maxLines = 3,
+                maxLines = 5,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.offset(x = 49.dp, y = 220.dp).widthIn(max = 400.dp),
+                modifier = Modifier.offset(x = 49.dp, y = 178.dp).widthIn(max = 470.dp),
             )
         }
 
-        Box(Modifier.offset(x = 47.dp, y = 298.dp)) { HeroResume(item) }
+        Box(Modifier.offset(x = 47.dp, y = 292.dp)) { HeroResume(item) }
     }
 }
 
@@ -357,7 +357,7 @@ private fun HeroPill(
     val shape = RoundedCornerShape(6.dp)
     val light = primary || focused
     Row(
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .graphicsLayer { scaleX = scale; scaleY = scale }
@@ -396,16 +396,16 @@ internal fun HeroRatings(item: SectionItem, compact: Boolean = false) {
     val tmdb = item.ratingTmdb
     val critic = item.ratingRtCritic
     val audience = item.ratingRtAudience
-    if (imdb == null && tmdb == null && critic == null && (compact || audience == null)) return
+    if (imdb == null && critic == null && (compact || audience == null)) return
     Row(
         horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         modifier = if (compact) Modifier else Modifier.padding(top = 2.dp),
     ) {
         imdb?.let { HeroScoreChip(badge = "IMDb", badgeColor = Color(0xFFF5C518), value = String.format("%.1f", it), plain = compact) }
-        tmdb?.let { HeroScoreChip(badge = "TMDB", badgeColor = Color(0xFF01B4E4), value = "${Math.round(it * 10)}%", plain = compact) }
+        if (false) tmdb?.let { HeroScoreChip(badge = "TMDB", badgeColor = Color(0xFF01B4E4), value = "${Math.round(it * 10)}%", plain = compact) }
         critic?.let { HeroScoreChip(icon = if (it >= 60) HeroScoreIcon.Tomato else HeroScoreIcon.Splat, value = "$it%", caption = if (compact) null else "Critics", plain = compact) }
-        if (!compact) audience?.let { HeroScoreChip(icon = if (it >= 60) HeroScoreIcon.Popcorn else HeroScoreIcon.Spilled, value = "$it%", caption = "Audience") }
+        if (false) audience?.let { HeroScoreChip(icon = if (it >= 60) HeroScoreIcon.Popcorn else HeroScoreIcon.Spilled, value = "$it%", caption = "Audience") }
     }
 }
 
@@ -607,7 +607,7 @@ internal fun TvHeroActionRow(
             },
     ) {
         AuroraActionPill(label = playLabel, icon = Icons.Filled.PlayArrow, primary = true, onClick = onPlay, modifier = Modifier.focusRequester(playFocusRequester))
-        if (showWatchlist) AuroraActionPill(label = null, icon = if (inWatchlist) Icons.Filled.Check else Icons.Filled.Add, primary = false, onClick = onToggleWatchlist)
+        if (showWatchlist) AuroraActionPill(label = if (inWatchlist) "Listed" else "List", icon = if (inWatchlist) Icons.Filled.Check else Icons.Filled.Add, primary = false, onClick = onToggleWatchlist)
         AuroraActionPill(label = null, icon = Icons.Outlined.Info, primary = false, onClick = onMoreInfo)
     }
 }
@@ -622,24 +622,27 @@ private fun AuroraActionPill(
 ) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (focused) 1.05f else 1f, label = "auroraPillScale")
-    val shape = RoundedCornerShape(percent = 50)
+    val shape = org.siloserver.silo.tv.ui.theme.LevelChamfer
     Row(
         horizontalArrangement = Arrangement.spacedBy(7.dp),
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .then(if (focused) Modifier.border(3.dp, Color.White.copy(alpha = 0.95f), shape) else if (!primary) Modifier.border(1.dp, Color.White.copy(alpha = 0.14f), shape) else Modifier)
-            .background(if (primary) Aurora.Gradient else Brush.linearGradient(listOf(Color.White.copy(alpha = if (focused) 0.24f else 0.08f), Color.White.copy(alpha = if (focused) 0.24f else 0.08f))), shape)
+            .then(if (focused) Modifier.border(2.5.dp, org.siloserver.silo.tv.ui.theme.Level.Fg, shape) else Modifier)
+            .background(if (primary) org.siloserver.silo.tv.ui.theme.Level.Accent else if (focused) org.siloserver.silo.tv.ui.theme.Level.Line else org.siloserver.silo.tv.ui.theme.Level.Surface2, shape)
             .onFocusChanged { focused = it.isFocused }
             .clickable(onClick = onClick)
-            .padding(horizontal = if (label == null) 12.dp else 25.dp, vertical = 11.dp),
+            .padding(horizontal = if (label == null) 13.dp else 20.dp, vertical = 10.dp),
     ) {
-        Icon(icon, contentDescription = null, tint = if (primary) HeroInk else HeroText, modifier = Modifier.size(19.dp))
+        val ink = if (primary) org.siloserver.silo.tv.ui.theme.Level.Ink else org.siloserver.silo.tv.ui.theme.Level.Fg
+        Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(17.dp))
         if (label != null) Text(
-            text = label,
-            color = HeroInk,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.ExtraBold,
+            text = label.uppercase(),
+            color = ink,
+            fontFamily = org.siloserver.silo.tv.ui.theme.LevelMonoFamily,
+            fontSize = 12.sp,
+            letterSpacing = 1.sp,
+            fontWeight = FontWeight.SemiBold,
             maxLines = 1,
         )
     }

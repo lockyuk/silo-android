@@ -80,6 +80,8 @@ fun TvEpisodeCard(
     cardModifier: Modifier = Modifier,
     userState: org.siloserver.silo.model.catalog.MediaItemUserState? = null,
     overlay: OverlayData? = null,
+    /** Aurora: plain artwork card, no badges and no text. */
+    titleOverlay: Boolean = false,
     actions: TvMediaCardActions = TvMediaCardActions(),
     /**
      * The item the card shows. A row can keep a card while its item changes;
@@ -149,7 +151,7 @@ fun TvEpisodeCard(
                 // play affordance + progress bar. Never intercepts focus.
                 // The bottom inset matches the side inset plus the 3dp progress
                 // bar so the lower badges sit in the corner like the upper ones.
-                if (overlayState.enabled && overlay != null) {
+                if (!titleOverlay && overlayState.enabled && overlay != null) {
                     CardOverlays(
                         data = overlay,
                         prefs = overlayState.prefs,
@@ -181,7 +183,7 @@ fun TvEpisodeCard(
         }
 
         TvCardText.ensureLoaded(androidx.compose.ui.platform.LocalContext.current)
-        if (TvCardText.showText) Column(
+        if (!titleOverlay && TvCardText.showText) Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 7.dp),

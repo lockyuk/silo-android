@@ -365,7 +365,7 @@ private fun TvInboxRow(
                     Box(
                         modifier = Modifier
                             .size(10.dp)
-                            .clip(CircleShape)
+                            .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                             .background(SiloBlue),
                     )
                 }

@@ -890,7 +890,7 @@ internal fun TvSwitchRow(
                     .height(34.dp)
                     .background(
                         color = if (isOn) Color.White else Color.White.copy(alpha = 0.20f),
-                        shape = CircleShape,
+                        shape = org.siloserver.silo.tv.ui.theme.LevelChamfer,
                     )
                     .padding(4.dp),
                 contentAlignment = if (isOn) Alignment.CenterEnd else Alignment.CenterStart,
@@ -898,7 +898,7 @@ internal fun TvSwitchRow(
                 Box(
                     modifier = Modifier
                         .size(26.dp)
-                        .background(if (isOn) Color.Black else Color.White, CircleShape),
+                        .background(if (isOn) Color.Black else Color.White, org.siloserver.silo.tv.ui.theme.LevelChamfer),
                 )
             }
         }
@@ -910,7 +910,7 @@ private fun TvProfileBadge(icon: androidx.compose.ui.graphics.vector.ImageVector
     Box(
         modifier = Modifier
             .size(34.dp)
-            .background(Color.Black.copy(alpha = 0.55f), CircleShape),
+            .background(Color.Black.copy(alpha = 0.55f), org.siloserver.silo.tv.ui.theme.LevelChamfer),
         contentAlignment = Alignment.Center,
     ) {
         Icon(

@@ -2458,7 +2458,7 @@ fun TvSettingsPickerSheet(
                     }
                     Row(
                         modifier = Modifier
-                            .clip(CircleShape)
+                            .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                             .background(Color.White.copy(alpha = 0.055f))
                             .padding(horizontal = 9.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -2766,7 +2766,7 @@ private fun SettingsAccountRow(
             Box(
                 modifier = Modifier
                     .size(34.dp)
-                    .clip(CircleShape)
+                    .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                     .background(Color.White.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center,
             ) {

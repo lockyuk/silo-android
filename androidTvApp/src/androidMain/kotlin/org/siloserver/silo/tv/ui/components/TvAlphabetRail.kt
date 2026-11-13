@@ -209,7 +209,7 @@ private fun LetterButton(
     val chip = isFocused || isSelected
 
     val shape = when {
-        !expanded -> CircleShape
+        !expanded -> org.siloserver.silo.tv.ui.theme.LevelChamfer
         isAll -> RoundedCornerShape(999.dp)
         else -> RoundedCornerShape(8.dp)
     }
@@ -267,7 +267,7 @@ private fun LetterButton(
                     Box(
                         modifier = Modifier
                             .size(if (isSelected) 6.dp else 4.dp)
-                            .clip(CircleShape)
+                            .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                             .background(Color.White.copy(alpha = if (isSelected) 0.9f else 0.35f)),
                     )
                 }

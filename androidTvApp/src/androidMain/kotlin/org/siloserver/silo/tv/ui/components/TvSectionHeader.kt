@@ -53,23 +53,14 @@ fun TvSectionHeader(
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (icon != null) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier
-                            .size(iconSize)
-                            .padding(end = 8.dp),
-                    )
-                }
                 Text(
-                    text = title,
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontSize = 18.sp,
-                        lineHeight = 22.sp,
-                    ),
-                    color = Color.White,
+                    text = title.uppercase(),
+                    color = org.siloserver.silo.tv.ui.theme.Level.Muted,
+                    fontFamily = org.siloserver.silo.tv.ui.theme.LevelMonoFamily,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                    fontSize = 9.5.sp,
+                    letterSpacing = 1.3.sp,
+                    maxLines = 1,
                 )
             }
         }

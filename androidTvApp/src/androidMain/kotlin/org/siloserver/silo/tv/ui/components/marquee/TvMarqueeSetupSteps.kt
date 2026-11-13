@@ -69,9 +69,9 @@ private fun Step(number: Int, title: String, picture: @Composable () -> Unit) {
             Box(
                 Modifier
                     .offset(x = (-8).dp, y = (-8).dp)
-                    .shadow(4.dp, CircleShape)
+                    .shadow(4.dp, org.siloserver.silo.tv.ui.theme.LevelChamfer)
                     .size(26.dp)
-                    .clip(CircleShape)
+                    .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                     .background(MarqueeColors.Ink),
                 contentAlignment = Alignment.Center,
             ) {
@@ -116,15 +116,15 @@ private fun SetupCardPicture() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Box(Modifier.width(40.dp).height(4.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.3f)))
-        Box(Modifier.width(28.dp).height(4.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.16f)))
+        Box(Modifier.width(40.dp).height(4.dp).clip(org.siloserver.silo.tv.ui.theme.LevelChamfer).background(Color.White.copy(alpha = 0.3f)))
+        Box(Modifier.width(28.dp).height(4.dp).clip(org.siloserver.silo.tv.ui.theme.LevelChamfer).background(Color.White.copy(alpha = 0.16f)))
         Box(
             Modifier
                 .fillMaxWidth()
-                .border(2.dp, MarqueeColors.BrandOrange.copy(alpha = 0.85f), CircleShape)
+                .border(2.dp, MarqueeColors.BrandOrange.copy(alpha = 0.85f), org.siloserver.silo.tv.ui.theme.LevelChamfer)
                 .padding(2.dp)
                 .height(15.dp)
-                .clip(CircleShape)
+                .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                 .background(MarqueeColors.Ink),
             contentAlignment = Alignment.Center,
         ) {
@@ -140,9 +140,9 @@ private fun DonePicture() {
     Box(
         Modifier
             .size(48.dp)
-            .clip(CircleShape)
+            .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
             .background(green.copy(alpha = 0.16f))
-            .border(1.5.dp, green, CircleShape),
+            .border(1.5.dp, green, org.siloserver.silo.tv.ui.theme.LevelChamfer),
         contentAlignment = Alignment.Center,
     ) {
         Icon(Icons.Filled.Check, contentDescription = null, tint = green, modifier = Modifier.size(24.dp))

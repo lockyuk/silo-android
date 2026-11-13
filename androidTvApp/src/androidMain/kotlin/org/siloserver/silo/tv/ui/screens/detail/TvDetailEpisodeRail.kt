@@ -531,7 +531,7 @@ private fun TvDetailEpisodeCard(
                     modifier = Modifier
                         .padding(6.dp)
                         .size(20.dp)
-                        .clip(CircleShape)
+                        .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                         .background(Color.White)
                         .align(Alignment.TopEnd),
                     contentAlignment = Alignment.Center,

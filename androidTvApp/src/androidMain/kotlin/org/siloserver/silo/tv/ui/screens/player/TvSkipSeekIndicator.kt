@@ -69,7 +69,7 @@ fun TvSkipSeekIndicator(
         ) {
             Surface(
                 color = Color.Black.copy(alpha = 0.42f),
-                shape = RoundedCornerShape(percent = 50),
+                shape = org.siloserver.silo.tv.ui.theme.LevelChamfer,
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
@@ -102,14 +102,14 @@ fun TvSkipSeekIndicator(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(4.dp)
-                        .clip(RoundedCornerShape(percent = 50))
+                        .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                         .background(Color.White.copy(alpha = 0.22f)),
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(progress)
                             .height(4.dp)
-                            .clip(RoundedCornerShape(percent = 50))
+                            .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                             .background(TvPlayerChrome.Paper),
                     )
                 }

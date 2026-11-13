@@ -2147,7 +2147,7 @@ private fun ProfileDropdownHeader(accountState: TvAccountState) {
         Box(
             modifier = Modifier
                 .size(TvSkyline.profileMenuAvatarSize)
-                .clip(CircleShape)
+                .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                 .background(Color.White.copy(alpha = 0.16f)),
             contentAlignment = Alignment.Center,
         ) {

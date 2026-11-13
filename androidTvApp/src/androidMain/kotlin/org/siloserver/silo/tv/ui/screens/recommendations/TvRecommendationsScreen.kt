@@ -284,7 +284,7 @@ fun TvRecommendationsScreen(
                 hero = hero,
                 autoAdvanceFirstRow = true,
                 onPlayFirstRowItem = { item, _ -> onRecommendationItemClick(item.contentId) },
-                contentVerticalOffset = 28.dp,
+                contentVerticalOffset = 16.dp,
                 surfaceKey = "for_you",
                 onMarqueeTranslated = viewModel::refresh,
                 sections = feedSections,

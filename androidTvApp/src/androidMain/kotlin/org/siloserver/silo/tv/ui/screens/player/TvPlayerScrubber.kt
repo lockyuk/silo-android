@@ -439,8 +439,8 @@ fun TvPlayerScrubber(
                             )
                         }
                         .size(puckSize)
-                        .shadow(8.dp, CircleShape, clip = false)
-                        .clip(CircleShape)
+                        .shadow(8.dp, org.siloserver.silo.tv.ui.theme.LevelChamfer, clip = false)
+                        .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                         .background(Color.White),
                 )
             }
@@ -589,8 +589,8 @@ private fun finishTimeLabel(timeFormat: java.text.DateFormat, remainingSec: Doub
 private fun TvScrubberAutoSeekChip(rate: Int, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
-            .shadow(8.dp, RoundedCornerShape(percent = 50), clip = false)
-            .clip(RoundedCornerShape(percent = 50))
+            .shadow(8.dp, org.siloserver.silo.tv.ui.theme.LevelChamfer, clip = false)
+            .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
             .background(Color.White)
             .padding(horizontal = 9.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,

@@ -347,7 +347,7 @@ private fun RecommendedTab(
                     surfaceKey = surfaceKey,
                     sections = rows,
                     hero = hero,
-                    contentVerticalOffset = 28.dp,
+                    contentVerticalOffset = 16.dp,
                     onItemClick = onItemClick,
                     autoAdvanceFirstRow = onPlayItem != null,
                     onPlayFirstRowItem = { item, at -> onPlayItem?.invoke(item.contentId, item.type, at) },

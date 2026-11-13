@@ -58,7 +58,7 @@ fun TvSiloCastStandbyView(
             Box(
                 modifier = Modifier
                     .size(150.dp)
-                    .background(Color.White.copy(alpha = 0.08f), CircleShape),
+                    .background(Color.White.copy(alpha = 0.08f), org.siloserver.silo.tv.ui.theme.LevelChamfer),
                 contentAlignment = Alignment.Center,
             ) {
                 if (preparing != null) {

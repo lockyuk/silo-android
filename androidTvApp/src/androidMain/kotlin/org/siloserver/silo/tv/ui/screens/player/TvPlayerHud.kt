@@ -459,9 +459,9 @@ internal fun TvPlayerHud(
             // localised labels; the six English tabs fit with room.
             Row(
                 modifier = Modifier
-                    .clip(CircleShape)
+                    .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                     .background(HudRailFill)
-                    .border(1.dp, TvPlayerChrome.PanelStroke, CircleShape)
+                    .border(1.dp, TvPlayerChrome.PanelStroke, org.siloserver.silo.tv.ui.theme.LevelChamfer)
                     .padding(4.dp)
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -773,7 +773,7 @@ private fun HudTabPill(
     Box(
         modifier = Modifier
             .height(HudTabHeight)
-            .clip(CircleShape)
+            .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
             .background(bg)
             .focusRequester(focusRequester)
             .focusable(enabled = enabled, interactionSource = interactionSource)
@@ -2217,15 +2217,15 @@ private fun StyleColorSwatch(
             .border(
                 width = 2.dp,
                 color = if (isFocused) TvPlayerChrome.Paper else Color.Transparent,
-                shape = CircleShape,
+                shape = org.siloserver.silo.tv.ui.theme.LevelChamfer,
             )
             .padding(4.dp)
-            .clip(CircleShape)
+            .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
             .background(swatchColor)
             .border(
                 width = 1.dp,
                 color = if (selected && !isLightSwatch) Color.White.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.22f),
-                shape = CircleShape,
+                shape = org.siloserver.silo.tv.ui.theme.LevelChamfer,
             )
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .clickable(enabled = enabled, interactionSource = interactionSource, indication = null) { onClick() }
@@ -2825,9 +2825,9 @@ internal fun HudFocusedSettingRow(
                 Box(
                     modifier = Modifier
                         .size(11.dp)
-                        .clip(CircleShape)
+                        .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                         .background(hexToColor(colorHex))
-                        .border(0.5.dp, Color.White.copy(alpha = 0.45f), CircleShape),
+                        .border(0.5.dp, Color.White.copy(alpha = 0.45f), org.siloserver.silo.tv.ui.theme.LevelChamfer),
                 )
             }
             // Weighted so the swatch and chevron are measured first and the
@@ -2968,9 +2968,9 @@ private fun HudPickerOptionRow(
                 modifier = Modifier
                     .padding(end = 8.dp)
                     .size(12.dp)
-                    .clip(CircleShape)
+                    .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                     .background(hexToColor(option.colorHex))
-                    .border(0.5.dp, Color.White.copy(alpha = 0.45f), CircleShape),
+                    .border(0.5.dp, Color.White.copy(alpha = 0.45f), org.siloserver.silo.tv.ui.theme.LevelChamfer),
             )
         }
         Column(modifier = Modifier.weight(1f)) {

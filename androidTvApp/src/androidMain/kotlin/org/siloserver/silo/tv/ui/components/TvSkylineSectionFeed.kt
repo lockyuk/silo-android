@@ -216,6 +216,7 @@ fun TvSkylineSectionFeed(
     val exploresRows = onExploreAllForSection != null
     val rows = remember(sections, exploresRows, autoAdvanceFirstRow) {
         sections.filter { it.items.isNotEmpty() }
+            .map { it.byLastPlayed() }
             .let { nonEmpty -> if (exploresRows) nonEmpty.map { it.cappedForRow() } else nonEmpty }
             .let { capped ->
                 // The first row is the hero: it shows at most TvHeroMaxItems cards, then restarts.
@@ -656,13 +657,19 @@ fun TvSkylineSectionFeed(
     // of the top of the screen while focus is on its buttons or on the first
     // row beneath it; from the second row down, the focused card's marquee
     // takes over as on any other feed.
-    val heroItems = remember(hero?.section) { hero?.section?.items?.take(TvHeroMaxItems).orEmpty() }
+    val heroItems = remember(hero?.section) { hero?.section?.byLastPlayed()?.items?.take(TvHeroMaxItems).orEmpty() }
     var heroIndex by remember { mutableIntStateOf(0) }
     var heroFocused by remember { mutableStateOf(false) }
     val heroWatchlistOverrides = remember { mutableStateMapOf<String, Boolean>() }
     val heroActive = hero != null && heroItems.isNotEmpty()
     val heroZone = heroActive && (heroFocused || focusedRowIndex <= 0)
     val heroItem = heroItems.getOrNull(heroIndex.coerceIn(0, (heroItems.size - 1).coerceAtLeast(0)))
+    // Coming back to the hero (from a row below, the menu or a page) starts at the most recently played item.
+    var heroWasInZone by remember { mutableStateOf(false) }
+    LaunchedEffect(heroZone) {
+        if (heroZone && !heroWasInZone) heroIndex = 0
+        heroWasInZone = heroZone
+    }
     val heroMarquee = rememberTvFocusMarqueeState(fetchDetail = fetchDetail)
     SideEffect { if (hero != null) heroMarquee.refreshSources(listOf(hero.section)) }
     val heroSeeded = remember { mutableStateOf(false) }
@@ -1148,7 +1155,7 @@ fun TvSkylineSectionFeed(
                     } else null,
                     modifier = Modifier,
                 )
-                TvHomeHeroStrip(
+                if (false) TvHomeHeroStrip(
                     items = heroItems,
                     current = heroIndex,
                     running = heroZone,
@@ -1162,12 +1169,13 @@ fun TvSkylineSectionFeed(
             if (!heroZone) TvFocusMarquee(
                 content = marquee.content,
                 detailLine = marquee.enrichment?.detailLine,
+                fullOverview = marquee.enrichment?.overview,
                 translation = rememberTvMarqueeTranslation(
                     item = marquee.content?.source,
                     autoTranslate = isFeaturedMarqueeContent(marquee.content, rows),
                     onTranslated = onMarqueeTranslated,
                 ),
-                startPadding = TvSkyline.safeAreaX,
+                startPadding = 70.dp,
                 // Keep the marquee out of the top-menu-bar zone: the block is
                 // bottom-anchored and grows upward, and the raised typography
                 // floors made it tall enough to collide with the bar.
@@ -1187,7 +1195,7 @@ fun TvSkylineSectionFeed(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(
-                                start = TvSkyline.safeAreaX,
+                                start = 70.dp,
                                 bottom = refBandHeight + TvSkylineMarqueeBottomGap + TvSkylineHeroTextRaise,
                             )
                             .offset(y = contentVerticalOffset + TvSkylineContentDrop),
@@ -1443,7 +1451,7 @@ private data class HeroPreloadSizes(
 private const val HeroFocusPrefetchRadius = 2
 
 /** tvOS MediaRow cardSpacing 40pt maps to 20dp. */
-internal val TvSkylineItemSpacing = 20.dp
+internal val TvSkylineItemSpacing = 6.dp
 
 /** A little breathing room between adjacent Home sections. */
 internal val TvSkylineRowPreviewSpacing = 14.dp
@@ -1485,7 +1493,7 @@ internal fun tvSkylineRowBandHeight(presentation: CardPresentation): Dp {
 
 /** The band height at Medium cards with no card text (how the hero has looked so far): the fixed reference for the hero's layout. */
 internal fun tvSkylineReferenceBandHeight(): Dp {
-    val cardHeight = RowDimens.DensePosterWidth * 3f / 2f
+    val cardHeight = TvSpineHeight
     return TvSkylineRowHeaderHeight + TvSkylineRowHeaderGap +
         TvSkylineRowCardVerticalPadding * 2 + cardHeight +
         TvSkylineRowPreviewSpacing + TvSkylineRowPreviewPeek
@@ -1495,7 +1503,7 @@ internal fun tvSkylineReferenceBandHeight(): Dp {
 internal val TvSkylineActionsBlock = 52.dp
 
 /** The hero text block sits this much higher than the bottom-anchored default (70px on a 1080p screen). */
-internal val TvSkylineHeroTextRaise = 35.dp
+internal val TvSkylineHeroTextRaise = 2.dp
 
 /** The marquee text and the rows sit this much lower on screen. */
 internal val TvSkylineContentDrop = 8.dp
@@ -1552,4 +1560,18 @@ internal fun SectionItem.forHero(): SectionItem {
             )
         else -> this
     }
+}
+
+
+/**
+ * Continue-watching sections always list the most recently played item first, whatever order
+ * the server or a stale cache delivered. Other sections keep their own order.
+ */
+internal fun ResolvedSection.byLastPlayed(): ResolvedSection {
+    if (sectionType != "continue_watching" && sectionType != "in_progress") return this
+    if (items.none { !it.progressUpdatedAt.isNullOrBlank() }) return this
+    fun stamp(item: SectionItem): Long = item.progressUpdatedAt?.takeIf { it.isNotBlank() }
+        ?.let { runCatching { java.time.Instant.parse(it).toEpochMilli() }.getOrNull() } ?: Long.MIN_VALUE
+    val sorted = items.sortedByDescending(::stamp)
+    return if (sorted == items) this else copy(items = sorted)
 }

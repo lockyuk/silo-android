@@ -210,7 +210,7 @@ internal fun TvRequestPosterBadge(state: RequestDisplayState, size: Dp, modifier
         is RequestDisplayState.Unavailable -> return
     }
     Box(
-        modifier = modifier.size(size).background(state.tint.tvColor(), CircleShape),
+        modifier = modifier.size(size).background(state.tint.tvColor(), org.siloserver.silo.tv.ui.theme.LevelChamfer),
         contentAlignment = Alignment.Center,
     ) {
         Icon(imageVector = icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(size * 0.6f))
@@ -233,7 +233,7 @@ internal fun TvRequestStatusLabel(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(dotSize),
     ) {
-        Box(modifier = Modifier.size(dotSize).background(progress.tint.tvColor(), CircleShape))
+        Box(modifier = Modifier.size(dotSize).background(progress.tint.tvColor(), org.siloserver.silo.tv.ui.theme.LevelChamfer))
         Text(
             text = text,
             style = MaterialTheme.typography.bodySmall.copy(fontSize = fontSize, lineHeight = fontSize * 1.3f),

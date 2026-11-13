@@ -291,7 +291,7 @@ private fun TvHomeContent(
         surfaceKey = "home",
         // tvOS Home drops the foreground marquee + row band by 56pt while
         // keeping the ambient art and top navigation fixed (28dp at TV scale).
-        contentVerticalOffset = 28.dp,
+        contentVerticalOffset = 16.dp,
         sections = sections,
         sectionsComplete = sectionsFullyResolved,
         onItemClick = onItemClick,

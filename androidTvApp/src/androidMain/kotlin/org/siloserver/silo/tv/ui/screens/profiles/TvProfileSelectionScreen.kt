@@ -548,7 +548,7 @@ private fun TvProfileTile(
                     ).joinToString(", ")
                 }
                 .graphicsLayer { scaleX = scale; scaleY = scale }
-                .shadow(if (focused) 18.dp else 0.dp, CircleShape, clip = false)
+                .shadow(if (focused) 18.dp else 0.dp, org.siloserver.silo.tv.ui.theme.LevelChamfer, clip = false)
                 .focusRing(focused),
         ) {
             MarqueeProfileAvatar(
@@ -613,7 +613,7 @@ private fun TvAddTile(
                 .graphicsLayer { scaleX = scale; scaleY = scale }
                 .focusRing(focused)
                 .size(ProfileAvatarSize)
-                .background(Color.White.copy(alpha = if (focused) 0.14f else 0f), CircleShape)
+                .background(Color.White.copy(alpha = if (focused) 0.14f else 0f), org.siloserver.silo.tv.ui.theme.LevelChamfer)
                 .drawBehind {
                     val stroke = 2.dp.toPx()
                     drawCircle(

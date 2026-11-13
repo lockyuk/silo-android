@@ -786,7 +786,7 @@ private fun ChevronButton(
     onClick: () -> Unit,
     onFocused: () -> Unit,
 ) {
-    val shape = CircleShape
+    val shape = org.siloserver.silo.tv.ui.theme.LevelChamfer
     Surface(
         onClick = onClick,
         shape = ClickableSurfaceDefaults.shape(shape = shape),
@@ -929,7 +929,7 @@ private fun DayCell(
             Box(
                 modifier = Modifier
                     .size(4.dp)
-                    .clip(CircleShape)
+                    .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                     .background(
                         if (hasEvents) {
                             if (inverted) {
@@ -1477,7 +1477,7 @@ private fun CalendarEventCard(
                             .align(Alignment.TopEnd)
                             .padding(6.dp)
                             .size(17.dp)
-                            .background(Color.White, CircleShape),
+                            .background(Color.White, org.siloserver.silo.tv.ui.theme.LevelChamfer),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(

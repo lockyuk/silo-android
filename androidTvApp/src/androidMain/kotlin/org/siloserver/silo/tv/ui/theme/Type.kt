@@ -12,23 +12,17 @@ import org.siloserver.silo.tv.R
 // Inter is an OFL-licensed, distributable approximation of the SF typography
 // used by tvOS. Static faces keep weight selection consistent across Android TV
 // devices and API levels.
-val InterFamily = FontFamily(
-    Font(R.font.inter_regular, FontWeight.Normal),
-    Font(R.font.inter_medium, FontWeight.Medium),
-    Font(R.font.inter_semibold, FontWeight.SemiBold),
-    Font(R.font.inter_bold, FontWeight.Bold),
-    Font(R.font.inter_black, FontWeight.Black),
-)
+val InterFamily: FontFamily = LevelBodyFamily
 
 // Retain the legacy name for existing hero consumers.
-val OutfitFamily: FontFamily = InterFamily
+val OutfitFamily: FontFamily = LevelDisplayFamily
 
 // Content direction: each paragraph takes its direction from its own text, so
 // Arabic or Hebrew metadata reads right to left in the left-to-right TV layout.
 // Unspecified would force the layout direction onto every paragraph.
 val SiloTvTypography = Typography(
     displayLarge = TextStyle(
-        fontFamily = InterFamily,
+        fontFamily = LevelDisplayFamily,
         fontWeight = FontWeight.Black,
         fontSize = 44.sp,
         lineHeight = 48.sp,
@@ -36,7 +30,7 @@ val SiloTvTypography = Typography(
         textDirection = TextDirection.Content,
     ),
     displayMedium = TextStyle(
-        fontFamily = InterFamily,
+        fontFamily = LevelDisplayFamily,
         fontWeight = FontWeight.Black,
         fontSize = 36.sp,
         lineHeight = 40.sp,
@@ -44,7 +38,7 @@ val SiloTvTypography = Typography(
         textDirection = TextDirection.Content,
     ),
     displaySmall = TextStyle(
-        fontFamily = InterFamily,
+        fontFamily = LevelDisplayFamily,
         fontWeight = FontWeight.Black,
         fontSize = 28.sp,
         lineHeight = 32.sp,
@@ -52,7 +46,7 @@ val SiloTvTypography = Typography(
         textDirection = TextDirection.Content,
     ),
     headlineLarge = TextStyle(
-        fontFamily = InterFamily,
+        fontFamily = LevelDisplayFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 28.sp,
         lineHeight = 34.sp,
@@ -60,7 +54,7 @@ val SiloTvTypography = Typography(
         textDirection = TextDirection.Content,
     ),
     headlineMedium = TextStyle(
-        fontFamily = InterFamily,
+        fontFamily = LevelDisplayFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 24.sp,
         lineHeight = 30.sp,
@@ -68,7 +62,7 @@ val SiloTvTypography = Typography(
         textDirection = TextDirection.Content,
     ),
     headlineSmall = TextStyle(
-        fontFamily = InterFamily,
+        fontFamily = LevelDisplayFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 22.sp,
         lineHeight = 28.sp,
@@ -124,7 +118,7 @@ val SiloTvTypography = Typography(
         textDirection = TextDirection.Content,
     ),
     labelLarge = TextStyle(
-        fontFamily = InterFamily,
+        fontFamily = LevelMonoFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 18.sp,
         lineHeight = 22.sp,
@@ -132,7 +126,7 @@ val SiloTvTypography = Typography(
         textDirection = TextDirection.Content,
     ),
     labelMedium = TextStyle(
-        fontFamily = InterFamily,
+        fontFamily = LevelMonoFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 16.sp,
         lineHeight = 20.sp,
@@ -140,7 +134,7 @@ val SiloTvTypography = Typography(
         textDirection = TextDirection.Content,
     ),
     labelSmall = TextStyle(
-        fontFamily = InterFamily,
+        fontFamily = LevelMonoFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 16.sp,
         lineHeight = 20.sp,
@@ -152,7 +146,7 @@ val SiloTvTypography = Typography(
 // Hero fallback title when no logo image is available — the tvOS detail hero
 // caps at 92pt for series titles.
 val heroDisplay = TextStyle(
-    fontFamily = InterFamily,
+    fontFamily = LevelDisplayFamily,
     fontWeight = FontWeight.Black,
     fontSize = 58.sp,
     lineHeight = 64.sp,
@@ -171,7 +165,7 @@ val heroMeta = TextStyle(
 
 // Top menu / nav button label.
 val navRailLabel = TextStyle(
-    fontFamily = InterFamily,
+    fontFamily = LevelMonoFamily,
     fontWeight = FontWeight.SemiBold,
     fontSize = 18.sp,
     lineHeight = 22.sp,
@@ -180,7 +174,7 @@ val navRailLabel = TextStyle(
 
 // Eyebrow pill above hero copy — small caps with tracking, matches tvOS facts row.
 val sectionEyebrow = TextStyle(
-    fontFamily = InterFamily,
+    fontFamily = LevelMonoFamily,
     fontWeight = FontWeight.Black,
     fontSize = 16.sp,
     lineHeight = 20.sp,
@@ -190,7 +184,7 @@ val sectionEyebrow = TextStyle(
 // Mono uppercase group header (e.g. the grouped-collections grid header).
 // Wide tracking, monospace; smallest readable 10-foot size.
 val monoGroupHeader = TextStyle(
-    fontFamily = FontFamily.Monospace,
+    fontFamily = LevelMonoFamily,
     fontWeight = FontWeight.Normal,
     fontSize = 16.sp,
     lineHeight = 20.sp,

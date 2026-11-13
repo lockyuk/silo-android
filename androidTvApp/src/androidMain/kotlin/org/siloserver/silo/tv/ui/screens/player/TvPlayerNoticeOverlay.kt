@@ -376,7 +376,7 @@ private fun TvBufferingPillButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
-    val shape = RoundedCornerShape(percent = 50)
+    val shape = org.siloserver.silo.tv.ui.theme.LevelChamfer
     val background = when {
         isFocused -> Color.White
         emphasized -> Color.White.copy(alpha = 0.24f)

@@ -166,9 +166,9 @@ private fun PinDots(pinLength: Int, error: Boolean, modifier: Modifier = Modifie
             Box(
                 modifier = Modifier
                     .size(13.dp)
-                    .clip(CircleShape)
+                    .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                     .background(if (filled) color else Color.Transparent)
-                    .border(1.5.dp, color.copy(alpha = if (filled) 1f else 0.7f), CircleShape),
+                    .border(1.5.dp, color.copy(alpha = if (filled) 1f else 0.7f), org.siloserver.silo.tv.ui.theme.LevelChamfer),
             )
         }
     }
@@ -226,7 +226,7 @@ private fun PinKey(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
-    val keyShape = CircleShape
+    val keyShape = org.siloserver.silo.tv.ui.theme.LevelChamfer
     Surface(
         onClick = { controlState.perform(onClick) },
         enabled = controlState.focusable,

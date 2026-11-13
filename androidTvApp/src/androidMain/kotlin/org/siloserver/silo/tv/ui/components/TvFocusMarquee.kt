@@ -49,6 +49,8 @@ import org.siloserver.silo.common.settings.titleLogoUrl
 import org.siloserver.silo.common.ui.components.MachineTranslatedLabel
 import org.siloserver.silo.common.ui.components.ThumbhashImage
 import org.siloserver.silo.model.catalog.hasMachineTranslatedOverview
+import org.siloserver.silo.tv.ui.theme.LevelDisplayFamily
+import org.siloserver.silo.tv.ui.theme.LevelMonoFamily
 import org.siloserver.silo.tv.ui.theme.SiloOnSurface
 import org.siloserver.silo.tv.ui.theme.SiloSecondaryText
 import org.siloserver.silo.common.cards.LocalEpisodeSpoilerPrefs
@@ -68,6 +70,8 @@ import org.siloserver.silo.common.cards.LocalEpisodeSpoilerPrefs
 fun TvFocusMarquee(
     content: TvMarqueeContent?,
     detailLine: String? = content?.detailLine,
+    /** The full description from the item's detail, shown in place of the shortened one in the section payload. */
+    fullOverview: String? = null,
     /** The rested item's description translation; like [detailLine], it
      *  updates the block in place instead of replaying the crossfade. */
     translation: TvMarqueeTranslation? = null,
@@ -129,6 +133,7 @@ fun TvFocusMarquee(
                                 value.underPrefs(spoilerPrefs)
                             },
                             detailLine = detailLine.takeIf { value.id == content?.id },
+                            fullOverview = fullOverview.takeIf { value.id == content?.id },
                             translation = translation.takeIf { it?.contentId == value.contentId },
                             footer = footer,
                             eyebrow = eyebrow,
@@ -140,6 +145,7 @@ fun TvFocusMarquee(
             TvMarqueeBlock(
                 content = content,
                 detailLine = detailLine,
+                fullOverview = fullOverview,
                 translation = translation.takeIf { it?.contentId == content.contentId },
                 footer = footer,
                 eyebrow = eyebrow,
@@ -152,162 +158,84 @@ fun TvFocusMarquee(
 private fun TvMarqueeBlock(
     content: TvMarqueeContent,
     detailLine: String?,
+    fullOverview: String? = null,
     translation: TvMarqueeTranslation? = null,
     footer: (@Composable (TvMarqueeContent) -> Unit)? = null,
     eyebrow: String? = null,
 ) {
-    // tvOS parity (TVFocusMarquee): when the text-fallback title wraps to two
-    // lines the synopsis drops to one, keeping the bottom-anchored block's
-    // height bounded so it never climbs into the top-menu-bar zone.
-    var titleLineCount by remember(content.id) { mutableStateOf(1) }
-    // "Show title art" off: the marquee always names the title in text.
-    val logoUrl = titleLogoUrl(content.logoUrl)
-    var logoLoaded by remember(logoUrl) { mutableStateOf(false) }
-    // The text fallback stays invisible while the logo gets a short grace
-    // period, so a cached or fast logo never flashes the text title first. A
-    // failed or slow logo still falls back to the text.
-    var showTitleFallback by remember(logoUrl) { mutableStateOf(false) }
-    LaunchedEffect(logoUrl) {
-        delay(MarqueeLogoGraceMs)
-        // A logo that decoded inside the grace period fades in alone.
-        if (!logoLoaded) showTitleFallback = true
-    }
-    // Read the fade only through drawAlpha (draw phase): reading it during
-    // composition recomposed the whole block on every frame of the fade.
-    val logoAlpha = animateFloatAsState(
-        targetValue = if (logoLoaded) 1f else 0f,
-        animationSpec = tween(TvMarqueeCrossfadeMs, easing = TvMarqueeEasing),
-        label = "marqueeLogoAlpha",
+    val level = org.siloserver.silo.tv.ui.theme.Level
+    val src = content.source
+    val hidesSynopsis = content.isEpisode && LocalEpisodeSpoilerPrefs.current.hidesOverview(
+        org.siloserver.silo.model.settings.EpisodeSpoilers.isUnwatched(src),
     )
-    val logoFadeDone by remember(logoAlpha) { derivedStateOf { logoAlpha.value >= 1f } }
-    // 6dp rows and an 84dp logo slot: the marquee viewport (screen minus the
-    // top-bar zone minus the row band) fits five text rows only if the block
-    // stays under ~206dp, and the format spec line is the fifth row.
+    val synopsisText = (translation?.synopsis ?: fullOverview?.takeIf { it.length > (content.synopsis?.length ?: 0) } ?: content.synopsis)
+        ?.takeIf { it.isNotBlank() && !hidesSynopsis }
+    val translating = translation?.translating == true
+    val machineTranslated = !translating && synopsisText != null &&
+        (translation?.machineTranslated ?: hasMachineTranslatedOverview(src.machineTranslatedFields))
+    var titleLineCount by remember(content.id) { mutableStateOf(1) }
+
     Column(
         modifier = Modifier.widthIn(max = MarqueeContentWidth),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
-        if (eyebrow != null) {
-            val pill = RoundedCornerShape(percent = 50)
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .background(Color.White.copy(alpha = 0.08f), pill)
-                    .border(1.dp, Color.White.copy(alpha = 0.14f), pill)
-                    .padding(horizontal = 12.dp, vertical = 5.dp),
-            ) {
-                Text("\u25CF", color = Aurora.Violet, fontSize = 7.sp, maxLines = 1)
-                Text(
-                    text = eyebrow.uppercase(),
-                    color = Color.White.copy(alpha = 0.92f),
-                    fontSize = 10.sp,
-                    letterSpacing = 1.2.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                )
+        // Label: RESUME / the row's name, the episode and the time left, in accent mono.
+        val position = src.positionSeconds
+        val duration = src.durationSeconds
+        val labelParts = buildList {
+            add(if (position != null) "Resume" else (eyebrow ?: ""))
+            val season = src.seasonNumber
+            val episode = src.episodeNumber
+            if (season != null && episode != null) add("S$season\u00B7E$episode")
+            if (position != null && duration != null && duration > position) {
+                add("${((duration - position) / 60.0).toInt().coerceAtLeast(1)} min left")
             }
-        }
-        // The text title stays composed (for layout and line count) until the
-        // logo decodes, but only becomes visible after the grace period or on
-        // error, so a bad/slow URL never leaves a blank title slot.
-        if (!logoUrl.isNullOrBlank()) {
-            Box(
-                modifier = Modifier
-                    .height(MarqueeLogoMaxHeight)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                if (!logoLoaded || !logoFadeDone) {
-                    Text(
-                        text = marqueeTitleAnnotated(content.title),
-                        color = Color.White,
-                        fontWeight = FontWeight.Black,
-                        fontSize = MarqueeTitleSize,
-                        lineHeight = MarqueeTitleSize * 1.15f,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        onTextLayout = { titleLineCount = it.lineCount },
-                        modifier = Modifier.drawAlpha {
-                            if (showTitleFallback) 1f - logoAlpha.value else 0f
-                        },
-                    )
-                }
-                ThumbhashImage(
-                    url = logoUrl,
-                    thumbhash = null,
-                    contentDescription = content.title,
-                    contentScale = ContentScale.Fit,
-                    // Flush with the editorial text below it; the default
-                    // centre alignment floated wide logos toward the middle
-                    // of the block, away from the meta/synopsis left edge.
-                    alignment = Alignment.CenterStart,
-                    transparent = true,
-                    crossfadeMillis = 0,
-                    onSuccess = { logoLoaded = true },
-                    onError = { showTitleFallback = true },
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .widthIn(max = MarqueeLogoMaxWidth)
-                        .drawAlpha { logoAlpha.value },
-                )
-            }
-        } else {
+        }.filter { it.isNotBlank() }
+        if (labelParts.isNotEmpty()) {
             Text(
-                text = marqueeTitleAnnotated(content.title),
-                color = Color.White,
-                fontWeight = FontWeight.Black,
-                fontSize = MarqueeTitleSize,
-                lineHeight = MarqueeTitleSize * 1.15f,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                onTextLayout = { titleLineCount = it.lineCount },
+                text = labelParts.joinToString(" \u00B7 ").uppercase(),
+                color = level.Accent,
+                fontFamily = LevelMonoFamily,
+                fontWeight = FontWeight.Medium,
+                fontSize = 9.5.sp,
+                letterSpacing = 1.3.sp,
+                maxLines = 1,
             )
         }
-
-        val hidesSynopsis = content.isEpisode && LocalEpisodeSpoilerPrefs.current.hidesOverview(
-            org.siloserver.silo.model.settings.EpisodeSpoilers.isUnwatched(content.source),
+        // The title in condensed display type: text, never a logo image.
+        Text(
+            text = content.title.uppercase(),
+            color = level.Fg,
+            fontFamily = LevelDisplayFamily,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 60.sp,
+            lineHeight = 56.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            onTextLayout = { titleLineCount = it.lineCount },
+            modifier = Modifier.padding(top = 4.dp),
         )
-        val synopsisText = (translation?.synopsis ?: content.synopsis)
-            ?.takeIf { it.isNotBlank() && !hidesSynopsis }
-        val translating = translation?.translating == true
-        val machineTranslated = !translating && synopsisText != null &&
-            (translation?.machineTranslated ?: hasMachineTranslatedOverview(content.source.machineTranslatedFields))
-
-        // Row 1: the certificate badge, then the ratings as logos (IMDb, TMDB, Rotten Tomatoes
-        // critics). Row 2: the episode number and name (or year, length and genre).
-        val src = content.source
-        val showRatings = src.ratingImdb != null || src.ratingTmdb != null || src.ratingRtCritic != null
-        val metaTokens = if (showRatings) {
-            content.metaParts.filterNot { it is TvHeroFactToken.ExternalRating }
-        } else {
-            content.metaParts
-        }
-        if (content.badges.isNotEmpty() || showRatings) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                content.badges.forEach { badge ->
-                    Text(
-                        text = badge,
-                        color = SiloSecondaryText,
-                        fontSize = 12.sp,
-                        letterSpacing = 0.5.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                    )
+        // Chips: certificate, year, scores and quality.
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(top = 6.dp),
+        ) {
+            content.badges.forEach { LevelChip(it) }
+            src.year.takeIf { it > 0 }?.let { LevelChip(it.toString()) }
+            src.ratingImdb?.let { LevelChip(String.format("%.1f", it), tag = "IMDb") }
+            src.ratingRtCritic?.let { LevelChip("$it%", tag = "RT") }
+            val quality = content.specLine?.split(" \u00B7 ")?.firstOrNull { it.isNotBlank() }?.let { q ->
+                when {
+                    q.contains("4K", true) || q.contains("2160") -> "4K"
+                    q.contains("1080") || q.contains("720") || q.contains("HD", true) -> "HD"
+                    else -> q.uppercase()
                 }
-                if (showRatings) HeroRatings(src, compact = true)
             }
+            quality?.let { LevelChip(it) }
         }
 
-        // Two synopsis lines (one when a text title wraps): the raised
-        // typography floors made the old three-line block tall enough to
-        // climb under the top menu bar, and the bar zone wins.
         synopsisText?.let { synopsis ->
-            // A running translation pulses the original text until the
-            // translated description replaces it.
             val pulse: State<Float>? = if (translating) {
                 rememberInfiniteTransition(label = "marqueeTranslating").animateFloat(
                     initialValue = 0.35f,
@@ -320,18 +248,37 @@ private fun TvMarqueeBlock(
             }
             Text(
                 text = synopsis,
-                color = SiloSecondaryText,
-                fontSize = MarqueeSynopsisSize,
-                lineHeight = MarqueeSynopsisSize * 1.35f,
-                maxLines = 3,
+                color = level.Muted,
+                fontSize = 13.sp,
+                lineHeight = 18.5.sp,
+                maxLines = if (titleLineCount > 1) 2 else 3,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
+                    .padding(top = 8.dp)
                     .widthIn(max = MarqueeSynopsisMaxWidth)
                     .drawAlpha { pulse?.value ?: 1f },
             )
         }
 
         footer?.invoke(content)
+    }
+}
+
+/** A bordered mono data chip: an optional accent tag then the value. */
+@Composable
+private fun LevelChip(value: String, tag: String? = null) {
+    val level = org.siloserver.silo.tv.ui.theme.Level
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .border(1.dp, level.Line)
+            .padding(horizontal = 7.dp, vertical = 4.dp),
+    ) {
+        if (tag != null) {
+            Text(tag.uppercase(), color = level.Accent, fontFamily = LevelMonoFamily, fontWeight = FontWeight.SemiBold, fontSize = 10.sp, letterSpacing = 0.6.sp, maxLines = 1)
+        }
+        Text(value.uppercase(), color = level.Fg, fontFamily = LevelMonoFamily, fontWeight = FontWeight.Medium, fontSize = 10.sp, letterSpacing = 0.6.sp, maxLines = 1)
     }
 }
 
@@ -374,10 +321,10 @@ private fun MarqueeBadge(label: String) {
 // Skyline marquee metrics. Geometry stays ~0.5x of the tvOS 1920×1080 tokens;
 // body text stays at the 10-ft legibility floor; the compact outlined badges
 // intentionally follow the smaller tvOS metadata treatment.
-private val MarqueeContentWidth = 440.dp
-private val MarqueeSynopsisMaxWidth = 390.dp
+private val MarqueeContentWidth = 470.dp
+private val MarqueeSynopsisMaxWidth = 470.dp
 private val MarqueeLogoMaxWidth = 440.dp
-private val MarqueeLogoMaxHeight = 84.dp
+private val MarqueeLogoMaxHeight = 72.dp
 private val MarqueeDetailLineHeight = 20.dp
 private val MarqueeTitleSize = 44.sp
 private val MarqueeMetaSize = 14.sp

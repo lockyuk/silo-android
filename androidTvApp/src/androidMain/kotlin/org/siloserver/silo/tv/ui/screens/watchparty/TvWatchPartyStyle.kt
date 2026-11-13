@@ -422,7 +422,7 @@ internal fun TvPartyConnectionDot(tone: WatchPartyConnectionTone, text: String, 
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        Box(modifier = Modifier.size(6.dp).background(color, CircleShape))
+        Box(modifier = Modifier.size(6.dp).background(color, org.siloserver.silo.tv.ui.theme.LevelChamfer))
         Text(text = text, fontSize = TvPartyMetrics.caption, color = SiloSecondaryText, maxLines = 1)
     }
 }
@@ -442,7 +442,7 @@ internal fun TvPartyBanner(message: String, modifier: Modifier = Modifier, warni
         Box(
             modifier = Modifier
                 .size(7.dp)
-                .background(if (warning) PartyAmber else SiloSecondaryText, CircleShape),
+                .background(if (warning) PartyAmber else SiloSecondaryText, org.siloserver.silo.tv.ui.theme.LevelChamfer),
         )
         Text(
             text = message,
@@ -501,7 +501,7 @@ internal fun TvPartySeat(member: RoomMember, state: WatchPartySeatState, size: D
                 modifier = Modifier
                     .size(size)
                     .alpha(if (state == WatchPartySeatState.Away) 0.45f else 1f)
-                    .background(tvPartyAvatarBrush(member), CircleShape),
+                    .background(tvPartyAvatarBrush(member), org.siloserver.silo.tv.ui.theme.LevelChamfer),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -553,9 +553,9 @@ internal fun TvPartySeat(member: RoomMember, state: WatchPartySeatState, size: D
                     modifier = Modifier
                         .offset(x = offset, y = offset)
                         .size(badge)
-                        .background(Color.Black, CircleShape)
+                        .background(Color.Black, org.siloserver.silo.tv.ui.theme.LevelChamfer)
                         .padding(size * 0.03f)
-                        .background(SiloOnSurface, CircleShape),
+                        .background(SiloOnSurface, org.siloserver.silo.tv.ui.theme.LevelChamfer),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -602,7 +602,7 @@ internal fun TvPartyInviteSeat(onClick: () -> Unit, modifier: Modifier = Modifie
         Surface(
             onClick = onClick,
             interactionSource = interactionSource,
-            shape = ClickableSurfaceDefaults.shape(shape = CircleShape),
+            shape = ClickableSurfaceDefaults.shape(shape = org.siloserver.silo.tv.ui.theme.LevelChamfer),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = Color.Transparent,
                 contentColor = SiloSecondaryText,
@@ -613,8 +613,8 @@ internal fun TvPartyInviteSeat(onClick: () -> Unit, modifier: Modifier = Modifie
             ),
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.06f),
             border = ClickableSurfaceDefaults.border(
-                border = Border(BorderStroke(size * 0.035f, Color.White.copy(alpha = 0.22f)), shape = CircleShape),
-                focusedBorder = Border(BorderStroke(0.dp, Color.Transparent), shape = CircleShape),
+                border = Border(BorderStroke(size * 0.035f, Color.White.copy(alpha = 0.22f)), shape = org.siloserver.silo.tv.ui.theme.LevelChamfer),
+                focusedBorder = Border(BorderStroke(0.dp, Color.Transparent), shape = org.siloserver.silo.tv.ui.theme.LevelChamfer),
             ),
             glow = ClickableSurfaceDefaults.glow(
                 focusedGlow = Glow(elevationColor = Color.White.copy(alpha = 0.22f), elevation = 16.dp),
