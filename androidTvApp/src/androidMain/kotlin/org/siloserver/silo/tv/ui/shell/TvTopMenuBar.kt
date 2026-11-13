@@ -824,15 +824,25 @@ private fun TvTopMenuTab(
     val shape = org.siloserver.silo.tv.ui.theme.VantagePill
     val L = org.siloserver.silo.tv.ui.theme.Level
     val accent = org.siloserver.silo.tv.ui.theme.animatedAccent()
-    val filled = isFocused || isSelected
-    val textColor = if (filled) L.Ink else L.Dim
+    // Only the focused tab is solid white, so it is always obvious which tab OK will open.
+    // The page being shown keeps a light glass fill and bright text.
+    val filled = isFocused
+    val textColor = when {
+        isFocused -> L.Ink
+        isSelected -> L.Fg
+        else -> L.Dim
+    }
 
     Surface(
         onClick = onClick,
         interactionSource = interactionSource,
         shape = ClickableSurfaceDefaults.shape(shape = shape),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (filled) L.Fg else Color.Transparent,
+            containerColor = when {
+                isFocused -> L.Fg
+                isSelected -> Color.White.copy(alpha = 0.16f)
+                else -> Color.Transparent
+            },
             contentColor = textColor,
             focusedContainerColor = L.Fg,
             focusedContentColor = L.Ink,
@@ -876,8 +886,8 @@ private fun TvTopMenuTab(
                 text = label,
                 fontFamily = org.siloserver.silo.tv.ui.theme.VantageUiFamily,
                 fontSize = 13.sp,
-                fontWeight = if (filled) FontWeight.SemiBold else FontWeight.Medium,
-                color = if (filled) L.Ink else L.Dim,
+                fontWeight = if (filled || isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                color = textColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
