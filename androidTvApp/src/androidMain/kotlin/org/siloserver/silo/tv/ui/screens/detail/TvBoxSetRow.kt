@@ -53,7 +53,7 @@ internal fun TvBoxSetRowSection(
             modifier = Modifier.padding(horizontal = TvDetailHorizontalInset),
         )
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-            val cardWidth = tvCardWidth()
+            val cardWidth = org.siloserver.silo.tv.ui.components.tvEpisodeCardWidth()
             val available = maxWidth - TvDetailHorizontalInset * 2
             val slots = ((available + TvBoxSetRowSpacing) / (cardWidth + TvBoxSetRowSpacing)).toInt().coerceAtLeast(2)
             val currentIndex = items.indexOfFirst { it.contentId == currentContentId }
@@ -69,10 +69,10 @@ internal fun TvBoxSetRowSection(
                 items = items.slice(window),
                 showProgress = true,
                 onItemClick = onMovieClick,
-                style = TvRowStyle.Poster,
+                // The standard 176 x 99 backdrop card, like every other row on the page.
+                style = TvRowStyle.Backdrop,
                 horizontalPadding = TvDetailHorizontalInset,
                 itemSpacing = TvBoxSetRowSpacing,
-                posterWidth = cardWidth,
                 rowTopPadding = 0.dp,
                 onDirectionUp = onReturnToHero,
                 // The row speaks indexes into the movies it shows.
@@ -89,4 +89,4 @@ internal fun TvBoxSetRowSection(
     }
 }
 
-private val TvBoxSetRowSpacing = 20.dp
+private val TvBoxSetRowSpacing = org.siloserver.silo.tv.ui.theme.TvGrid.cardGap

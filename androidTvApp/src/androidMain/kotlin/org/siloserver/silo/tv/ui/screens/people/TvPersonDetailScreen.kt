@@ -172,30 +172,11 @@ internal fun TvPersonDetailContent(
                 ),
             ),
         )
-        val pageScroll = rememberScrollState()
-        val pageScope = androidx.compose.runtime.rememberCoroutineScope()
-        androidx.compose.runtime.CompositionLocalProvider(
-            org.siloserver.silo.tv.ui.screens.detail.LocalTvPageScrollBy provides { dy: Float -> pageScope.launch { pageScroll.animateScrollBy(dy) } },
-        ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(24.dp),
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(pageScroll)
-                .padding(start = Spacing.safeArea, end = Spacing.safeArea, top = 40.dp, bottom = 48.dp),
-        ) {
-            // Focus on the "Read more" pill brings the whole header (portrait, name) back into view.
-            Box(modifier = Modifier.onFocusChanged { if (it.hasFocus) pageScope.launch { pageScroll.animateScrollTo(0) } }) {
-                PersonHeader(person = person, bioFocusRequester = bioFocusRequester)
-            }
-            TvPersonCredits(
-                person = person,
-                onOpenItemDetail = onOpenItemDetail,
-                onOpenRequest = onOpenRequest,
-                onUpFromFilters = { pageScope.launch { pageScroll.animateScrollTo(0) } },
-            )
-        }
-        }
+        TvPersonGridPage(
+            person = person,
+            onOpenItemDetail = onOpenItemDetail,
+            onOpenRequest = onOpenRequest,
+        )
     }
 }
 
@@ -628,7 +609,7 @@ private val PersonSecondaryText = Color(0x99EDEDED)
 // sentence period ("career...."). Strip the whole trailing dot/whitespace
 // run and restore a single period, so the bio ends cleanly; genuinely long
 // bios still get Compose's own overflow ellipsis at the 7-line cap.
-private fun cleanPersonBio(raw: String?): String? {
+internal fun cleanPersonBio(raw: String?): String? {
     var text = raw?.trim().orEmpty()
     // TMDB bios sourced from Wikipedia carry a trailing attribution
     // paragraph ("Description above from the Wikipedia article …, licensed
