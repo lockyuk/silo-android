@@ -1,6 +1,5 @@
 package org.siloserver.silo.tv.server
 
-import android.content.Context
 import org.siloserver.silo.network.api.RawHttpApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -43,23 +42,12 @@ enum class AutomationApp(val title: String, val defaultPort: Int) {
     Sabnzbd("SABnzbd", 8080),
 }
 
-data class AutomationConnection(val baseUrl: String, val apiKey: String) {
-    val isComplete: Boolean get() = baseUrl.isNotBlank() && apiKey.isNotBlank()
-}
-
-class AutomationSettings(context: Context) {
-    private val prefs = context.applicationContext.getSharedPreferences("silo_vantage_automation", Context.MODE_PRIVATE)
-
-    fun get(app: AutomationApp): AutomationConnection = AutomationConnection(
-        baseUrl = prefs.getString("${app.name}_url", "").orEmpty(),
-        apiKey = prefs.getString("${app.name}_key", "").orEmpty(),
-    )
-
-    fun set(app: AutomationApp, connection: AutomationConnection) {
-        prefs.edit()
-            .putString("${app.name}_url", connection.baseUrl.trim().trimEnd('/'))
-            .putString("${app.name}_key", connection.apiKey.trim())
-            .apply()
+/** Which automation apps are set up in the server's Automation dashboards plugin; null when the plugin is missing. */
+data class AutomationStatus(val radarr: Boolean, val sonarr: Boolean, val sabnzbd: Boolean) {
+    fun has(app: AutomationApp) = when (app) {
+        AutomationApp.Radarr -> radarr
+        AutomationApp.Sonarr -> sonarr
+        AutomationApp.Sabnzbd -> sabnzbd
     }
 }
 
@@ -389,12 +377,35 @@ class TvServerRepository(private val http: RawHttpApi) {
 
     // ---- Radarr / Sonarr ---------------------------------------------------------------------
 
-    private suspend fun arr(c: AutomationConnection, path: String): JsonElement? =
-        http.get("${c.baseUrl}$path", mapOf("X-Api-Key" to c.apiKey))
-            ?.let { runCatching { LooseJson.parseToJsonElement(it) }.getOrNull() }
+    // The Automation dashboards plugin (community.automation) holds the apps' addresses and keys
+    // on the server; the TV reads them through it.
+    @Volatile private var pluginBase: String? = null
 
-    suspend fun arrCommand(c: AutomationConnection, name: String): Boolean =
-        http.post("${c.baseUrl}/api/v3/command", """{"name":"$name"}""", mapOf("X-Api-Key" to c.apiKey))
+    private suspend fun pluginBase(): String? {
+        pluginBase?.let { return it }
+        val list = siloJson("/api/v2/admin/plugins/installations")
+        val id = list["items"].arr().orEmpty().firstOrNull {
+            it["plugin_id"].str() == "community.automation" && it["enabled"].bool() != false
+        }?.get("id").str() ?: return null
+        return "/api/v2/plugin-content/plugins/$id/api".also { pluginBase = it }
+    }
+
+    /** Which apps are set up; null when the plugin is not installed or not answering. */
+    suspend fun automationStatus(): AutomationStatus? {
+        val base = pluginBase() ?: return null
+        val s = siloJson("$base/status") ?: run { pluginBase = null; return null }
+        return AutomationStatus(s["radarr"].bool() == true, s["sonarr"].bool() == true, s["sabnzbd"].bool() == true)
+    }
+
+    private suspend fun arr(app: AutomationApp, path: String): JsonElement? {
+        val base = pluginBase() ?: return null
+        return siloJson("$base/${app.name.lowercase()}$path")
+    }
+
+    suspend fun arrCommand(app: AutomationApp, name: String): Boolean {
+        val base = pluginBase() ?: return false
+        return http.siloPost("$base/${app.name.lowercase()}/command", """{"name":"$name"}""")
+    }
 
     private fun fanart(images: JsonElement?): String? {
         val list = images.arr().orEmpty()
@@ -445,16 +456,17 @@ class TvServerRepository(private val http: RawHttpApi) {
         )
     }
 
-    suspend fun radarr(c: AutomationConnection): ArrDashboard? = coroutineScope {
-        val status = async { arr(c, "/api/v3/system/status") }
-        val movies = async { arr(c, "/api/v3/movie") }
-        val queue = async { arr(c, "/api/v3/queue?pageSize=20&includeMovie=true") }
-        val history = async { arr(c, "/api/v3/history?pageSize=12&sortKey=date&sortDirection=descending&includeMovie=true") }
-        val missing = async { arr(c, "/api/v3/wanted/missing?pageSize=1&monitored=true") }
-        val cutoff = async { arr(c, "/api/v3/wanted/cutoff?pageSize=1") }
+    suspend fun radarr(): ArrDashboard? = coroutineScope {
+        val app = AutomationApp.Radarr
+        val status = async { arr(app, "/system/status") }
+        val movies = async { arr(app, "/movie") }
+        val queue = async { arr(app, "/queue?pageSize=20&includeMovie=true") }
+        val history = async { arr(app, "/history?pageSize=12&sortKey=date&sortDirection=descending&includeMovie=true") }
+        val missing = async { arr(app, "/wanted/missing?pageSize=1&monitored=true") }
+        val cutoff = async { arr(app, "/wanted/cutoff?pageSize=1") }
         val today = LocalDate.now()
-        val cal = async { arr(c, "/api/v3/calendar?start=$today&end=${today.plusDays(30)}&unmonitored=false") }
-        val health = async { arr(c, "/api/v3/health") }
+        val cal = async { arr(app, "/calendar?start=$today&end=${today.plusDays(30)}&unmonitored=false") }
+        val health = async { arr(app, "/health") }
         val s = status.await() ?: return@coroutineScope null
         val all = movies.await().arr().orEmpty()
         val calendar = cal.await().arr().orEmpty()
@@ -481,15 +493,16 @@ class TvServerRepository(private val http: RawHttpApi) {
         )
     }
 
-    suspend fun sonarr(c: AutomationConnection): ArrDashboard? = coroutineScope {
-        val status = async { arr(c, "/api/v3/system/status") }
-        val queue = async { arr(c, "/api/v3/queue?pageSize=20&includeSeries=true&includeEpisode=true") }
-        val history = async { arr(c, "/api/v3/history?pageSize=12&sortKey=date&sortDirection=descending&includeSeries=true&includeEpisode=true") }
-        val missing = async { arr(c, "/api/v3/wanted/missing?pageSize=1&monitored=true") }
-        val cutoff = async { arr(c, "/api/v3/wanted/cutoff?pageSize=1") }
+    suspend fun sonarr(): ArrDashboard? = coroutineScope {
+        val app = AutomationApp.Sonarr
+        val status = async { arr(app, "/system/status") }
+        val queue = async { arr(app, "/queue?pageSize=20&includeSeries=true&includeEpisode=true") }
+        val history = async { arr(app, "/history?pageSize=12&sortKey=date&sortDirection=descending&includeSeries=true&includeEpisode=true") }
+        val missing = async { arr(app, "/wanted/missing?pageSize=1&monitored=true") }
+        val cutoff = async { arr(app, "/wanted/cutoff?pageSize=1") }
         val monday = LocalDate.now().with(java.time.DayOfWeek.MONDAY)
-        val cal = async { arr(c, "/api/v3/calendar?start=$monday&end=${monday.plusDays(7)}&includeSeries=true&unmonitored=false") }
-        val health = async { arr(c, "/api/v3/health") }
+        val cal = async { arr(app, "/calendar?start=$monday&end=${monday.plusDays(7)}&includeSeries=true&unmonitored=false") }
+        val health = async { arr(app, "/health") }
         val s = status.await() ?: return@coroutineScope null
         val week = cal.await().arr().orEmpty()
         val byDay = week.mapNotNull { e ->
@@ -528,17 +541,22 @@ class TvServerRepository(private val http: RawHttpApi) {
 
     // ---- SABnzbd ----------------------------------------------------------------------------
 
-    private suspend fun sab(c: AutomationConnection, mode: String): JsonElement? =
-        http.get("${c.baseUrl}/api?mode=$mode&output=json&apikey=${c.apiKey}")
-            ?.let { runCatching { LooseJson.parseToJsonElement(it) }.getOrNull() }
+    private suspend fun sab(mode: String, query: String = ""): JsonElement? {
+        val base = pluginBase() ?: return null
+        return siloJson("$base/sabnzbd/$mode" + if (query.isNotEmpty()) "?$query" else "")
+    }
 
-    suspend fun sabAction(c: AutomationConnection, mode: String): Boolean = sab(c, mode) != null
+    /** pause, resume, or speedlimit with [value] percent. */
+    suspend fun sabAction(mode: String, value: Int? = null): Boolean {
+        val base = pluginBase() ?: return false
+        return http.siloPost("$base/sabnzbd/$mode" + (value?.let { "?value=$it" } ?: ""))
+    }
 
-    suspend fun sabnzbd(c: AutomationConnection): SabDashboard? = coroutineScope {
-        val queueD = async { sab(c, "queue&limit=20") }
-        val historyD = async { sab(c, "history&limit=10") }
-        val statusD = async { sab(c, "status&skip_dashboard=1") }
-        val versionD = async { sab(c, "version") }
+    suspend fun sabnzbd(): SabDashboard? = coroutineScope {
+        val queueD = async { sab("queue", "limit=20") }
+        val historyD = async { sab("history", "limit=10") }
+        val statusD = async { sab("status", "skip_dashboard=1") }
+        val versionD = async { sab("version") }
         val q = queueD.await()?.get("queue") ?: return@coroutineScope null
         SabDashboard(
             version = versionD.await()["version"].str().orEmpty(),

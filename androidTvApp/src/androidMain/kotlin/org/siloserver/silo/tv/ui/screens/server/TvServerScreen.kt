@@ -55,8 +55,6 @@ import org.siloserver.silo.common.ui.components.ThumbhashImage
 import org.siloserver.silo.tv.server.ArrDashboard
 import org.siloserver.silo.tv.server.ArrEvent
 import org.siloserver.silo.tv.server.AutomationApp
-import org.siloserver.silo.tv.server.AutomationConnection
-import org.siloserver.silo.tv.server.AutomationSettings
 import org.siloserver.silo.tv.server.LogLine
 import org.siloserver.silo.tv.server.RequestRow
 import org.siloserver.silo.tv.server.SabDashboard
@@ -115,8 +113,6 @@ fun TvServerScreen(
 ) {
     val http: org.siloserver.silo.network.api.RawHttpApi = koinInject()
     val repo = remember(http) { TvServerRepository(http) }
-    val context = LocalContext.current
-    val settings = remember { AutomationSettings(context) }
     var tab by rememberSaveable { mutableStateOf(ServerTab.Overview) }
     val firstTab = remember { FocusRequester() }
 
@@ -170,9 +166,9 @@ fun TvServerScreen(
                 ServerTab.System -> SystemPage(repo, serverName)
                 ServerTab.Streams -> StreamsPage(overview)
                 ServerTab.Requests -> RequestsPage(repo)
-                ServerTab.Radarr -> ArrPage(AutomationApp.Radarr, repo, settings)
-                ServerTab.Sonarr -> ArrPage(AutomationApp.Sonarr, repo, settings)
-                ServerTab.Sabnzbd -> SabPage(repo, settings)
+                ServerTab.Radarr -> ArrPage(AutomationApp.Radarr, repo)
+                ServerTab.Sonarr -> ArrPage(AutomationApp.Sonarr, repo)
+                ServerTab.Sabnzbd -> SabPage(repo)
                 ServerTab.Storage -> StoragePage(overview)
                 ServerTab.Logs -> LogsPage(overview, repo)
             }
@@ -453,65 +449,51 @@ private fun RequestPipelineRow(r: RequestRow) {
 
 // ---- Automation apps ----------------------------------------------------------------------
 
+/**
+ * The app is not set up: its address and API key live in Silo's server settings (the Automation
+ * dashboards plugin), never on the TV.
+ */
 @Composable
-private fun ConnectPanel(app: AutomationApp, settings: AutomationSettings, onSaved: () -> Unit) {
-    val existing = remember { settings.get(app) }
-    var url by remember { mutableStateOf(existing.baseUrl.ifBlank { "http://192.168.4.189:${app.defaultPort}" }) }
-    var key by remember { mutableStateOf(existing.apiKey) }
+private fun SetupPanel(app: AutomationApp, pluginInstalled: Boolean) {
     Column {
-        PageHead("${app.title} · not connected", "Connect ${app.title}")
+        PageHead("${app.title} · not connected", "Set up ${app.title} in Silo")
         Spacer(Modifier.height(20.mx))
-        VPanel(Modifier.width(640.mx), title = "Connection", sub = "saved on this TV only") {
-            Text("Enter the address and API key from ${app.title} → Settings → General.", style = mono(12, color = Level.Dim))
-            VField("Address", url) { url = it }
-            VField("API key", key) { key = it }
-            VButton("Save and connect", onClick = {
-                settings.set(app, AutomationConnection(url, key)); onSaved()
-            }, primary = true, height = 42.mx, textPx = 13)
+        VPanel(Modifier.width(680.mx), title = "Where to set it up", sub = "on the server, not this TV") {
+            Text(
+                if (pluginInstalled) {
+                    "In Silo on the web: Admin → Plugins → Automation dashboards → ${app.title}. Enter the address and API key and save. This page fills in by itself."
+                } else {
+                    "Install the Automation dashboards plugin in Silo (Admin → Plugins), then enter ${app.title}'s address and API key in its settings."
+                },
+                style = ui(15, FontWeight.Normal, Level.Synopsis),
+            )
+            Text("The keys stay on the server; the TV only ever talks to Silo.", style = mono(11, color = Level.Faint))
         }
     }
 }
 
 @Composable
-private fun VField(label: String, value: String, onChange: (String) -> Unit) {
-    val source = remember { MutableInteractionSource() }
-    val focused by source.collectIsFocusedAsState()
-    Column(verticalArrangement = Arrangement.spacedBy(4.mx)) {
-        VLabel(label)
-        BasicTextField(
-            value = value,
-            onValueChange = onChange,
-            singleLine = true,
-            interactionSource = source,
-            textStyle = mono(14),
-            cursorBrush = SolidColor(Level.liveAccent),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Level.Glass2, VantagePill)
-                .border(if (focused) 2.dp else 1.dp, if (focused) Level.Fg else Level.Edge, VantagePill)
-                .padding(horizontal = 16.mx, vertical = 10.mx),
-        )
-    }
-}
-
-@Composable
-private fun ArrPage(app: AutomationApp, repo: TvServerRepository, settings: AutomationSettings) {
-    var version by remember { mutableIntStateOf(0) }
-    val conn = remember(version) { settings.get(app) }
-    if (!conn.isComplete) { ConnectPanel(app, settings) { version++ }; return }
-    var dash by remember(conn) { mutableStateOf<ArrDashboard?>(null) }
-    var failed by remember(conn) { mutableStateOf(false) }
-    LaunchedEffect(conn) {
+private fun ArrPage(app: AutomationApp, repo: TvServerRepository) {
+    var status by remember { mutableStateOf<org.siloserver.silo.tv.server.AutomationStatus?>(null) }
+    var checked by remember { mutableStateOf(false) }
+    var dash by remember { mutableStateOf<ArrDashboard?>(null) }
+    var failed by remember { mutableStateOf(false) }
+    LaunchedEffect(app) {
         while (true) {
-            val d = if (app == AutomationApp.Radarr) repo.radarr(conn) else repo.sonarr(conn)
-            if (d != null) { dash = d; failed = false } else if (dash == null) failed = true
+            val st = repo.automationStatus()
+            status = st; checked = true
+            if (st?.has(app) == true) {
+                val d = if (app == AutomationApp.Radarr) repo.radarr() else repo.sonarr()
+                if (d != null) { dash = d; failed = false } else if (dash == null) failed = true
+            }
             delay(15_000)
         }
     }
+    if (!checked) { Loading(); return }
+    if (status?.has(app) != true) { SetupPanel(app, status != null); return }
     val scope = rememberCoroutineScope()
     var note by remember { mutableStateOf<String?>(null) }
-    if (failed) { Unreachable(app, conn) { settings.set(app, AutomationConnection("", "")); version++ }; return }
+    if (failed) { Unreachable(app); return }
     val d = dash ?: run { Loading(); return }
     val isRadarr = app == AutomationApp.Radarr
     Column {
@@ -592,10 +574,10 @@ private fun ArrPage(app: AutomationApp, repo: TvServerRepository, settings: Auto
                     VEventLine("Cutoff unmet", Level.Warn, "${d.cutoffUnmet ?: 0} ${if (isRadarr) "movies" else "episodes"}")
                     Row(horizontalArrangement = Arrangement.spacedBy(10.mx), verticalAlignment = Alignment.CenterVertically) {
                         VButton("Search missing", onClick = {
-                            scope.launch { note = if (repo.arrCommand(conn, if (isRadarr) "MissingMoviesSearch" else "MissingEpisodeSearch")) "Search started" else "Failed" }
+                            scope.launch { note = if (repo.arrCommand(app, if (isRadarr) "MissingMoviesSearch" else "MissingEpisodeSearch")) "Search started" else "Failed" }
                         }, primary = true, height = 32.mx, textPx = 12)
                         VButton(if (isRadarr) "Refresh library" else "Refresh series", onClick = {
-                            scope.launch { note = if (repo.arrCommand(conn, if (isRadarr) "RefreshMovie" else "RefreshSeries")) "Refresh started" else "Failed" }
+                            scope.launch { note = if (repo.arrCommand(app, if (isRadarr) "RefreshMovie" else "RefreshSeries")) "Refresh started" else "Failed" }
                         }, height = 32.mx, textPx = 12)
                         note?.let { Text(it, style = mono(11, color = Level.Dim)) }
                     }
@@ -606,26 +588,32 @@ private fun ArrPage(app: AutomationApp, repo: TvServerRepository, settings: Auto
 }
 
 @Composable
-private fun SabPage(repo: TvServerRepository, settings: AutomationSettings) {
-    var version by remember { mutableIntStateOf(0) }
-    val conn = remember(version) { settings.get(AutomationApp.Sabnzbd) }
-    if (!conn.isComplete) { ConnectPanel(AutomationApp.Sabnzbd, settings) { version++ }; return }
-    var dash by remember(conn) { mutableStateOf<SabDashboard?>(null) }
-    var failed by remember(conn) { mutableStateOf(false) }
-    val speeds = remember(conn) { mutableStateOf(listOf<Float>()) }
+private fun SabPage(repo: TvServerRepository) {
+    var status by remember { mutableStateOf<org.siloserver.silo.tv.server.AutomationStatus?>(null) }
+    var checked by remember { mutableStateOf(false) }
+    var dash by remember { mutableStateOf<SabDashboard?>(null) }
+    var failed by remember { mutableStateOf(false) }
+    val speeds = remember { mutableStateOf(listOf<Float>()) }
     var refresh by remember { mutableIntStateOf(0) }
-    LaunchedEffect(conn, refresh) {
+    LaunchedEffect(refresh) {
+        var ticks = 0
         while (true) {
-            val d = repo.sabnzbd(conn)
-            if (d != null) {
-                dash = d; failed = false
-                speeds.value = (speeds.value + d.speedMBs.toFloat()).takeLast(60)
-            } else if (dash == null) failed = true
+            if (ticks % 10 == 0) { status = repo.automationStatus(); checked = true }
+            ticks++
+            if (status?.sabnzbd == true) {
+                val d = repo.sabnzbd()
+                if (d != null) {
+                    dash = d; failed = false
+                    speeds.value = (speeds.value + d.speedMBs.toFloat()).takeLast(60)
+                } else if (dash == null) failed = true
+            }
             delay(3_000)
         }
     }
     val scope = rememberCoroutineScope()
-    if (failed) { Unreachable(AutomationApp.Sabnzbd, conn) { settings.set(AutomationApp.Sabnzbd, AutomationConnection("", "")); version++ }; return }
+    if (!checked) { Loading(); return }
+    if (status?.sabnzbd != true) { SetupPanel(AutomationApp.Sabnzbd, status != null); return }
+    if (failed) { Unreachable(AutomationApp.Sabnzbd); return }
     val d = dash ?: run { Loading(); return }
     val sp = speeds.value
     Column {
@@ -661,10 +649,10 @@ private fun SabPage(repo: TvServerRepository, settings: AutomationSettings) {
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.mx)) {
                         VButton(if (d.paused) "Resume" else "Pause", onClick = {
-                            scope.launch { repo.sabAction(conn, if (d.paused) "resume" else "pause"); refresh++ }
+                            scope.launch { repo.sabAction(if (d.paused) "resume" else "pause"); refresh++ }
                         }, primary = true, height = 32.mx, textPx = 12)
                         VButton(if (d.speedLimit == "none") "Limit to 50%" else "Remove limit", onClick = {
-                            scope.launch { repo.sabAction(conn, "config&name=speedlimit&value=${if (d.speedLimit == "none") 50 else 100}"); refresh++ }
+                            scope.launch { repo.sabAction("speedlimit", if (d.speedLimit == "none") 50 else 100); refresh++ }
                         }, height = 32.mx, textPx = 12)
                     }
                 }
@@ -736,13 +724,15 @@ private fun LogsPage(o: ServerOverview?, repo: TvServerRepository) {
 }
 
 @Composable
-private fun Unreachable(app: AutomationApp, conn: AutomationConnection, onReset: () -> Unit) {
+private fun Unreachable(app: AutomationApp) {
     Column {
         PageHead("${app.title} · not answering", "Can't reach ${app.title}", kickColor = Level.Bad)
         Spacer(Modifier.height(20.mx))
-        VPanel(Modifier.width(640.mx), title = "Connection", sub = conn.baseUrl) {
-            Text("Check the address and API key. Retrying every few seconds.", style = mono(12, color = Level.Dim))
-            VButton("Change connection", onClick = onReset, height = 42.mx, textPx = 13)
+        VPanel(Modifier.width(680.mx), title = "Check the server settings", sub = "retrying") {
+            Text(
+                "Silo can't reach ${app.title} or it refused the API key. Check Admin → Plugins → Automation dashboards → ${app.title} in Silo.",
+                style = ui(15, FontWeight.Normal, Level.Synopsis),
+            )
         }
     }
 }

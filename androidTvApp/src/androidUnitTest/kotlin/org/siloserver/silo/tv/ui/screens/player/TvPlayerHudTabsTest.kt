@@ -32,7 +32,8 @@ class TvPlayerHudTabsTest {
     }
 
     @Test
-    fun statsTabShowsWhenStatsHaveRenderableData() {
+    fun statsTabStaysHiddenEvenWithRenderableData() {
+        // Vantage: stream stats live on the Server page only, never in the player.
         val tabs = visibleHudTabs(
             stats = PlayerStatsSnapshot(videoCodec = "video/avc"),
             audioTracks = emptyList(),
@@ -41,7 +42,7 @@ class TvPlayerHudTabsTest {
         )
 
         assertEquals(
-            listOf(HudTab.Info, HudTab.Stats, HudTab.Video, HudTab.Subtitles),
+            listOf(HudTab.Info, HudTab.Video, HudTab.Subtitles),
             tabs,
         )
     }
@@ -107,7 +108,6 @@ class TvPlayerHudTabsTest {
         assertEquals(
             listOf(
                 HudTab.Info,
-                HudTab.Stats,
                 HudTab.Video,
                 HudTab.Audio,
                 HudTab.Subtitles,
