@@ -1,6 +1,7 @@
 package org.siloserver.silo.tv.ui.screens.people
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
@@ -112,8 +113,24 @@ internal fun TvPersonGridPage(
             badges.filter { it.endsWith("years old") }.forEach { VChip(it.uppercase(), tone = ChipTone.Solid) }
             if (all.isNotEmpty()) VChip("$inLibrary IN LIBRARY")
         }
+        // Headshot, beside the biography.
+        Box(
+            Modifier.offset(x = grid.edge + 452.mx, y = grid.synopsisTop).size(104.mx, 139.mx)
+                .clip(RoundedCornerShape(12.mx)).background(androidx.compose.ui.graphics.Color(0xFF151824))
+                .border(1.5.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.mx)),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (!person.photoUrl.isNullOrBlank()) {
+                ThumbhashImage(
+                    url = person.photoUrl, thumbhash = person.photoThumbhash, contentDescription = person.name,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Text(person.name.split(" ").mapNotNull { it.firstOrNull() }.take(2).joinToString("").uppercase(), style = ui(30, FontWeight.SemiBold, Level.Dim))
+            }
+        }
         // Biography: five lines.
-        Box(Modifier.offset(x = grid.edge, y = grid.synopsisTop).width(grid.synopsisW).height(grid.synopsisH).clipToBounds()) {
+        Box(Modifier.offset(x = grid.edge, y = grid.synopsisTop).width(440.mx).height(grid.synopsisH).clipToBounds()) {
             val bio = cleanPersonBio(person.bio)
             Text(
                 bio ?: "No biography or personal details are available yet.",

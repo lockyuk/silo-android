@@ -5,6 +5,13 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
+import org.siloserver.silo.model.catalog.yearsLabel
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -44,46 +51,53 @@ internal fun TvBoxSetRowSection(
     onExploreAllFocused: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // One link to the box set page, not the films themselves: the page lists them all.
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         TvDetailSectionHeader(
-            title = boxSet.title,
+            title = "Box set",
             modifier = Modifier.padding(horizontal = TvDetailHorizontalInset),
         )
-        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-            val cardWidth = org.siloserver.silo.tv.ui.components.tvEpisodeCardWidth()
-            val available = maxWidth - TvDetailHorizontalInset * 2
-            val slots = ((available + TvBoxSetRowSpacing) / (cardWidth + TvBoxSetRowSpacing)).toInt().coerceAtLeast(2)
-            val currentIndex = items.indexOfFirst { it.contentId == currentContentId }
-            val window = boxSetRowWindow(items.size, currentIndex, filmSlots = slots - 1)
-            val shownRestoreIndex = when (restoreFocusIndex) {
-                items.size -> window.count()
-                in window -> restoreFocusIndex - window.first
-                else -> -1
-            }
-            TvMediaRow(
+        val linkFocus = restoreFocusRequester ?: remember { FocusRequester() }
+        Column(
+            modifier = Modifier.padding(horizontal = TvDetailHorizontalInset),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            org.siloserver.silo.tv.ui.components.TvEpisodeCard(
                 title = boxSet.title,
-                showHeader = false,
-                items = items.slice(window),
-                showProgress = true,
-                onItemClick = onMovieClick,
-                // The standard 176 x 99 backdrop card, like every other row on the page.
-                style = TvRowStyle.Backdrop,
-                horizontalPadding = TvDetailHorizontalInset,
-                itemSpacing = TvBoxSetRowSpacing,
-                rowTopPadding = 0.dp,
-                onDirectionUp = onReturnToHero,
-                // The row speaks indexes into the movies it shows.
-                restoreFocusIndex = shownRestoreIndex,
-                restoreFocusRequester = restoreFocusRequester.takeIf { shownRestoreIndex >= 0 },
-                restoreFocusRequest = restoreFocusRequest,
-                onItemFocused = onItemFocused,
-                onExploreAllClick = onExploreAll,
-                onExploreAllFocused = onExploreAllFocused,
-                markedContentId = currentContentId,
-                markedBadge = "THIS FILM",
+                stillUrl = boxSet.backdropUrl,
+                stillThumbhash = boxSet.backdropThumbhash,
+                mediaType = "movie",
+                onClick = onExploreAll,
+                focusRequester = linkFocus,
+                titleOverlay = true,
+                cardModifier = Modifier
+                    .onFocusChanged { if (it.isFocused) onExploreAllFocused() }
+                    .onPreviewKeyEvent { event ->
+                        if (event.type == androidx.compose.ui.input.key.KeyEventType.KeyDown &&
+                            event.key == androidx.compose.ui.input.key.Key.DirectionUp
+                        ) {
+                            onReturnToHero?.invoke() ?: false
+                        } else {
+                            false
+                        }
+                    },
+            )
+            androidx.tv.material3.Text(
+                text = boxSet.title,
+                style = org.siloserver.silo.tv.ui.components.vantage.ui(13, androidx.compose.ui.text.font.FontWeight.SemiBold),
+                maxLines = 1,
+                modifier = Modifier.width(org.siloserver.silo.tv.ui.theme.TvGrid.cardW),
+            )
+            androidx.tv.material3.Text(
+                text = listOfNotNull(
+                    org.siloserver.silo.model.catalog.boxSetFilmCount(boxSet.movieCount),
+                    boxSet.yearsLabel(),
+                ).joinToString(" · "),
+                style = org.siloserver.silo.tv.ui.components.vantage.mono(11, color = org.siloserver.silo.tv.ui.theme.Level.Faint),
+                maxLines = 1,
             )
         }
     }

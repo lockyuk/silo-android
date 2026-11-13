@@ -47,9 +47,9 @@ sealed interface RequestDisplayState {
             is Unavailable -> RequestStatusTint.Neutral
         }
 
-    /** The owner may cancel only while the request waits for approval. */
+    /** The owner may cancel while the request waits for approval or is on its way. */
     val isCancelable: Boolean
-        get() = this == Pending
+        get() = this == Pending || this == OnTheWay
 
     /** The detail page's status line, which has room to say more than a caption. */
     val detailTitle: String
