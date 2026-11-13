@@ -1,6 +1,9 @@
 package org.siloserver.silo.tv.ui.screens.detail
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -167,4 +171,76 @@ private fun languages(detail: ItemDetail): String? {
     val main = audio.take(2).joinToString(", ") { name(it) }.ifBlank { detail.originalLanguage?.let { name(it) }.orEmpty() }
     val subText = if (subs.isEmpty()) "" else " · " + subs.take(3).joinToString(", ") { it.uppercase() } + " subs"
     return (main + subText).trim(' ', '·').ifBlank { null }
+}
+
+
+/**
+ * Vantage option B: the title's facts as one glass strip across the page, directly above cast
+ * and crew. Director (or creators), writers, genres, budget / revenue from TMDB through the
+ * filmography plugin (left out when unknown), runtime or seasons, and studio or network.
+ */
+@Composable
+internal fun TvVantageDetailsStrip(
+    detail: ItemDetail,
+    seasons: List<Season>,
+    modifier: Modifier = Modifier,
+) {
+    val api: org.siloserver.silo.network.apiv2.FilmographyPluginApi = org.koin.compose.koinInject()
+    val tokens: org.siloserver.silo.network.TokenManager = org.koin.compose.koinInject()
+    val isSeries = detail.type.equals("series", true) || detail.type.equals("show", true)
+    val extra by androidx.compose.runtime.produceState<org.siloserver.silo.model.catalog.PluginTitle?>(null, detail.tmdbId, detail.type) {
+        val tmdb = detail.tmdbId?.toIntOrNull() ?: return@produceState
+        if (detail.type.equals("episode", true)) return@produceState
+        val owner = tokens.snapshotCurrentScope() ?: return@produceState
+        value = (api.title(isSeries, tmdb, owner) as? org.siloserver.silo.network.ApiResult.Success)?.data
+    }
+    val cells = buildList {
+        val creators = detail.crew.names("creator")
+        if (isSeries && creators != null) add("Created by" to creators)
+        val director = detail.crew.names("director")
+            ?: extra?.directors?.takeIf { it.isNotEmpty() }?.take(2)?.joinToString(", ")
+        if (director != null) add("Director" to director)
+        if (!isSeries) detail.crew.names("writer", "screenplay")?.let { add("Written by" to it) }
+        (detail.genres.ifEmpty { extra?.genres.orEmpty() }).filter { it.isNotBlank() }.take(2)
+            .takeIf { it.isNotEmpty() }?.let { add("Genres" to it.joinToString(" · ")) }
+        val budget = extra?.budget?.takeIf { it > 0 }
+        val revenue = extra?.revenue?.takeIf { it > 0 }
+        if (budget != null || revenue != null) add("Budget / Revenue" to "${money(budget)} / ${money(revenue)}")
+        if (isSeries) {
+            val real = seasons.filter { !it.isSpecials }
+            if (real.isNotEmpty()) add("Seasons" to "${real.size} · ${real.sumOf { it.episodeCount }} episodes")
+        } else if (detail.runtime > 0) {
+            add("Runtime" to if (detail.runtime >= 60) "${detail.runtime / 60}h ${detail.runtime % 60}m" else "${detail.runtime}m")
+        }
+        (detail.networks.firstOrNull() ?: detail.studios.firstOrNull() ?: extra?.companies?.firstOrNull())
+            ?.let { add((if (isSeries && detail.networks.isNotEmpty()) "Network" else "Studio") to it) }
+    }.take(6)
+    if (cells.isEmpty()) return
+    androidx.compose.foundation.layout.Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Level.Glass, org.siloserver.silo.tv.ui.theme.VantagePanel)
+            .border(1.dp, Level.Edge, org.siloserver.silo.tv.ui.theme.VantagePanel)
+            .padding(vertical = 14.mx, horizontal = 6.mx),
+    ) {
+        cells.forEachIndexed { i, (k, v) ->
+            Column(Modifier.weight(1f).padding(horizontal = 16.mx)) {
+                VLabel(k)
+                Text(v, style = mono(13), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 5.mx))
+            }
+            if (i < cells.size - 1) {
+                androidx.compose.foundation.layout.Box(
+                    Modifier.width(1.dp).height(34.mx).background(Level.Edge).align(Alignment.CenterVertically),
+                )
+            }
+        }
+    }
+}
+
+private fun money(v: Long?): String = when {
+    v == null -> "–"
+    v >= 1_000_000_000L -> "$%.1fB".format(v / 1e9)
+    v >= 1_000_000L -> "$%.1fM".format(v / 1e6)
+    v >= 1_000L -> "$%.0fK".format(v / 1e3)
+    else -> "$$v"
 }

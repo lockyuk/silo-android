@@ -226,12 +226,18 @@ private fun TvMarqueeBlock(
                 }
             }
             if (quality != null) {
-                val extra = spec.drop(1).take(2).joinToString(" \u00B7 ") { it.uppercase() }
+                val extra = spec.drop(1).take(1).joinToString(" \u00B7 ") { it.uppercase() }
                 org.siloserver.silo.tv.ui.components.vantage.VChip(if (extra.isBlank()) "" else " $extra", bold = quality)
             }
-            src.ratingImdb?.let { VantageRate("IMDb", Color(0xFFF5C518), Color.Black, String.format("%.1f", it)) }
-            src.ratingRtCritic?.let { VantageRate("RT", Color(0xFFFA320A), Color.White, "$it%") }
-            if (src.ratingImdb == null) src.ratingTmdb?.let { VantageRate("TM", Color(0xFF01B4E4), Color.White, String.format("%.1f", it)) }
+        }
+        // Ratings on their own line, under the certificate, year, genre and quality.
+        if (src.ratingImdb != null || src.ratingRtCritic != null || src.ratingTmdb != null) {
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                src.ratingImdb?.let { VantageRate("IMDb", Color(0xFFF5C518), Color.Black, String.format("%.1f", it)) }
+                src.ratingRtCritic?.let { VantageRate("RT", Color(0xFFFA320A), Color.White, "$it%") }
+                src.ratingRtAudience?.let { VantageRate("POP", Color(0xFFFFB400), Color.Black, "$it%") }
+                src.ratingTmdb?.let { VantageRate("TMDB", Color(0xFF01B4E4), Color.White, String.format("%.1f", it)) }
+            }
         }
 
         synopsisText?.let { synopsis ->

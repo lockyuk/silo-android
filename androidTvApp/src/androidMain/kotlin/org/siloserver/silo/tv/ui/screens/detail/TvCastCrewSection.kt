@@ -30,6 +30,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -154,10 +158,10 @@ fun TvCastCrewSection(
                     },
                 )
                 .focusGroup(),
-            horizontalArrangement = Arrangement.spacedBy(22.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             contentPadding = PaddingValues(
                 horizontal = horizontalContentPadding,
-                vertical = 12.dp,
+                vertical = 8.dp,
             ),
         ) {
             itemsIndexed(
@@ -201,90 +205,86 @@ fun TvCastCrewSection(
     }
 }
 
-@OptIn(ExperimentalTvMaterial3Api::class)
+/**
+ * Vantage cast pill: a small round headshot beside the name and role on light glass. Focus turns
+ * the pill white with the accent glow. [photoSize] is kept for callers; the pill sets its own size.
+ */
 @Composable
 internal fun TvCastCard(
     member: CastMember,
-    photoSize: Dp,
+    @Suppress("UNUSED_PARAMETER") photoSize: Dp,
     focusRequester: FocusRequester?,
     cardModifier: Modifier,
     onClick: () -> Unit = {},
 ) {
-    val shape = org.siloserver.silo.tv.ui.theme.LevelChamfer
-    val cardFocus = siloCardDefaults(shape = shape)
+    val L = org.siloserver.silo.tv.ui.theme.Level
+    val pill = org.siloserver.silo.tv.ui.theme.VantagePill
+    val accent = org.siloserver.silo.tv.ui.theme.animatedAccent()
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
-
-    Column(
-        modifier = Modifier.width(photoSize),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    androidx.compose.foundation.layout.Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+        modifier = cardModifier
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .androidxDrawHalo(isFocused, accent)
+            .background(if (isFocused) L.Fg else L.Glass, pill)
+            .border(1.dp, if (isFocused) Color.Transparent else L.Edge, pill)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+            .padding(start = 4.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
     ) {
-        Card(
-            onClick = onClick,
-            interactionSource = interactionSource,
-            shape = CardDefaults.shape(shape = shape),
-            scale = cardFocus.scale,
-            border = cardFocus.border,
-            glow = cardFocus.glow,
-            modifier = cardModifier
-                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-                .size(photoSize),
+        Box(
+            modifier = Modifier
+                .size(30.dp)
+                .clip(pill)
+                .background(DarkSurfaceElevated),
+            contentAlignment = Alignment.Center,
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(DarkSurfaceElevated),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (!member.photoUrl.isNullOrBlank()) {
-                    ThumbhashImage(
-                        url = member.photoUrl,
-                        thumbhash = member.photoThumbhash,
-                        contentDescription = member.name,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Filled.Person,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.6f),
-                        modifier = Modifier.size(photoSize * 0.4f),
-                    )
-                }
+            if (!member.photoUrl.isNullOrBlank()) {
+                ThumbhashImage(
+                    url = member.photoUrl,
+                    thumbhash = member.photoThumbhash,
+                    contentDescription = member.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Filled.Person,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.size(16.dp),
+                )
             }
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = member.name,
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                lineHeight = 18.sp,
-            ),
-            color = if (isFocused) Color.White else Color.White.copy(alpha = 0.88f),
-            // Reserve two lines so single- and two-line names bottom-align,
-            // mirroring tvOS `lineLimit(2, reservesSpace: true)`.
-            minLines = 2,
-            maxLines = 2,
-            textAlign = TextAlign.Center,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        if (!member.character.isNullOrBlank()) {
-            Spacer(modifier = Modifier.height(2.dp))
+        Column {
             Text(
-                text = member.character!!,
-                style = MaterialTheme.typography.bodySmall.copy(
-                    fontSize = 14.sp,
-                    lineHeight = 18.sp,
-                ),
-                color = Color.White.copy(alpha = 0.7f),
+                text = member.name,
+                style = org.siloserver.silo.tv.ui.components.vantage.ui(12.5, FontWeight.SemiBold, if (isFocused) L.Ink else L.Fg),
                 maxLines = 1,
-                textAlign = TextAlign.Center,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth(),
             )
+            val role = member.character?.takeIf { it.isNotBlank() }
+            if (role != null) {
+                Text(
+                    text = role,
+                    style = org.siloserver.silo.tv.ui.components.vantage.mono(10, color = if (isFocused) L.Ink.copy(alpha = 0.7f) else L.Dim),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
+
+private fun Modifier.androidxDrawHalo(on: Boolean, accent: Color): Modifier =
+    if (!on) this else this.drawBehind {
+        val grow = 3.dp.toPx()
+        val r = size.height / 2 + grow
+        drawRoundRect(
+            accent.copy(alpha = 0.5f),
+            topLeft = androidx.compose.ui.geometry.Offset(-grow, -grow),
+            size = androidx.compose.ui.geometry.Size(size.width + grow * 2, size.height + grow * 2),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r),
+        )
+    }

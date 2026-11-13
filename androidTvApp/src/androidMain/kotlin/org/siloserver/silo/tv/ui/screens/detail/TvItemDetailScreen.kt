@@ -74,6 +74,11 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.derivedStateOf
+import org.siloserver.silo.common.ui.components.ThumbhashImage
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -678,7 +683,8 @@ private fun TvDetailContent(
     val showsTrailersSection = !isAudiobook && trailerEntries.isNotEmpty()
     // "More like this" is switched off by request.
     val showsSimilarRail = false
-    val showsDetailsSection = !isAudiobook && remember(detail) { detail.hasTvDetailFacts() }
+    // Vantage: the facts live in the strip above cast and crew; no second Details section.
+    val showsDetailsSection = false
     // Whole-book timeline stitched from the item's audiobook-part files — the
     // same math the player VM uses. Drives the Parts section (one row per track)
     // and the stitched, globally-offset chapter list. Null when there are no
@@ -941,8 +947,53 @@ private fun TvDetailContent(
                 }
                 false
             }
-            .background(pageSurfaceColor),
+            .background(org.siloserver.silo.tv.ui.theme.Level.Bg),
     ) {
+        // Vantage: the backdrop covers the whole page and stays put while the page scrolls over
+        // it. Once past the first screen it dims and softens (a tiny decode, scaled up) so cast,
+        // crew and rows stay readable, but the picture never stops.
+        if (!isAudiobook) {
+            val scrolledPast by remember {
+                derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 120 }
+            }
+            val softAlpha by androidx.compose.animation.core.animateFloatAsState(
+                if (scrolledPast) 1f else 0f, androidx.compose.animation.core.tween(450), label = "detailSoftBackdrop",
+            )
+            val bg = org.siloserver.silo.tv.ui.theme.Level.Bg
+            ThumbhashImage(
+                url = heroArtwork.url,
+                thumbhash = heroArtwork.thumbhash,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            ThumbhashImage(
+                url = heroArtwork.url,
+                thumbhash = heroArtwork.thumbhash,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                decodeSizePx = 40,
+                modifier = Modifier.fillMaxSize().graphicsLayer { alpha = softAlpha },
+            )
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.horizontalGradient(
+                        0.00f to bg.copy(alpha = 0.88f),
+                        0.45f to bg.copy(alpha = 0.45f),
+                        0.75f to bg.copy(alpha = 0.08f),
+                    ),
+                ),
+            )
+            Box(
+                Modifier.fillMaxSize().graphicsLayer { alpha = 0.55f + 0.35f * softAlpha }.background(
+                    Brush.verticalGradient(
+                        0.35f to Color.Transparent,
+                        0.75f to bg.copy(alpha = 0.55f),
+                        1.00f to bg.copy(alpha = 0.85f),
+                    ),
+                ),
+            )
+        }
         CompositionLocalProvider(LocalBringIntoViewSpec provides detailBringIntoViewSpec) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -974,8 +1025,9 @@ private fun TvDetailContent(
                                 else -> null
                             },
                             logoUrl = detail.logoUrl,
-                            backdropUrl = heroArtwork.url,
-                            backdropThumbhash = heroArtwork.thumbhash,
+                            // The page draws the backdrop behind everything (Vantage).
+                            backdropUrl = null,
+                            backdropThumbhash = null,
                             sourceTokens = heroSourceTokens,
                             ratingChip = TvDetailMetadata.ratingChip(detail),
                             overview = heroOverview,
@@ -993,13 +1045,6 @@ private fun TvDetailContent(
                             machineTranslated = heroMachineTranslated && !hidesHeroOverview &&
                                 !activeEpisodeTranslating,
                             compactSeries = isSeriesDetail,
-                            sidePanel = {
-                                TvVantageDetailPanels(
-                                    detail = detail,
-                                    seasons = state.seasons,
-                                    nextUp = state.nextUpEpisode,
-                                )
-                            },
                             playbackSummary = {
                                 TvDetailPlaybackSelectionSummary(
                                     detail = detail,
@@ -1292,6 +1337,14 @@ private fun TvDetailContent(
                                     }
                                     .detailBodySectionAnchor(listState, coroutineScope),
                             ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            if (!isAudiobook) {
+                                TvVantageDetailsStrip(
+                                    detail = detail,
+                                    seasons = state.seasons,
+                                    modifier = Modifier.padding(horizontal = TvDetailHorizontalInset),
+                                )
+                            }
                             TvCastCrewSection(
                                 cast = detail.cast,
                                 horizontalContentPadding = TvDetailHorizontalInset,
@@ -1319,6 +1372,7 @@ private fun TvDetailContent(
                                     }
                                 },
                             )
+                            }
                             }
                         }
 

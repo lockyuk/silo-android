@@ -82,13 +82,14 @@ internal fun TvExpandableSynopsis(
 ) {
     require(collapsedMaxLines > 0) { "collapsedMaxLines must be positive" }
 
-    var expanded by remember(overview, dialogTitle) { mutableStateOf(false) }
+    // Vantage: the synopsis is always shown in full; there is no Read more / Show less.
+    val expanded = true
     // Lines the whole text needs, measured with no height limit so the answer does not depend on
     // how much room the hero happens to have (a height-limited measure made the pill flicker).
     var fullLines by remember(previewText) { mutableStateOf(0) }
     val lineHeight = 17.5.dp
     val overflows = fullLines > collapsedMaxLines
-    val showPill = overflows
+    val showPill = false
 
     LaunchedEffect(showPill) { onPillPresent?.invoke(showPill) }
     LaunchedEffect(expanded, fullLines) {
@@ -136,7 +137,7 @@ internal fun TvExpandableSynopsis(
         if (showPill) {
             TvReadMorePill(
                 expanded = expanded,
-                onClick = { expanded = !expanded },
+                onClick = {},
                 focusRequester = pillFocusRequester,
             )
         }

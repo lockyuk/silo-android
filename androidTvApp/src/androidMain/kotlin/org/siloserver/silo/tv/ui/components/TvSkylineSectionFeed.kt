@@ -671,6 +671,8 @@ fun TvSkylineSectionFeed(
         heroWasInZone = heroZone
     }
     val heroMarquee = rememberTvFocusMarqueeState(fetchDetail = fetchDetail)
+    // Focuses the hero's Resume button: Up from the hero row goes there, not to the menu.
+    val heroResumeRequester = remember { FocusRequester() }
     SideEffect { if (hero != null) heroMarquee.refreshSources(listOf(hero.section)) }
     val heroSeeded = remember { mutableStateOf(false) }
     LaunchedEffect(heroItem?.contentId, hero?.section?.id) {
@@ -1133,6 +1135,7 @@ fun TvSkylineSectionFeed(
                     playLabel = if (item?.positionSeconds != null) "Resume" else "Play",
                     inWatchlist = inWatchlist,
                     playFocusRequester = resolvedFirstRowFocusRequester,
+                    resumeRequester = heroResumeRequester,
                     onFocusedChange = { heroFocused = it },
                     onPlay = { item?.let(hero.onPlay) },
                     onMoreInfo = { item?.let(hero.onMoreInfo) },
@@ -1231,6 +1234,12 @@ fun TvSkylineSectionFeed(
                     }
                     .onFocusChanged { feedHasFocus = it.hasFocus }
                     .onPreviewKeyEvent { event ->
+                        // Up from the hero row's cards goes to the hero's Resume button.
+                        if (heroZone && hero != null && focusedRowIndex <= 0 &&
+                            event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp
+                        ) {
+                            if (runCatching { heroResumeRequester.requestFocus() }.isSuccess) return@onPreviewKeyEvent true
+                        }
                         // Up from the first row's cards goes to the Resume / + / info buttons above them.
                         if (actionsMode && focusedRowIndex == 0 && marquee.content != null &&
                             event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp

@@ -140,8 +140,13 @@ internal fun TvHomeHeroPanel(
     onDown: () -> Unit,
     onPrevious: (() -> Unit)? = null,
     onNext: (() -> Unit)? = null,
+    /** Also focuses Resume; the feed sends Up from the hero row here. */
+    resumeRequester: FocusRequester? = null,
     modifier: Modifier = Modifier,
 ) {
+    val resumeReq = resumeRequester ?: remember { FocusRequester() }
+    val detailsReq = remember { FocusRequester() }
+    val heartReq = remember { FocusRequester() }
     // Every part sits at fixed screen coordinates (dp on the 960 x 540 layout), the same
     // on Home, For You and every library, so nothing moves between pages or items.
     // Vantage: the same logo / chips / synopsis block as Home, bottom-anchored just above the
@@ -183,33 +188,41 @@ internal fun TvHomeHeroPanel(
                 onClick = onPlay,
                 modifier = Modifier
                     .focusRequester(playFocusRequester)
-                    .onPreviewKeyEvent { event ->
-                        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft && onPrevious != null) {
-                            onPrevious()
-                            true
-                        } else {
-                            false
-                        }
-                    },
+                    .focusRequester(resumeReq)
+                    .heroKeys(
+                        left = { onPrevious?.invoke(); onPrevious != null },
+                        right = { detailsReq.requestFocus(); true },
+                    ),
             )
-            AuroraActionPill(label = "Details", icon = null, primary = false, onClick = onMoreInfo)
+            AuroraActionPill(
+                label = "Details", icon = null, primary = false, onClick = onMoreInfo,
+                modifier = Modifier
+                    .focusRequester(detailsReq)
+                    .heroKeys(left = { resumeReq.requestFocus(); true }, right = { heartReq.requestFocus(); true }),
+            )
             AuroraActionPill(
                 label = null,
                 icon = if (inWatchlist) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                 primary = false,
                 onClick = onToggleWatchlist,
-                modifier = Modifier.onPreviewKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight && onNext != null) {
-                        onNext()
-                        true
-                    } else {
-                        false
-                    }
-                },
+                modifier = Modifier
+                    .focusRequester(heartReq)
+                    .heroKeys(left = { detailsReq.requestFocus(); true }, right = { onNext?.invoke(); onNext != null }),
             )
         }
     }
 }
+
+/** Explicit Left / Right for a hero button, so focus never wanders off the row. */
+private fun Modifier.heroKeys(left: () -> Boolean, right: () -> Boolean): Modifier =
+    onPreviewKeyEvent { event ->
+        if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+        when (event.key) {
+            Key.DirectionLeft -> runCatching { left() }.getOrDefault(false)
+            Key.DirectionRight -> runCatching { right() }.getOrDefault(false)
+            else -> false
+        }
+    }
 
 /** Where the hero's Resume · Details · ＋ pills sit (dp from the top of the screen). */
 internal val TvHeroButtonsTop = 322.dp
@@ -621,9 +634,23 @@ internal fun TvHeroActionRow(
             },
     ) {
         // Vantage: Resume (white, accent halo) · Details · ＋ / ✓ for the watchlist.
-        AuroraActionPill(label = playLabel, icon = Icons.Filled.PlayArrow, primary = true, onClick = onPlay, modifier = Modifier.focusRequester(playFocusRequester))
-        AuroraActionPill(label = "Details", icon = null, primary = false, onClick = onMoreInfo)
-        if (showWatchlist) AuroraActionPill(label = null, icon = if (inWatchlist) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder, primary = false, onClick = onToggleWatchlist)
+        val detailsReq = remember { FocusRequester() }
+        val heartReq = remember { FocusRequester() }
+        AuroraActionPill(
+            label = playLabel, icon = Icons.Filled.PlayArrow, primary = true, onClick = onPlay,
+            modifier = Modifier.focusRequester(playFocusRequester).heroKeys(left = { true }, right = { detailsReq.requestFocus(); true }),
+        )
+        AuroraActionPill(
+            label = "Details", icon = null, primary = false, onClick = onMoreInfo,
+            modifier = Modifier.focusRequester(detailsReq).heroKeys(
+                left = { playFocusRequester.requestFocus(); true },
+                right = { if (showWatchlist) heartReq.requestFocus(); true },
+            ),
+        )
+        if (showWatchlist) AuroraActionPill(
+            label = null, icon = if (inWatchlist) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder, primary = false, onClick = onToggleWatchlist,
+            modifier = Modifier.focusRequester(heartReq).heroKeys(left = { detailsReq.requestFocus(); true }, right = { true }),
+        )
     }
 }
 
@@ -654,7 +681,7 @@ private fun AuroraActionPill(
                     val grow = (if (focused) 4.dp else 3.5.dp).toPx()
                     val r = size.height / 2 + grow
                     drawRoundRect(
-                        accent.copy(alpha = if (focused) 0.55f else 0.35f),
+                        accent.copy(alpha = if (focused) 0.55f else 0.15f),
                         androidx.compose.ui.geometry.Offset(-grow, -grow),
                         androidx.compose.ui.geometry.Size(size.width + grow * 2, size.height + grow * 2),
                         androidx.compose.ui.geometry.CornerRadius(r, r),
