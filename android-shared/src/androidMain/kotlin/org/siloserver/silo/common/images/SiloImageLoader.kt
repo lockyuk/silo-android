@@ -50,10 +50,17 @@ fun buildSiloImageLoader(context: PlatformContext, cacheDir: File): ImageLoader 
             add(StableArtworkKeyInterceptor)
             add(SharedDownloadFetcherFactory(OkHttpNetworkFetcherFactory(callFactory = { SiloOkHttp.imageClient })))
         }
+        // Decoded images stay in memory longer, so scrolling back through rows is instant.
+        .memoryCache {
+            coil3.memory.MemoryCache.Builder()
+                .maxSizePercent(context, 0.30)
+                .build()
+        }
+        // A bigger disk cache: a whole library's artwork stays on the device between sessions.
         .diskCache {
             DiskCache.Builder()
                 .directory(cacheDir.resolve("image_cache").toOkioPath())
-                .maxSizeBytes(512L * 1024 * 1024)
+                .maxSizeBytes(1024L * 1024 * 1024)
                 .build()
         }
         .build()

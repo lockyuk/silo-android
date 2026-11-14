@@ -1573,11 +1573,7 @@ private fun CalendarEventCard(
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 text = item.title,
-                style = MaterialTheme.typography.labelLarge.copy(
-                    fontSize = 17.5.sp,
-                    lineHeight = 20.5.sp,
-                ),
-                fontWeight = FontWeight.SemiBold,
+                style = org.siloserver.silo.tv.ui.components.vantage.ui(if (compact) 13 else 17.5, FontWeight.SemiBold),
                 color = if (isFocused) Color.White else Color.White.copy(alpha = 0.85f),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -1586,10 +1582,7 @@ private fun CalendarEventCard(
             cardSubtitle(item)?.let { subtitle ->
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 14.sp,
-                        lineHeight = 18.sp,
-                    ),
+                    style = org.siloserver.silo.tv.ui.components.vantage.mono(if (compact) 11 else 14, color = org.siloserver.silo.tv.ui.theme.Level.Dim),
                     color = Color.White.copy(alpha = 0.75f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
