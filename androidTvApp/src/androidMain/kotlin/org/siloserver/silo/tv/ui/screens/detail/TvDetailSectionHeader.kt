@@ -1,61 +1,45 @@
 package org.siloserver.silo.tv.ui.screens.detail
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import org.siloserver.silo.tv.ui.components.vantage.mono
+import org.siloserver.silo.tv.ui.components.vantage.ui
+import org.siloserver.silo.tv.ui.theme.Level
+import org.siloserver.silo.tv.ui.theme.animatedAccent
 
 /**
- * Editorial section header used below the detail hero. Mirrors the tvOS
- * `TVSectionHeader` (eyebrow 20pt bold tracking 3.0, floored at 14sp for
- * 10-ft legibility; title 42pt semibold → 21sp).
- *
- * Sizes are scoped locally (rather than via the shared `sectionEyebrow` /
- * `displaySmall` tokens) so the detail-page treatment doesn't shift the
- * other screens that share those tokens.
+ * The section header used below the detail hero (Cast, Trailers & More, Episodes ...): the same
+ * Vantage title as every row, an accent bar and plain text with a quiet note beside it, so a
+ * title is never mistaken for a button.
  */
 @Composable
 internal fun TvDetailSectionHeader(
     title: String,
     modifier: Modifier = Modifier,
-    /**
-     * Optional tracked all-caps kicker ABOVE the title — only when it carries
-     * context the title doesn't (tvOS TVSectionHeader: "Season 2" over
-     * "Episodes"). Plain sections ("Cast & Crew", "Details") are single-line
-     * (QA 2026-07-08 / Apple parity).
-     */
+    /** A small tracked line above the title when it carries context the title doesn't ("Season 2"). */
     eyebrow: String? = null,
+    /** A quiet mono note beside the title ("7 of 41"). */
+    note: String? = null,
 ) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(5.dp),
-    ) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (!eyebrow.isNullOrBlank()) {
-            Text(
-                text = eyebrow.uppercase(),
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    lineHeight = 18.sp,
-                    letterSpacing = 1.5.sp,
-                ),
-                color = Color.White.copy(alpha = 0.7f),
-            )
+            Text(eyebrow.uppercase(), style = mono(11, FontWeight.SemiBold, Level.Dim, 0.16f), maxLines = 1)
         }
-        Text(
-            text = title,
-            style = MaterialTheme.typography.displaySmall.copy(
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 21.sp,
-                lineHeight = 24.sp,
-            ),
-            color = Color.White,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            Box(Modifier.width(3.dp).height(18.dp).background(animatedAccent()))
+            Text(title, style = ui(20, FontWeight.SemiBold), maxLines = 1)
+            if (!note.isNullOrBlank()) Text(note, style = mono(11, FontWeight.Normal, Level.Faint), maxLines = 1)
+        }
     }
 }

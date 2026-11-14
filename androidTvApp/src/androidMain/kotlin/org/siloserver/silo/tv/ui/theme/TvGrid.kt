@@ -27,7 +27,7 @@ object TvGrid {
     /** Five lines of 16 px / 1.5, always reserved. */
     val synopsisH = px(120)
     val actionTop = px(432)
-    val actionH = px(46)
+    val actionH = px(40)
 
     // Right column (no longer used on title pages; kept for pages that still place a card there)
     val rightTop = px(88)
@@ -38,8 +38,8 @@ object TvGrid {
 
     // Bottom
     /** Where the section header starts; the hero ends here. */
-    val bodyTop = px(548)
-    val rowTop = px(590)
+    val bodyTop = px(492)
+    val rowTop = px(558)
     val cardW = px(176)
     val cardH = px(99)
     val cardGap = px(16)

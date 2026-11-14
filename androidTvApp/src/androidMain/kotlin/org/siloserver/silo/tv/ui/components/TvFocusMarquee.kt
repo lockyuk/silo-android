@@ -88,6 +88,8 @@ fun TvFocusMarquee(
     footer: (@Composable (TvMarqueeContent) -> Unit)? = null,
     /** The Aurora eyebrow pill above the title (the row the item is in); null shows none. */
     eyebrow: String? = null,
+    /** Season count of a show, shown above the logo when no episode is being resumed. */
+    seasonCount: Int? = null,
 ) {
     Box(
         modifier = modifier
@@ -142,6 +144,7 @@ fun TvFocusMarquee(
                             translation = translation.takeIf { it?.contentId == value.contentId },
                             footer = footer,
                             eyebrow = eyebrow,
+                            seasonCount = seasonCount,
                         )
                     }
                 }
@@ -154,6 +157,7 @@ fun TvFocusMarquee(
                 translation = translation.takeIf { it?.contentId == content.contentId },
                 footer = footer,
                 eyebrow = eyebrow,
+                seasonCount = seasonCount,
             )
         }
     }
@@ -167,6 +171,7 @@ private fun TvMarqueeBlock(
     translation: TvMarqueeTranslation? = null,
     footer: (@Composable (TvMarqueeContent) -> Unit)? = null,
     eyebrow: String? = null,
+    seasonCount: Int? = null,
 ) {
     val level = org.siloserver.silo.tv.ui.theme.Level
     val src = content.source
@@ -197,9 +202,12 @@ private fun TvMarqueeBlock(
         }.filter { it.isNotBlank() }
         val season = src.seasonNumber
         val episode = src.episodeNumber
+        val showsSeasons = season == null && episode == null && !content.isEpisode && (seasonCount ?: 0) > 0 &&
+            src.type.equals("series", ignoreCase = true)
         Box(Modifier.height(org.siloserver.silo.tv.ui.theme.TvGrid.kickerH), contentAlignment = Alignment.CenterStart) {
-        if (season != null || episode != null || tagParts.isNotEmpty()) {
+        if (season != null || episode != null || tagParts.isNotEmpty() || showsSeasons) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (showsSeasons) org.siloserver.silo.tv.ui.components.vantage.VChip("${seasonCount} ${if (seasonCount == 1) "SEASON" else "SEASONS"}")
                 season?.let { org.siloserver.silo.tv.ui.components.vantage.VChip("SEASON $it") }
                 episode?.let { org.siloserver.silo.tv.ui.components.vantage.VChip("EPISODE $it") }
                 if (tagParts.isNotEmpty()) {
@@ -324,7 +332,7 @@ private const val LogoMaxHeight = 72f
 @Composable
 private fun VantageRate(tag: String, bg: Color, fg: Color, value: String) {
     Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.background(bg, RoundedCornerShape(4.dp)).padding(horizontal = 4.dp, vertical = 2.dp)) {
+        Box(Modifier.background(bg, androidx.compose.ui.graphics.RectangleShape).padding(horizontal = 4.dp, vertical = 2.dp)) {
             Text(tag, style = org.siloserver.silo.tv.ui.components.vantage.mono(9, FontWeight.Bold, fg))
         }
         Text(value, style = org.siloserver.silo.tv.ui.components.vantage.mono(13))
@@ -362,7 +370,7 @@ private fun Modifier.drawAlpha(alpha: () -> Float): Modifier = graphicsLayer {
 
 @Composable
 private fun MarqueeBadge(label: String) {
-    val shape = RoundedCornerShape(3.dp)
+    val shape = androidx.compose.ui.graphics.RectangleShape
     Box(
         modifier = Modifier
             .background(Color.White.copy(alpha = 0.08f), shape)

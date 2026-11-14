@@ -106,7 +106,7 @@ private fun Modifier.focusRing(
         color = color,
         topLeft = Offset(-insetPx, -insetPx),
         size = Size(size.width + insetPx * 2f, size.height + insetPx * 2f),
-        cornerRadius = CornerRadius(cornerPx, cornerPx),
+        cornerRadius = CornerRadius(org.siloserver.silo.tv.ui.theme.haloRadius(cornerPx), org.siloserver.silo.tv.ui.theme.haloRadius(cornerPx)),
         style = Stroke(width = strokePx),
     )
 }
@@ -346,7 +346,7 @@ internal fun SquaredPillSurface(
                         color = haloAccent.copy(alpha = haloAlpha),
                         topLeft = androidx.compose.ui.geometry.Offset(-grow, -grow),
                         size = androidx.compose.ui.geometry.Size(size.width + grow * 2, size.height + grow * 2),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(org.siloserver.silo.tv.ui.theme.haloRadius(r), org.siloserver.silo.tv.ui.theme.haloRadius(r)),
                     )
                 }
             }

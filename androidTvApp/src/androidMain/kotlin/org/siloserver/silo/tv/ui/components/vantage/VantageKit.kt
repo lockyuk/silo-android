@@ -1,5 +1,6 @@
 package org.siloserver.silo.tv.ui.components.vantage
 
+import org.siloserver.silo.tv.ui.components.gradientScrim
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -134,17 +135,23 @@ fun VChip(
         ChipTone.Solid -> Color.Transparent
         else -> fg.copy(alpha = 0.4f)
     }
+    // Vantage: an info chip is quiet text with a thin line on its left, so it is plainly not a button.
+    val line = when (tone) {
+        ChipTone.Plain -> Color.White.copy(alpha = 0.35f)
+        ChipTone.Solid -> Level.Fg
+        else -> fg.copy(alpha = 0.8f)
+    }
+    val textTone = if (tone == ChipTone.Solid) Level.Fg else fg
     Row(
         modifier = modifier
-            .background(bg, VantagePill)
-            .border(1.dp, edge, VantagePill)
-            .padding(horizontal = 10.mx, vertical = 5.mx),
+            .drawBehind { drawRect(line, size = androidx.compose.ui.geometry.Size(2.dp.toPx(), this.size.height)) }
+            .padding(start = 9.mx, top = 1.mx, bottom = 1.mx, end = 2.mx),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.mx),
     ) {
         if (dot) VDot(fg)
-        if (bold != null) Text(bold, style = mono(size, color = if (tone == ChipTone.Solid) Level.Ink else Level.Fg, tracking = 0.05f), maxLines = 1)
-        Text(text, style = mono(size, if (tone == ChipTone.Solid) FontWeight.SemiBold else FontWeight.Medium, fg, 0.05f), maxLines = 1)
+        if (bold != null) Text(bold, style = mono(size, color = Level.Fg, tracking = 0.05f), maxLines = 1)
+        Text(text, style = mono(size, if (tone == ChipTone.Solid) FontWeight.SemiBold else FontWeight.Medium, textTone, 0.05f), maxLines = 1)
     }
 }
 
@@ -201,10 +208,10 @@ fun VBar(fraction: Float, color: Color = animatedAccent(), height: Dp = 5.mx, mo
         modifier
             .fillMaxWidth()
             .height(height)
-            .clip(RoundedCornerShape(3.dp))
+            .clip(androidx.compose.ui.graphics.RectangleShape)
             .background(Level.Track),
     ) {
-        Box(Modifier.fillMaxHeight().fillMaxWidth(fraction.coerceIn(0f, 1f)).clip(RoundedCornerShape(3.dp)).background(color))
+        Box(Modifier.fillMaxHeight().fillMaxWidth(fraction.coerceIn(0f, 1f)).clip(androidx.compose.ui.graphics.RectangleShape).background(color))
     }
 }
 
@@ -237,8 +244,22 @@ fun VLineChart(values: List<Float>, color: Color = animatedAccent(), modifier: M
         }
         if (values.size < 2) return@Canvas
         val max = (maxOverride ?: values.max()).coerceAtLeast(0.0001f)
-        val pts = values.mapIndexed { i, v -> Offset(w * i / (values.size - 1), h - 2f - (v / max) * (h - 6f)) }
-        val line = Path().apply { moveTo(pts[0].x, pts[0].y); pts.drop(1).forEach { lineTo(it.x, it.y) } }
+        // Light 1-2-1 smoothing so 500 ms samples don't zig-zag, then a smooth curve through the points.
+        val smooth = values.mapIndexed { i, v ->
+            val l = values[(i - 1).coerceAtLeast(0)]; val r = values[(i + 1).coerceAtMost(values.size - 1)]
+            (l + 2f * v + r) / 4f
+        }
+        val pts = smooth.mapIndexed { i, v -> Offset(w * i / (smooth.size - 1), h - 2f - (v / max).coerceIn(0f, 1f) * (h - 6f)) }
+        val line = Path().apply {
+            moveTo(pts[0].x, pts[0].y)
+            for (i in 0 until pts.size - 1) {
+                val p0 = pts[(i - 1).coerceAtLeast(0)]; val p1 = pts[i]; val p2 = pts[i + 1]; val p3 = pts[(i + 2).coerceAtMost(pts.size - 1)]
+                val lo = minOf(p1.y, p2.y); val hi = maxOf(p1.y, p2.y)
+                val c1y = (p1.y + (p2.y - p0.y) / 6f).coerceIn(lo, hi)
+                val c2y = (p2.y - (p3.y - p1.y) / 6f).coerceIn(lo, hi)
+                cubicTo(p1.x + (p2.x - p0.x) / 6f, c1y, p2.x - (p3.x - p1.x) / 6f, c2y, p2.x, p2.y)
+            }
+        }
         val fill = Path().apply { addPath(line); lineTo(w, h); lineTo(0f, h); close() }
         drawPath(fill, Brush.verticalGradient(listOf(color.copy(alpha = 0.5f), color.copy(alpha = 0f))))
         drawPath(line, color, style = Stroke(2.5.mx.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
@@ -308,8 +329,8 @@ fun VButton(
     primary: Boolean = false,
     small: String? = null,
     leading: (@Composable (Color) -> Unit)? = null,
-    height: Dp = 48.mx,
-    textPx: Number = 15,
+    height: Dp = 40.mx,
+    textPx: Number = 16,
     focusRequester: FocusRequester? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -331,12 +352,12 @@ fun VButton(
                         accent.copy(alpha = if (focused) 0.55f else 0.3f),
                         topLeft = Offset(-grow, -grow),
                         size = Size(size.width + grow * 2, size.height + grow * 2),
-                        cornerRadius = CornerRadius(r, r),
+                        cornerRadius = CornerRadius(org.siloserver.silo.tv.ui.theme.haloRadius(r), org.siloserver.silo.tv.ui.theme.haloRadius(r)),
                     )
                 }
             }
-            .background(if (lit) Level.Fg else Level.Glass2, VantagePill)
-            .border(1.dp, if (lit) Color.Transparent else Level.Edge, VantagePill)
+            .background(if (lit) Level.Fg else Color.White.copy(alpha = 0.10f), VantagePill)
+            .border(1.5.dp, if (lit) Color.Transparent else Color.White.copy(alpha = 0.38f), VantagePill)
             .onKeyEvent {
                 if (it.type == KeyEventType.KeyUp && (it.key == Key.DirectionCenter || it.key == Key.Enter || it.key == Key.NumPadEnter)) {
                     onClick(); true
@@ -375,11 +396,11 @@ fun VTabChip(
                 if (focused) {
                     val grow = 3.mx.toPx()
                     val r = size.height / 2 + grow
-                    drawRoundRect(accent.copy(alpha = 0.55f), Offset(-grow, -grow), Size(size.width + grow * 2, size.height + grow * 2), CornerRadius(r, r))
+                    drawRoundRect(accent.copy(alpha = 0.55f), Offset(-grow, -grow), Size(size.width + grow * 2, size.height + grow * 2), CornerRadius(org.siloserver.silo.tv.ui.theme.haloRadius(r), org.siloserver.silo.tv.ui.theme.haloRadius(r)))
                 }
             }
-            .background(if (lit) Level.Fg else Level.Glass2, VantagePill)
-            .border(1.dp, if (lit) Color.Transparent else Level.Edge, VantagePill)
+            .background(if (lit) Level.Fg else Color.White.copy(alpha = 0.10f), VantagePill)
+            .border(1.5.dp, if (lit) Color.Transparent else Color.White.copy(alpha = 0.38f), VantagePill)
             .focusable(interactionSource = source)
             .padding(horizontal = 14.mx, vertical = 8.mx),
     ) {
@@ -432,22 +453,10 @@ fun VStat(label: String, value: String, suffix: String, color: Color = Level.Fg,
 }
 
 /** The bottom-left to top-right page scrims used over full-bleed backdrops. */
-fun Modifier.vantageHeroScrim(): Modifier = this.drawBehind {
-    drawRect(
-        Brush.horizontalGradient(
-            0f to Color(0xEB07080C),
-            0.38f to Color(0x8C07080C),
-            0.68f to Color.Transparent,
-        ),
-    )
-    drawRect(
-        Brush.verticalGradient(
-            0.45f to Color.Transparent,
-            0.70f to Color(0x9907080C),
-            1f to Color(0xFF07080C),
-        ),
-    )
-}
+@Composable
+fun Modifier.vantageHeroScrim(): Modifier = this
+    .gradientScrim(true, 0f to Color(0xEB07080C), 0.38f to Color(0x8C07080C), 0.68f to Color(0x0007080C))
+    .gradientScrim(false, 0.45f to Color(0x0007080C), 0.70f to Color(0x9907080C), 1f to Color(0xFF07080C))
 
 @Composable
 fun RowScope.VFill() = Spacer(Modifier.weight(1f))

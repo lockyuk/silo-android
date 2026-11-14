@@ -300,7 +300,7 @@ fun TvRecommendationsScreen(
                 onContentUpFallbackChanged = onContentUpFallbackChanged,
                 // Discover returns plain section rows: posters throughout, no
                 // progress bars, and the VM exposes no watched/favorite toggles.
-                styleForSection = { TvRowStyle.Poster },
+                styleForSection = { TvRowStyle.Backdrop },
                 showProgressForSection = { false },
                 )
             }

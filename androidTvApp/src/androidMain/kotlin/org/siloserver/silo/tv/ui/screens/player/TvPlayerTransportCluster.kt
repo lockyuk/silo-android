@@ -48,6 +48,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import androidx.tv.material3.Icon
 import org.siloserver.silo.tv.ui.components.vantage.mx
 import org.siloserver.silo.tv.ui.components.TvSeekIntervalIcon
@@ -190,13 +191,13 @@ private fun TransportPill(
                         halo.copy(alpha = 0.55f),
                         topLeft = androidx.compose.ui.geometry.Offset(-grow, -grow),
                         size = androidx.compose.ui.geometry.Size(size.width + grow * 2, size.height + grow * 2),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(org.siloserver.silo.tv.ui.theme.haloRadius(r), org.siloserver.silo.tv.ui.theme.haloRadius(r)),
                     )
                 }
             }
             .clip(shape)
             .background(fill)
-            .then(if (isFocused) Modifier else Modifier.border(1.dp, TvPlayerChrome.ButtonRing, shape))
+            .then(if (isFocused) Modifier else Modifier.border(1.5.dp, Color.White.copy(alpha = 0.38f), shape))
             .let { mod -> if (focusRequester != null) mod.focusRequester(focusRequester) else mod }
             .focusProperties {
                 leftNeighbor?.let { left = it }
@@ -284,13 +285,13 @@ private fun TransportIconButton(
                         halo.copy(alpha = haloAlpha),
                         topLeft = androidx.compose.ui.geometry.Offset(-grow, -grow),
                         size = androidx.compose.ui.geometry.Size(size.width + grow * 2, size.height + grow * 2),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(org.siloserver.silo.tv.ui.theme.haloRadius(r), org.siloserver.silo.tv.ui.theme.haloRadius(r)),
                     )
                 }
             }
             .clip(shape)
             .background(fill)
-            .then(if (lit) Modifier else Modifier.border(1.dp, TvPlayerChrome.ButtonRing, shape))
+            .then(if (lit) Modifier else Modifier.border(1.5.dp, Color.White.copy(alpha = 0.38f), shape))
             .animateContentSize(animationSpec = tween(160))
             .let { mod -> if (focusRequester != null) mod.focusRequester(focusRequester) else mod }
             .focusProperties {

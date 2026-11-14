@@ -11,6 +11,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -568,10 +569,9 @@ fun TvTopMenuBar(
         // group itself screen-centered.
         Row(
             modifier = Modifier
-                .background(org.siloserver.silo.tv.ui.theme.Level.Glass, org.siloserver.silo.tv.ui.theme.VantagePill)
-                .border(1.dp, org.siloserver.silo.tv.ui.theme.Level.Edge, org.siloserver.silo.tv.ui.theme.VantagePill)
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                .offset(y = (-6).dp)
+                .padding(0.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             destinations.forEach { destination ->
@@ -851,8 +851,8 @@ private fun TvTopMenuTab(
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         border = ClickableSurfaceDefaults.border(
-            border = Border(border = BorderStroke(0.dp, Color.Transparent), shape = shape),
-            focusedBorder = Border(border = BorderStroke(0.dp, Color.Transparent), shape = shape),
+            border = Border(border = BorderStroke(1.5.dp, Color.White.copy(alpha = 0.3f)), shape = shape),
+            focusedBorder = Border(border = BorderStroke(1.5.dp, Color.Transparent), shape = shape),
         ),
         modifier = modifier
             .focusProperties { this.canFocus = canFocus }
@@ -868,7 +868,7 @@ private fun TvTopMenuTab(
                             color = accent.copy(alpha = 0.45f),
                             topLeft = androidx.compose.ui.geometry.Offset(-grow, -grow),
                             size = androidx.compose.ui.geometry.Size(size.width + grow * 2, size.height + grow * 2),
-                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(r + grow, r + grow),
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(org.siloserver.silo.tv.ui.theme.haloRadius(r + grow), org.siloserver.silo.tv.ui.theme.haloRadius(r + grow)),
                         )
                     }
                 } else {
@@ -886,7 +886,7 @@ private fun TvTopMenuTab(
                 text = label,
                 fontFamily = org.siloserver.silo.tv.ui.theme.VantageUiFamily,
                 fontSize = 13.sp,
-                fontWeight = if (filled || isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                fontWeight = FontWeight.SemiBold,
                 color = textColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

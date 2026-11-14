@@ -484,9 +484,17 @@ private fun RequestsPage(repo: TvServerRepository) {
     val list = rows ?: run { Loading(); return }
     val active = list.filter { it.outcome == "active" || it.status !in setOf("available", "completed", "declined", "failed") }
     Column {
-        PageHead("Queue · ${active.size} active", "Coming up")
+        Spacer(Modifier.height(4.mx))
+        Row(Modifier.height(34.mx), verticalAlignment = Alignment.CenterVertically) {
+            Text("● REQUESTS · ${active.size} ACTIVE", style = mono(11, color = Level.liveAccent, tracking = 0.16f), maxLines = 1)
+        }
         Spacer(Modifier.height(16.mx))
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(14.mx), modifier = Modifier.fillMaxSize()) {
+        // Bottom padding keeps the last request's artwork fully on screen.
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(14.mx),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 60.mx),
+            modifier = Modifier.fillMaxSize(),
+        ) {
             items(list) { r -> RequestPipelineRow(r) }
         }
     }
@@ -597,8 +605,8 @@ private fun QueueRow(item: ArrItem, withArt: Boolean = true) {
     val stalled = item.right.contains("stalled", true) || item.subtitle.contains("stalled", true)
     val bar = if (stalled) Level.Warn else Level.liveAccent
     Row(
-        Modifier.fillMaxWidth().height(78.mx).background(Level.Glass, androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
-            .border(1.dp, Level.Edge, androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).padding(start = 10.mx, end = 14.mx),
+        Modifier.fillMaxWidth().height(78.mx).background(Level.Glass, org.siloserver.silo.tv.ui.theme.VantagePanel)
+            .border(1.dp, Level.Edge, org.siloserver.silo.tv.ui.theme.VantagePanel).padding(start = 10.mx, end = 14.mx),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.mx),
     ) {
         if (withArt) VArt(item.imageUrl, 96.mx, 54.mx)
@@ -618,8 +626,8 @@ private fun QueueRow(item: ArrItem, withArt: Boolean = true) {
 @Composable
 private fun StatusRow(imageUrl: String?, title: String, sub: String, chip: String, tone: ChipTone, withArt: Boolean = true) {
     Row(
-        Modifier.fillMaxWidth().height(78.mx).background(Level.Glass, androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
-            .border(1.dp, Level.Edge, androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).padding(start = 10.mx, end = 14.mx),
+        Modifier.fillMaxWidth().height(78.mx).background(Level.Glass, org.siloserver.silo.tv.ui.theme.VantagePanel)
+            .border(1.dp, Level.Edge, org.siloserver.silo.tv.ui.theme.VantagePanel).padding(start = 10.mx, end = 14.mx),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.mx),
     ) {
         if (withArt) VArt(imageUrl, 96.mx, 54.mx)
@@ -810,8 +818,8 @@ private fun StoragePage(o: ServerOverview?) {
                         val pct = (d.fraction * 100).toInt()
                         val c = if (d.fraction > 0.85f) Level.Warn else Level.liveAccent
                         Column(
-                            Modifier.fillMaxWidth().background(Level.Glass, androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
-                                .border(1.dp, Level.Edge, androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).padding(horizontal = 16.mx, vertical = 14.mx),
+                            Modifier.fillMaxWidth().background(Level.Glass, org.siloserver.silo.tv.ui.theme.VantagePanel)
+                                .border(1.dp, Level.Edge, org.siloserver.silo.tv.ui.theme.VantagePanel).padding(horizontal = 16.mx, vertical = 14.mx),
                             verticalArrangement = Arrangement.spacedBy(9.mx),
                         ) {
                             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.mx)) {
@@ -999,14 +1007,14 @@ private fun SystemPage(repo: TvServerRepository, serverName: String, overview: S
                     Triple(ffGb, Purple, "Transcoding"),
                     Triple(otherGb, Color.White.copy(alpha = 0.38f), "Other apps"),
                 )
-                Row(Modifier.fillMaxWidth().height(22.mx).clip(androidx.compose.foundation.shape.RoundedCornerShape(11.dp)).background(Color.White.copy(alpha = 0.08f)), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(Modifier.fillMaxWidth().height(22.mx).clip(org.siloserver.silo.tv.ui.theme.VantageCard).background(Color.White.copy(alpha = 0.08f)), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     segs.forEach { (gb, c, _) -> if (gb > 0) Box(Modifier.weight((gb / totalGb).toFloat().coerceAtLeast(0.002f)).fillMaxHeight().background(c)) }
                     if (freeGb > 0) Spacer(Modifier.weight((freeGb / totalGb).toFloat().coerceAtLeast(0.002f)))
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(11.mx)) {
                     (segs + Triple(freeGb, Color.White.copy(alpha = 0.10f), "Free")).forEach { (gb, c, label) ->
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.mx)) {
-                            Box(Modifier.size(14.mx).clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp)).background(c).border(1.dp, Color.White.copy(alpha = 0.18f), androidx.compose.foundation.shape.RoundedCornerShape(4.dp)))
+                            Box(Modifier.size(14.mx).clip(org.siloserver.silo.tv.ui.theme.VantageCard).background(c).border(1.dp, Color.White.copy(alpha = 0.18f), org.siloserver.silo.tv.ui.theme.VantageCard))
                             Text(label, style = ui(14, FontWeight.SemiBold), maxLines = 1, modifier = Modifier.weight(1f))
                             Text("%.1f".format(gb), style = mono(13, color = Level.Dim), maxLines = 1)
                             Text("%d%%".format(Math.round(gb * 100 / totalGb.coerceAtLeast(0.1))), style = mono(13, FontWeight.SemiBold), maxLines = 1, modifier = Modifier.width(38.mx))

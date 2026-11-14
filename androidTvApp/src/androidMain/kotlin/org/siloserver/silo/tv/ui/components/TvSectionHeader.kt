@@ -3,6 +3,10 @@ package org.siloserver.silo.tv.ui.components
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -39,10 +43,9 @@ fun TvSectionHeader(
 ) {
     Row(
         modifier = modifier
-            .fillMaxWidth()
-            .padding(bottom = 4.dp),
+            .fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Bottom,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (!eyebrow.isNullOrBlank()) {
@@ -52,11 +55,12 @@ fun TvSectionHeader(
                     color = Color.White.copy(alpha = 0.7f),
                 )
             }
-            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                // Vantage .sec: the row title in Outfit, then a quiet mono note.
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                // Vantage: a title is plain text with an accent bar, so it can never be mistaken for a button.
+                Box(Modifier.width(3.dp).height(18.dp).background(org.siloserver.silo.tv.ui.theme.animatedAccent()))
                 Text(
                     text = title,
-                    style = org.siloserver.silo.tv.ui.components.vantage.ui(17, androidx.compose.ui.text.font.FontWeight.SemiBold),
+                    style = org.siloserver.silo.tv.ui.components.vantage.ui(20, androidx.compose.ui.text.font.FontWeight.SemiBold),
                     maxLines = 1,
                 )
                 sectionNote(title)?.let {

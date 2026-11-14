@@ -314,7 +314,7 @@ private fun BoxSetContent(
                 VButton(
                     text = boxSet.playLabel(next),
                     primary = true,
-                    height = 46.mx,
+                    height = 40.mx,
                     textPx = 15,
                     small = next.boxSetResumePosition()?.let { clockLabel(it) },
                     leading = { c -> androidx.compose.material3.Icon(Icons.Filled.PlayArrow, null, tint = c, modifier = Modifier.size(18.dp)) },
@@ -350,12 +350,16 @@ private fun BoxSetContent(
 
         // Bottom: the movies, in release order.
         Column(
-            modifier = Modifier.offset(x = grid.edge, y = grid.bodyTop).fillMaxWidth(),
+            modifier = Modifier.offset(x = grid.edge - 12.mx, y = grid.bodyTop - 8.mx).fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(grid.rowTop - grid.bodyTop - 16.dp),
         ) {
-            VSection(if (showStory) "In story order" else "In release order", if (showStory) "the order the story happens" else "the order they came out")
+            org.siloserver.silo.tv.ui.screens.detail.TvDetailSectionHeader(
+                title = if (showStory) "In story order" else "In release order",
+                note = if (showStory) "the order the story happens" else "the order they came out",
+                modifier = Modifier.padding(start = 12.mx),
+            )
             androidx.compose.foundation.lazy.LazyRow(
-                contentPadding = PaddingValues(end = 44.mx),
+                contentPadding = PaddingValues(start = 12.mx, end = 44.mx, top = 8.mx, bottom = 40.mx),
                 horizontalArrangement = Arrangement.spacedBy(grid.cardGap),
                 modifier = Modifier.focusProperties { up = playFocus },
             ) {

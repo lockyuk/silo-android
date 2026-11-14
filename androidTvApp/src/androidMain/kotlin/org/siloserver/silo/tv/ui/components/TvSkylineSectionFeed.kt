@@ -170,7 +170,8 @@ fun TvSkylineSectionFeed(
     onSeeAllClickForSection: (ResolvedSection) -> (() -> Unit)? = { null },
     showProgressForSection: (ResolvedSection) -> Boolean = { it.isTvProgressRow() },
     styleForSection: (ResolvedSection) -> TvRowStyle = {
-        if (it.isTvProgressRow()) TvRowStyle.Backdrop else TvRowStyle.Poster
+        // Vantage: every row is the same 16:9 card, in the same place.
+        TvRowStyle.Backdrop
     },
     cardActions: (ResolvedSection, SectionItem) -> TvMediaCardActions = { _, _ -> TvMediaCardActions() },
     /** A non-null action replaces [onItemClick] while preserving detail-return tracking. */
@@ -646,7 +647,13 @@ fun TvSkylineSectionFeed(
     LaunchedEffect(rowFocusRevision, autoAdvanceFirstRow, feedHasFocus, focusedRowIndex, resumePrompt) {
         rowTimer.snapTo(0f)
         if (!autoAdvanceFirstRow || !feedHasFocus || focusedRowIndex != 0 || resumePrompt != null) return@LaunchedEffect
-        rowTimer.animateTo(1f, tween(TvHeroRotateMs.toInt(), easing = androidx.compose.animation.core.LinearEasing))
+        // Stepped, not a continuous animation: on this Fire OS every animation frame redraws the whole
+        // screen on the main thread (about 38 ms), which kept Home at ~13 fps while it sat idle.
+        val steps = (TvHeroRotateMs / 250L).toInt()
+        for (step in 1..steps) {
+            kotlinx.coroutines.delay(250L)
+            rowTimer.snapTo(step / steps.toFloat())
+        }
         // Past the last card the selection wraps to the first, scrolling back to it.
         val lastIndex = (rows.firstOrNull()?.items?.size ?: 1) - 1
         if (focusedItemIndex >= lastIndex || !focusManager.moveFocus(FocusDirection.Right)) {
@@ -1122,7 +1129,8 @@ fun TvSkylineSectionFeed(
             // Under the hero only the first row's title shows: nothing of its
             // cards is drawn below the header, wherever the band sits.
             val heroBandReveal by animateDpAsState(
-                targetValue = if (heroZone) TvHeroRowHeaderInset + TvSkylineRowHeaderHeight else bandHeight + 400.dp,
+                // The first row sits fully on screen under the hero now: nothing of it is hidden.
+                targetValue = bandHeight + 400.dp,
                 label = "heroBandReveal",
             )
             if (heroZone && hero != null) {
@@ -1135,6 +1143,7 @@ fun TvSkylineSectionFeed(
                     inWatchlist = inWatchlist,
                     playFocusRequester = resolvedFirstRowFocusRequester,
                     resumeRequester = heroResumeRequester,
+                    seasonCount = heroMarquee.enrichment?.seasonCount,
                     onFocusedChange = { heroFocused = it },
                     onPlay = { item?.let(hero.onPlay) },
                     onMoreInfo = { item?.let(hero.onMoreInfo) },
@@ -1183,6 +1192,7 @@ fun TvSkylineSectionFeed(
                 // The hero block has fixed grid heights; nothing to clip against.
                 bottomPadding = 0.dp,
                 eyebrow = if (actionsMode) rows.firstOrNull()?.title else null,
+                seasonCount = marquee.enrichment?.seasonCount,
                 modifier = Modifier
                     // No page offset: the hero block sits at fixed grid coordinates.
                     .fillMaxSize(),
@@ -1195,9 +1205,9 @@ fun TvSkylineSectionFeed(
                     current = focusedItemIndex.coerceIn(0, heroPagerCount - 1),
                     progress = { rowTimer.value },
                     modifier = Modifier
-                        .offset(x = org.siloserver.silo.tv.ui.theme.TvGrid.edge, y = 327.dp)
-                        .height(4.5.dp)
-                        .fillMaxWidth(),
+                        .align(Alignment.TopEnd)
+                        .padding(end = org.siloserver.silo.tv.ui.theme.TvGrid.edge)
+                        .offset(y = 349.dp),
                 )
             }
 
@@ -1312,7 +1322,7 @@ fun TvSkylineSectionFeed(
                             itemSpacing = TvSkylineItemSpacing,
                             rowTopPadding = TvSkylineRowCardVerticalPadding,
                             rowBottomPadding = TvSkylineRowCardVerticalPadding,
-                            headerGap = 0.dp,
+                            headerGap = 14.dp,
                             posterWidth = RowDimens.DensePosterWidth *
                                 presentation.posterSize.posterScale,
                             firstItemFocusRequester = resolvedFirstRowFocusRequester
@@ -1485,8 +1495,8 @@ internal val TvSkylineRowBandBottomInset = 10.dp
 // plus a peek of the next section. The previous fixed 0.50 fraction clipped
 // `large` cards against the marquee. At the standard poster size this
 // derivation reproduces the old 270dp band on a 540dp-tall layout.
-internal val TvSkylineRowHeaderHeight = 26.dp // TvSectionHeader: 22sp title line + 4dp bottom pad
-private val TvSkylineRowHeaderGap = 0.dp // TvMediaRow header→rail spacing
+internal val TvSkylineRowHeaderHeight = 30.dp // TvSectionHeader: 22sp title line + 4dp bottom pad
+private val TvSkylineRowHeaderGap = 14.dp // TvMediaRow header→rail spacing
 private val TvSkylineCaptionTitleHeight = 30.dp // TvMediaCard: 11dp spacer + 18.5sp title line
 private val TvSkylineCaptionMetadataHeight = 18.dp // TvMediaCard: 18sp year line
 private val TvSkylineRowPreviewPeek = 24.dp // sliver of the next section's header
@@ -1524,7 +1534,7 @@ internal val TvSkylineActionsBlock = 52.dp
 internal val TvSkylineHeroTextRaise = 14.dp
 
 /** The marquee text and the rows sit this much lower on screen. */
-internal val TvSkylineContentDrop = 80.dp
+internal val TvSkylineContentDrop = 38.dp
 
 /** Gap between the marquee block and the top of the row band. */
 internal val TvSkylineMarqueeBottomGap = 4.dp

@@ -264,7 +264,7 @@ fun TvMediaCard(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
                                 .padding(start = 6.dp, end = 6.dp, bottom = 8.dp)
-                                .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                                .background(Color.Black.copy(alpha = 0.6f), androidx.compose.ui.graphics.RectangleShape)
                                 .padding(horizontal = 5.dp, vertical = 1.dp),
                         )
                     }
@@ -287,13 +287,13 @@ fun TvMediaCard(
                                 .padding(start = 7.5.dp, end = 7.5.dp, bottom = 7.dp)
                                 .fillMaxWidth()
                                 .height(3.dp)
-                                .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(2.dp)),
+                                .background(Color.Black.copy(alpha = 0.55f), androidx.compose.ui.graphics.RectangleShape),
                         ) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth(progress.coerceIn(0f, 1f))
                                     .height(3.dp)
-                                    .background(org.siloserver.silo.tv.ui.theme.animatedAccent(), RoundedCornerShape(2.dp)),
+                                    .background(org.siloserver.silo.tv.ui.theme.animatedAccent(), androidx.compose.ui.graphics.RectangleShape),
                             )
                         }
                     }
@@ -355,4 +355,4 @@ const val TvCardOverlayScale: Float = 0.7f
 private val SleeveScaleEasing = CubicBezierEasing(0f, 0f, 0.2f, 1f)
 
 /** Hoisted so every card shares one instance instead of allocating a shape per composition. */
-private val TvMediaCardShape = RoundedCornerShape(10.dp)
+private val TvMediaCardShape: androidx.compose.ui.graphics.Shape get() = org.siloserver.silo.tv.ui.theme.VantageCard

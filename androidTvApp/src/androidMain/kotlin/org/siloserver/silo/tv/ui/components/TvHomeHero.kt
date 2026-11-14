@@ -142,6 +142,7 @@ internal fun TvHomeHeroPanel(
     onNext: (() -> Unit)? = null,
     /** Also focuses Resume; the feed sends Up from the hero row here. */
     resumeRequester: FocusRequester? = null,
+    seasonCount: Int? = null,
     modifier: Modifier = Modifier,
 ) {
     val resumeReq = resumeRequester ?: remember { FocusRequester() }
@@ -159,6 +160,7 @@ internal fun TvHomeHeroPanel(
             topPadding = org.siloserver.silo.tv.ui.theme.TvGrid.kickerTop - 2.dp,
             // No buttons any more: the text block runs down to just above the first row's title.
             bottomPadding = 0.dp,
+            seasonCount = seasonCount,
             modifier = Modifier.fillMaxSize(),
         )
     }
@@ -521,20 +523,22 @@ internal fun TvHeroPositionBar(
     modifier: Modifier = Modifier,
 ) {
     if (count <= 1) return
-    // Vantage pager: "1 / 6", then the current item as a long white dash filled by the timer.
+    // Vantage pager: a glass pill (as tall as the buttons) holding one dot per card, the current one a
+    // long white dash filled by the timer.
     Row(
-        horizontalArrangement = Arrangement.spacedBy(4.5.dp, Alignment.Start),
+        horizontalArrangement = Arrangement.spacedBy(5.25.dp, Alignment.Start),
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier,
+        modifier = modifier
+            .height(30.dp),
     ) {
         for (index in 0 until count) {
-            val width by androidx.compose.animation.core.animateDpAsState(if (index == current) 25.5.dp else 4.5.dp, label = "heroPagerWidth")
+            val width by androidx.compose.animation.core.animateDpAsState(if (index == current) 22.5.dp else 6.dp, label = "heroPagerWidth")
             Box(
                 Modifier
                     .width(width)
-                    .height(4.5.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(if (index < current) org.siloserver.silo.tv.ui.theme.Level.Fg.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.3f)),
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(if (index < current) org.siloserver.silo.tv.ui.theme.Level.Fg.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.32f)),
             ) {
                 if (index == current) Box(
                     Modifier
@@ -633,7 +637,7 @@ private fun AuroraActionPill(
                         accent.copy(alpha = if (focused) 0.55f else 0.15f),
                         androidx.compose.ui.geometry.Offset(-grow, -grow),
                         androidx.compose.ui.geometry.Size(size.width + grow * 2, size.height + grow * 2),
-                        androidx.compose.ui.geometry.CornerRadius(r, r),
+                        androidx.compose.ui.geometry.CornerRadius(org.siloserver.silo.tv.ui.theme.haloRadius(r), org.siloserver.silo.tv.ui.theme.haloRadius(r)),
                     )
                 }
             }
@@ -679,34 +683,30 @@ internal fun TvHeroBillboardBackdrop(content: TvMarqueeContent?, modifier: Modif
                         crossfadeMillis = 0,
                         modifier = Modifier.fillMaxSize(),
                     )
-                    // Left scrim: text sits on near-solid page colour that
-                    // opens out to the picture by the middle of the screen.
+                    // Left scrim: text sits on near-solid page colour that opens out to the picture by the
+                    // middle of the screen; a bottom fade into the rows; a light top shade for the menu.
+                    // Drawn as stretched strips (see gradientScrim), not gradient shaders.
                     Box(
-                        Modifier.fillMaxSize().background(
-                            Brush.horizontalGradient(
-                                0.00f to page.copy(alpha = 0.92f),
-                                0.38f to page.copy(alpha = 0.55f),
-                                0.68f to Color.Transparent,
-                            ),
+                        Modifier.fillMaxSize().gradientScrim(
+                            true,
+                            0.00f to page.copy(alpha = 0.92f),
+                            0.38f to page.copy(alpha = 0.55f),
+                            0.68f to page.copy(alpha = 0f),
                         ),
                     )
-                    // Bottom fade into the rows.
                     Box(
-                        Modifier.fillMaxSize().background(
-                            Brush.verticalGradient(
-                                0.45f to Color.Transparent,
-                                0.70f to page.copy(alpha = 0.6f),
-                                1.00f to page,
-                            ),
+                        Modifier.fillMaxSize().gradientScrim(
+                            false,
+                            0.45f to page.copy(alpha = 0f),
+                            0.70f to page.copy(alpha = 0.6f),
+                            1.00f to page,
                         ),
                     )
-                    // A light top shade keeps the menu legible on bright art.
                     Box(
-                        Modifier.fillMaxWidth().height(90.dp).background(
-                            Brush.verticalGradient(
-                                0.0f to page.copy(alpha = 0.65f),
-                                1.0f to Color.Transparent,
-                            ),
+                        Modifier.fillMaxWidth().height(90.dp).gradientScrim(
+                            false,
+                            0.0f to page.copy(alpha = 0.65f),
+                            1.0f to page.copy(alpha = 0f),
                         ),
                     )
                 }

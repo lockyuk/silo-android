@@ -280,7 +280,7 @@ private fun TvSeriesModeTab(
                 ambientColor = Color.White.copy(alpha = if (isFocused) 0.08f else 0f),
                 spotColor = Color.White.copy(alpha = if (isFocused) 0.08f else 0f),
             )
-            .height(22.dp)
+            .height(30.dp)
             // Same outward white focus outline as Play and the selector
             // controls, without changing this row's stable measurements.
             .seriesModeFocusRing(visible = isFocused)
@@ -299,15 +299,12 @@ private fun TvSeriesModeTab(
                 indication = null,
                 onClick = onActivated,
             )
-            .padding(horizontal = 6.dp),
+            .padding(horizontal = 15.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontSize = 14.sp,
-                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-            ),
+            style = org.siloserver.silo.tv.ui.components.vantage.ui(16, if (isSelected) FontWeight.SemiBold else FontWeight.Medium),
             color = labelColor,
             maxLines = 1,
         )
@@ -323,7 +320,7 @@ private fun Modifier.seriesModeFocusRing(visible: Boolean): Modifier = drawWithC
         color = Color.White.copy(alpha = 0.98f),
         topLeft = Offset(-inset, -inset),
         size = Size(size.width + inset * 2f, size.height + inset * 2f),
-        cornerRadius = CornerRadius((size.height + inset * 2f) / 2f),
+        cornerRadius = CornerRadius(org.siloserver.silo.tv.ui.theme.haloRadius((size.height + inset * 2f) / 2f)),
         style = Stroke(width = stroke),
     )
 }

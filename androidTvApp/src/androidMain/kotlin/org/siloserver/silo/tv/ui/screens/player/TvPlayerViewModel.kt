@@ -856,6 +856,8 @@ class TvPlayerViewModel(
     trickplayManifests: org.siloserver.silo.playback.trickplay.TrickplayManifestSource? = null,
     /** Stamps the series return with the identity generation it was recorded under. */
     private val identityTransitions: org.siloserver.silo.network.IdentityTransitionBarrier? = null,
+    /** Marks an episode watched the moment its credits or end are reached, so the next one is queued even if the TV is switched off right there. */
+    private val personalDataRepository: org.siloserver.silo.repository.PersonalDataRepository? = null,
 ) : ViewModel() {
 
     companion object {
@@ -1769,6 +1771,7 @@ class TvPlayerViewModel(
     // The credits or the end of this item was reached. Unlike autoAdvanceHandled,
     // opening Up Next by hand or Keep Watching never sets it.
     private var reachedCreditsOrEnd = false
+    private var markedFinishedAtCredits = false
     // The identity generation this player was launched under.
     private val launchIdentityGeneration: Long? = identityTransitions?.generation?.value
     private val nextUpTransitionGate = NextUpTransitionGate()
@@ -4793,6 +4796,7 @@ class TvPlayerViewModel(
         autoTextSubtitleSelectionAttempted = false
         autoAdvanceHandled = false
         reachedCreditsOrEnd = false
+        markedFinishedAtCredits = false
         pendingApproachingEndVideoEnded = null
         episodeSelectionHandoffSlot.invalidate()
         _uiState.update { it.copy(contentId = newContentId, nextEpisode = null) }
@@ -5278,6 +5282,13 @@ class TvPlayerViewModel(
         // Recorded before the once-per-item guard below, which Keep Watching on
         // a hand-opened Up Next also sets.
         reachedCreditsOrEnd = true
+        // An episode that reached its credits counts as watched now: if the TV is switched off
+        // on this screen, Continue Watching still offers the next episode.
+        if (!markedFinishedAtCredits && _uiState.value.seriesId != null && contentId.isNotBlank()) {
+            markedFinishedAtCredits = true
+            val finishedId = contentId
+            viewModelScope.launch { runCatching { personalDataRepository?.setWatched(finishedId, true) } }
+        }
         if (shufflePlayback != null) {
             // A multi-part pick plays its later parts before the shuffle moves on.
             shuffleNextPartFileId?.let { fileId ->
@@ -5552,6 +5563,7 @@ class TvPlayerViewModel(
             autoAdvanceCount = nextAutoAdvanceCount
             autoAdvanceHandled = false
             reachedCreditsOrEnd = false
+            markedFinishedAtCredits = false
             pendingApproachingEndVideoEnded = null
             shuffleNextPartFileId = null
             shuffleRefreshedForPostRoll = false

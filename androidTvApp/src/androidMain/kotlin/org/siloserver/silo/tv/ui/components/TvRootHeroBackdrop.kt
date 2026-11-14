@@ -118,24 +118,7 @@ fun TvRootHeroBackdrop(
             .fillMaxSize()
             .auroraBackground(),
     ) {
-        // Diagonal sampled-tint wash: richest in the top-right behind the art,
-        // carried dimmed to the bottom-left (tvOS stops 1.0 / 0.5 / 0.18).
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val displayedTint = if (animateTransition) animatedTint.value else targetAccent
-            drawRect(
-                brush = Brush.linearGradient(
-                    colorStops = smoothedWashStops(
-                        tint = displayedTint,
-                        leadingAlpha = leadingWashAlpha,
-                        midAlpha = midWashAlpha,
-                        trailingAlpha = trailingWashAlpha,
-                    ),
-                    start = Offset(size.width, 0f),
-                    end = Offset(0f, size.height),
-                ),
-            )
-        }
-
+        // (The sampled-tint wash was drawn at zero strength, a full-screen gradient pass for nothing; removed.)
         if (hasTintOnlyWash || hasEmptyWash) {
             DitheredWashOverlay(
                 alpha = if (hasEmptyWash) EmptyWashDitherAlpha else TintOnlyDitherAlpha,
@@ -212,21 +195,19 @@ private fun CornerAnchoredArt(
         )
         val bg = org.siloserver.silo.tv.ui.theme.Level.Bg
         Box(
-            Modifier.fillMaxSize().background(
-                Brush.horizontalGradient(
-                    0.00f to bg.copy(alpha = 0.92f),
-                    0.38f to bg.copy(alpha = 0.55f),
-                    0.68f to Color.Transparent,
-                ),
+            Modifier.fillMaxSize().gradientScrim(
+                true,
+                0.00f to bg.copy(alpha = 0.92f),
+                0.38f to bg.copy(alpha = 0.55f),
+                0.68f to bg.copy(alpha = 0f),
             ),
         )
         Box(
-            Modifier.fillMaxSize().background(
-                Brush.verticalGradient(
-                    0.45f to Color.Transparent,
-                    0.70f to bg.copy(alpha = 0.6f),
-                    1.00f to bg,
-                ),
+            Modifier.fillMaxSize().gradientScrim(
+                false,
+                0.45f to bg.copy(alpha = 0f),
+                0.70f to bg.copy(alpha = 0.6f),
+                1.00f to bg,
             ),
         )
     }

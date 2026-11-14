@@ -150,6 +150,8 @@ import org.siloserver.silo.tv.ui.components.TvOptionDialog
 import org.siloserver.silo.tv.ui.components.TvPillVariant
 import org.siloserver.silo.tv.ui.components.TvPrimaryPillButton
 import org.siloserver.silo.tv.ui.components.TvRowStyle
+import org.siloserver.silo.tv.ui.components.gradientScrim
+import org.siloserver.silo.tv.ui.components.gradientScrimAlpha
 import org.siloserver.silo.tv.ui.components.TvSquareToggleButton
 import org.siloserver.silo.tv.ui.components.rememberAmbientBackdropTintState
 import org.siloserver.silo.tv.ui.focus.TvObservedFocusResult
@@ -971,21 +973,20 @@ private fun TvDetailContent(
                 modifier = Modifier.fillMaxSize(),
             )
             Box(
-                Modifier.fillMaxSize().background(
-                    Brush.horizontalGradient(
-                        0.00f to bg.copy(alpha = 0.88f),
-                        0.45f to bg.copy(alpha = 0.45f),
-                        0.75f to bg.copy(alpha = 0.08f),
-                    ),
+                Modifier.fillMaxSize().gradientScrim(
+                    true,
+                    0.00f to bg.copy(alpha = 0.88f),
+                    0.45f to bg.copy(alpha = 0.45f),
+                    0.75f to bg.copy(alpha = 0.08f),
                 ),
             )
             Box(
-                Modifier.fillMaxSize().graphicsLayer { alpha = 0.55f + 0.35f * softAlpha }.background(
-                    Brush.verticalGradient(
-                        0.35f to Color.Transparent,
-                        0.75f to bg.copy(alpha = 0.55f),
-                        1.00f to bg.copy(alpha = 0.85f),
-                    ),
+                Modifier.fillMaxSize().gradientScrimAlpha(
+                    false,
+                    { 0.55f + 0.35f * softAlpha },
+                    0.35f to bg.copy(alpha = 0f),
+                    0.75f to bg.copy(alpha = 0.55f),
+                    1.00f to bg.copy(alpha = 0.85f),
                 ),
             )
         }
@@ -1024,6 +1025,10 @@ private fun TvDetailContent(
                             backdropUrl = null,
                             backdropThumbhash = null,
                             sourceTokens = heroSourceTokens,
+                            episodeKicker = activeSeriesEpisode?.let { Triple("Season ${it.seasonNumber}", "Episode ${it.episodeNumber}", it.title.orEmpty()) }
+                                ?: if (detail.type == "episode" && detail.seasonNumber != null && detail.episodeNumber != null) {
+                                    Triple("Season ${detail.seasonNumber}", "Episode ${detail.episodeNumber}", detail.title)
+                                } else null,
                             ratingChip = TvDetailMetadata.ratingChip(detail),
                             overview = heroOverview,
                             tagline = detail.tagline.takeIf { activeSeriesEpisode == null },
@@ -1485,6 +1490,7 @@ private fun TvDetailContent(
                                 val similarTitle = if (isSeriesDetail) "Recommended Series" else "Related Movies"
                                 TvDetailSectionHeader(
                                     title = similarTitle,
+                                    note = "similar titles",
                                     modifier = Modifier.padding(horizontal = TvDetailHorizontalInset),
                                 )
                                 TvMediaRow(

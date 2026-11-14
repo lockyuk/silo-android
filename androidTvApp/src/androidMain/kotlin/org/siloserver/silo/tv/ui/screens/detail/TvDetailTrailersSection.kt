@@ -75,6 +75,7 @@ internal fun TvDetailTrailersSection(
     ) {
         TvDetailSectionHeader(
             title = "Trailers & More",
+            note = "${entries.size} videos",
             modifier = Modifier.padding(horizontal = TvDetailHorizontalInset),
         )
         TvRailScrollBehavior {
@@ -135,7 +136,7 @@ private fun TvDetailTrailerCard(
         animationSpec = tween(180),
         label = "trailerCardScale",
     )
-    val cardShape = RoundedCornerShape(9.dp)
+    val cardShape = org.siloserver.silo.tv.ui.theme.VantageCard
 
     Column(
         modifier = modifier

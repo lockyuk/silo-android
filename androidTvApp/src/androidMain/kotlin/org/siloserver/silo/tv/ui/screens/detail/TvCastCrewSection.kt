@@ -119,6 +119,7 @@ fun TvCastCrewSection(
     ) {
         TvDetailSectionHeader(
             title = "Cast",
+            note = if (cast.size > visibleCast.size) "${visibleCast.size} of ${cast.size}" else "${cast.size} people",
             modifier = Modifier.padding(horizontal = horizontalContentPadding),
         )
 
@@ -222,13 +223,13 @@ internal fun TvCastCard(
     val accent = org.siloserver.silo.tv.ui.theme.animatedAccent()
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
-    val face = (96 * 0.75f).dp
+    val face = (112 * 0.75f).dp
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
         modifier = cardModifier
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-            .width((104 * 0.75f).dp)
+            .width((128 * 0.75f).dp)
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
     ) {
         Box(
@@ -236,12 +237,12 @@ internal fun TvCastCard(
                 .size(face)
                 .then(
                     if (isFocused) Modifier.drawBehind {
-                        drawCircle(accent.copy(alpha = 0.5f), radius = size.minDimension / 2 + 7.dp.toPx())
+                        drawRect(accent.copy(alpha = 0.5f), topLeft = androidx.compose.ui.geometry.Offset(-6.dp.toPx(), -6.dp.toPx()), size = androidx.compose.ui.geometry.Size(size.width + 12.dp.toPx(), size.height + 12.dp.toPx()))
                     } else Modifier,
                 )
-                .clip(CircleShape)
+                .clip(org.siloserver.silo.tv.ui.theme.VantageCard)
                 .background(DarkSurfaceElevated)
-                .border(if (isFocused) 2.25.dp else 1.5.dp, if (isFocused) L.Fg else Color.White.copy(alpha = 0.15f), CircleShape),
+                .border(if (isFocused) 2.25.dp else 1.5.dp, if (isFocused) L.Fg else Color.White.copy(alpha = 0.15f), org.siloserver.silo.tv.ui.theme.VantageCard),
             contentAlignment = Alignment.Center,
         ) {
             if (!member.photoUrl.isNullOrBlank()) {
@@ -288,6 +289,6 @@ private fun Modifier.androidxDrawHalo(on: Boolean, accent: Color): Modifier =
             accent.copy(alpha = 0.5f),
             topLeft = androidx.compose.ui.geometry.Offset(-grow, -grow),
             size = androidx.compose.ui.geometry.Size(size.width + grow * 2, size.height + grow * 2),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(org.siloserver.silo.tv.ui.theme.haloRadius(r), org.siloserver.silo.tv.ui.theme.haloRadius(r)),
         )
     }

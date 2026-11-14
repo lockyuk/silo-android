@@ -115,16 +115,39 @@ val LevelDisplayFamily = VantageUiFamily
 val LevelMonoFamily = VantageMonoFamily
 val LevelBodyFamily = VantageUiFamily
 
+/** The shape style: square corners everywhere (the chosen style). The other two are kept for later. */
+object ChamferMode { @Volatile var on: Boolean = false; @Volatile var rect: Boolean = true }
+
+/** Corner radius for a halo drawn around a control: square in the rectangular style. */
+fun haloRadius(r: Float): Float = if (ChamferMode.rect) 0f else r
+
+/** A rectangle with its four corners cut off diagonally by [cut]. */
+class ChamferShape(private val cut: androidx.compose.ui.unit.Dp) : Shape {
+    override fun createOutline(
+        size: androidx.compose.ui.geometry.Size,
+        layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+        density: androidx.compose.ui.unit.Density,
+    ): androidx.compose.ui.graphics.Outline {
+        val c = with(density) { cut.toPx() }.coerceAtMost(minOf(size.width, size.height) / 2f)
+        val path = androidx.compose.ui.graphics.Path().apply {
+            moveTo(c, 0f); lineTo(size.width - c, 0f); lineTo(size.width, c)
+            lineTo(size.width, size.height - c); lineTo(size.width - c, size.height)
+            lineTo(c, size.height); lineTo(0f, size.height - c); lineTo(0f, c); close()
+        }
+        return androidx.compose.ui.graphics.Outline.Generic(path)
+    }
+}
+
 /** Pill / circle: every control, chip, tab and avatar. */
-val VantagePill: Shape = RoundedCornerShape(percent = 50)
+val VantagePill: Shape get() = if (ChamferMode.rect) androidx.compose.ui.graphics.RectangleShape else if (ChamferMode.on) ChamferShape(8.dp) else RoundedCornerShape(percent = 50)
 /** Cards and artwork (14px in the mock-up). */
-val VantageCard: Shape = RoundedCornerShape(10.dp)
+val VantageCard: Shape get() = if (ChamferMode.rect) androidx.compose.ui.graphics.RectangleShape else if (ChamferMode.on) ChamferShape(7.dp) else RoundedCornerShape(10.dp)
 /** Glass panels (18px in the mock-up). */
-val VantagePanel: Shape = RoundedCornerShape(14.dp)
+val VantagePanel: Shape get() = if (ChamferMode.rect) androidx.compose.ui.graphics.RectangleShape else if (ChamferMode.on) ChamferShape(10.dp) else RoundedCornerShape(14.dp)
 
 // Previous names: the chamfers became pills and rounded cards.
-val LevelChamfer: Shape = VantagePill
-val LevelChamferLarge: Shape = VantageCard
+val LevelChamfer: Shape get() = VantagePill
+val LevelChamferLarge: Shape get() = VantageCard
 
 /** The Vantage ground. */
 fun Modifier.levelBackground(): Modifier = this.background(Level.Bg)

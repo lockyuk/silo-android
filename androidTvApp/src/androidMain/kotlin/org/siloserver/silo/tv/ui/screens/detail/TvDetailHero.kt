@@ -3,6 +3,7 @@ package org.siloserver.silo.tv.ui.screens.detail
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -99,6 +100,8 @@ internal fun TvDetailHero(
     onSynopsisPillPresent: ((Boolean) -> Unit)? = null,
     /** Vantage: the Details and Your progress glass cards at the top right. */
     sidePanel: (@Composable () -> Unit)? = null,
+    /** An episode on screen: its season, episode number and name, shown as "Season 2 | Episode 4 | Name". */
+    episodeKicker: Triple<String, String, String>? = null,
 ) {
     val grid = org.siloserver.silo.tv.ui.theme.TvGrid
     val seriesContext = seriesTitle?.trim()?.takeIf { it.isNotEmpty() }
@@ -152,11 +155,30 @@ internal fun TvDetailHero(
                 .width(grid.leftW)
                 .height(grid.kickerH),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            sourceTokens.take(3).forEach { org.siloserver.silo.tv.ui.components.vantage.VChip(it.uppercase()) }
-            if (seriesContext != null) {
-                org.siloserver.silo.tv.ui.components.vantage.VTag(title)
+            if (episodeKicker != null) {
+                val bar = @androidx.compose.runtime.Composable {
+                    Box(Modifier.width(1.5.dp).height(14.dp).background(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.45f)))
+                }
+                val mono = { t: String -> org.siloserver.silo.tv.ui.components.vantage.mono(12, androidx.compose.ui.text.font.FontWeight.SemiBold, org.siloserver.silo.tv.ui.theme.Level.Fg, 0.12f) }
+                androidx.tv.material3.Text(episodeKicker.first.uppercase(), style = mono(""), maxLines = 1)
+                bar()
+                androidx.tv.material3.Text(episodeKicker.second.uppercase(), style = mono(""), maxLines = 1)
+                if (episodeKicker.third.isNotBlank()) {
+                    bar()
+                    androidx.tv.material3.Text(
+                        episodeKicker.third,
+                        style = org.siloserver.silo.tv.ui.components.vantage.ui(14, androidx.compose.ui.text.font.FontWeight.Medium),
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                }
+            } else {
+                sourceTokens.take(3).forEach { org.siloserver.silo.tv.ui.components.vantage.VChip(it.uppercase()) }
+                if (seriesContext != null) {
+                    org.siloserver.silo.tv.ui.components.vantage.VTag(title)
+                }
             }
         }
 
@@ -185,8 +207,8 @@ internal fun TvDetailHero(
             modifier = Modifier
                 .offset(x = grid.edge, y = grid.factsTop)
                 .width(grid.leftW)
-                .height(grid.factsH)
-                .clipToBounds(),
+                // Not clipped: the TMDB logo and score chips are taller than the line and were cut.
+                .height(grid.factsH),
             contentAlignment = Alignment.CenterStart,
         ) {
             MetadataRow(
@@ -544,25 +566,17 @@ private fun MetadataRow(
             color = org.siloserver.silo.tv.ui.theme.Level.Dim,
         ),
     )
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        TvFactsRow(
-            tokens = factTokens + sourceTokens.map { TvHeroFactToken.TextToken(it, givesWayFirst = true) },
-            style = style,
-            dividerColor = Color.White.copy(alpha = 0.45f),
-            ratingsDropFirst = true,
-            leading = ratingChip?.takeIf { it.isNotBlank() }?.let { rating ->
-                { RatingChip(text = rating, compact = compactRating) }
-            },
-        )
-        if (ratingTokens.isNotEmpty()) {
-            TvFactsRow(
-                tokens = ratingTokens,
-                style = style,
-                dividerColor = Color.White.copy(alpha = 0.45f),
-                ratingsDropFirst = true,
-            )
-        }
-    }
+    // One line: the certificate, the facts, then the ratings. The facts box is a fixed height, so a
+    // second row of ratings under it was clipped away.
+    TvFactsRow(
+        tokens = factTokens + ratingTokens + sourceTokens.map { TvHeroFactToken.TextToken(it, givesWayFirst = true) },
+        style = style,
+        dividerColor = Color.White.copy(alpha = 0.45f),
+        ratingsDropFirst = true,
+        leading = ratingChip?.takeIf { it.isNotBlank() }?.let { rating ->
+            { RatingChip(text = rating, compact = compactRating) }
+        },
+    )
 }
 
 @Composable

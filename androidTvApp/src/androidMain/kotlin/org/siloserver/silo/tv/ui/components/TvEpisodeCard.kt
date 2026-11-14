@@ -170,13 +170,13 @@ fun TvEpisodeCard(
                             .padding(start = 7.5.dp, end = 7.5.dp, bottom = 7.dp)
                             .fillMaxWidth()
                             .height(3.dp)
-                            .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(2.dp)),
+                            .background(Color.Black.copy(alpha = 0.55f), androidx.compose.ui.graphics.RectangleShape),
                     ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(progress.coerceIn(0f, 1f))
                                 .height(3.dp)
-                                .background(org.siloserver.silo.tv.ui.theme.animatedAccent(), RoundedCornerShape(2.dp)),
+                                .background(org.siloserver.silo.tv.ui.theme.animatedAccent(), androidx.compose.ui.graphics.RectangleShape),
                         )
                     }
                 }
@@ -248,7 +248,7 @@ val TvEpisodeCardWidth: Dp = org.siloserver.silo.tv.ui.theme.TvGrid.cardW
 fun tvEpisodeCardWidth(): Dp = TvEpisodeCardWidth.cardScaled()
 
 /** Hoisted so every card shares one instance instead of allocating a shape per composition. */
-private val TvEpisodeCardShape = RoundedCornerShape(10.dp)
+private val TvEpisodeCardShape: androidx.compose.ui.graphics.Shape get() = org.siloserver.silo.tv.ui.theme.VantageCard
 
 /** Unscaled: 8dp side inset + 3dp progress bar, scaled by [TvCardOverlayScale]. */
 private val TvEpisodeCardOverlayBottomInset = 12.dp

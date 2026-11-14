@@ -123,7 +123,7 @@ internal fun TvSeriesEpisodeRailSkeleton() {
             ) {
                 Box(
                     Modifier.width(cardWidth).height(cardWidth * (9f / 16f))
-                        .background(DarkSurfaceElevated, RoundedCornerShape(8.dp)),
+                        .background(DarkSurfaceElevated, org.siloserver.silo.tv.ui.theme.VantageCard),
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(SeriesCaptionLineGap)) {
                     Box(
@@ -411,7 +411,7 @@ private fun TvEpisodeBoundaryPlaceholder(failed: Boolean) {
     ) {
         Box(
             Modifier.fillMaxWidth().height(tvEpisodeCardWidth() * (9f / 16f))
-                .background(DarkSurfaceElevated, RoundedCornerShape(8.dp)),
+                .background(DarkSurfaceElevated, org.siloserver.silo.tv.ui.theme.VantageCard),
             contentAlignment = Alignment.Center,
         ) {
             Text(
@@ -445,7 +445,7 @@ private fun TvDetailEpisodeCard(
         ?.takeIf { it.isNotBlank() && !spoilers.hidesOverview(unwatched) }
     val stillHeight = if (usesSeriesGeometry) cardWidth * (9f / 16f) else 130.dp.cardScaled()
     val cornerRadius = if (usesSeriesGeometry) 8.dp else 5.dp
-    val shape = RoundedCornerShape(cornerRadius)
+    val shape = org.siloserver.silo.tv.ui.theme.VantageCard
 
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()

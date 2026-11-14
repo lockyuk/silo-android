@@ -26,6 +26,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.text.font.FontWeight
@@ -88,6 +89,22 @@ internal fun TvPersonGridPage(
     val grid = TvGrid
 
     Box(Modifier.fillMaxSize()) {
+        // The headshot sits behind the text, fading out to the left and the bottom.
+        if (!person.photoUrl.isNullOrBlank()) {
+            Box(
+                Modifier.offset(x = 0.mx, y = 0.mx).size(650.mx, 720.mx).clipToBounds()
+                    .drawWithContent {
+                        drawContent()
+                        drawRect(androidx.compose.ui.graphics.Brush.horizontalGradient(0f to Level.Bg.copy(alpha = 0.55f), 0.5f to Level.Bg.copy(alpha = 0.45f), 1f to Level.Bg.copy(alpha = 0.85f)))
+                        drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(0.55f to androidx.compose.ui.graphics.Color.Transparent, 1f to Level.Bg))
+                    },
+            ) {
+                ThumbhashImage(
+                    url = person.photoUrl, thumbhash = person.photoThumbhash, contentDescription = null,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
         // Kicker.
         Row(
             Modifier.offset(x = grid.edge, y = grid.kickerTop).width(grid.leftW).height(grid.kickerH),
@@ -113,24 +130,8 @@ internal fun TvPersonGridPage(
             badges.filter { it.endsWith("years old") }.forEach { VChip(it.uppercase(), tone = ChipTone.Solid) }
             if (all.isNotEmpty()) VChip("$inLibrary IN LIBRARY")
         }
-        // Headshot, beside the biography.
-        Box(
-            Modifier.offset(x = grid.edge + 452.mx, y = grid.synopsisTop).size(104.mx, 139.mx)
-                .clip(RoundedCornerShape(12.mx)).background(androidx.compose.ui.graphics.Color(0xFF151824))
-                .border(1.5.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.mx)),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (!person.photoUrl.isNullOrBlank()) {
-                ThumbhashImage(
-                    url = person.photoUrl, thumbhash = person.photoThumbhash, contentDescription = person.name,
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize(),
-                )
-            } else {
-                Text(person.name.split(" ").mapNotNull { it.firstOrNull() }.take(2).joinToString("").uppercase(), style = ui(30, FontWeight.SemiBold, Level.Dim))
-            }
-        }
         // Biography: five lines.
-        Box(Modifier.offset(x = grid.edge, y = grid.synopsisTop).width(440.mx).height(grid.synopsisH).clipToBounds()) {
+        Box(Modifier.offset(x = grid.edge, y = grid.synopsisTop).width(560.mx).height(grid.synopsisH).clipToBounds()) {
             val bio = cleanPersonBio(person.bio)
             Text(
                 bio ?: "No biography or personal details are available yet.",

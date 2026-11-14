@@ -1,5 +1,7 @@
 package org.siloserver.silo.tv.ui.screens.detail
 
+import org.siloserver.silo.tv.ui.components.gradientScrim
+import org.siloserver.silo.tv.ui.components.gradientScrimAlpha
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -281,17 +283,16 @@ internal fun TvVantagePageBackdrop(
         contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize(),
     )
     androidx.compose.foundation.layout.Box(
-        Modifier.fillMaxSize().background(
-            androidx.compose.ui.graphics.Brush.horizontalGradient(
-                0.00f to bg.copy(alpha = 0.88f), 0.45f to bg.copy(alpha = 0.45f), 0.75f to bg.copy(alpha = 0.08f),
-            ),
+        Modifier.fillMaxSize().gradientScrim(
+            true,
+            0.00f to bg.copy(alpha = 0.88f), 0.45f to bg.copy(alpha = 0.45f), 0.75f to bg.copy(alpha = 0.08f),
         ),
     )
     androidx.compose.foundation.layout.Box(
-        Modifier.fillMaxSize().androidx_graphicsAlpha(0.55f + 0.35f * softAlpha).background(
-            androidx.compose.ui.graphics.Brush.verticalGradient(
-                0.35f to androidx.compose.ui.graphics.Color.Transparent, 0.75f to bg.copy(alpha = 0.55f), 1.00f to bg.copy(alpha = 0.85f),
-            ),
+        Modifier.fillMaxSize().gradientScrimAlpha(
+            false,
+            { 0.55f + 0.35f * softAlpha },
+            0.35f to bg.copy(alpha = 0f), 0.75f to bg.copy(alpha = 0.55f), 1.00f to bg.copy(alpha = 0.85f),
         ),
     )
 }

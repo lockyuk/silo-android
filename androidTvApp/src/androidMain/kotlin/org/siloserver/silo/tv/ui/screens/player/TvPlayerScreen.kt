@@ -2,6 +2,7 @@
 
 package org.siloserver.silo.tv.ui.screens.player
 
+import org.siloserver.silo.tv.ui.components.gradientScrim
 import org.siloserver.silo.tv.ui.components.vantage.ChipTone
 import org.siloserver.silo.tv.ui.components.vantage.VButton
 import org.siloserver.silo.tv.ui.components.vantage.VChip
@@ -2403,6 +2404,8 @@ fun TvPlayerScreen(
                             ?.let { row -> tvSubtitleRowParts(row.label).title }
                             ?: "Off",
                         audioValue = state.audioTracks.firstOrNull { it.isSelected }?.displayLabel,
+                        seasonNumber = state.seasonNumber,
+                        episodeNumber = state.episodeNumber,
                         onOpenAudio = {
                             requestedHudTab = HudTab.Audio
                             viewModel.openHUD()
@@ -3092,6 +3095,9 @@ private fun TvPlayerIdleOverlay(
     audioValue: String? = null,
     onOpenAudio: () -> Unit = {},
     onOpenSpeed: () -> Unit = {},
+    // "Season 1 | Episode 2 | Name" on the top-left line for an episode.
+    seasonNumber: Int? = null,
+    episodeNumber: Int? = null,
     positionSec: Double,
     durationSec: Double,
     isPaused: Boolean,
@@ -3224,12 +3230,11 @@ private fun TvPlayerIdleOverlay(
                 .fillMaxWidth()
                 .height(270.dp)
                 .align(Alignment.BottomCenter)
-                .background(
-                    Brush.verticalGradient(
-                        0.00f to Color.Transparent,
-                        0.56f to Color.Black.copy(alpha = 0.55f),
-                        1.00f to Color.Black.copy(alpha = 0.86f),
-                    ),
+                .gradientScrim(
+                    false,
+                    0.00f to Color.Black.copy(alpha = 0f),
+                    0.56f to Color.Black.copy(alpha = 0.55f),
+                    1.00f to Color.Black.copy(alpha = 0.86f),
                 ),
         )
 
@@ -3242,11 +3247,10 @@ private fun TvPlayerIdleOverlay(
                 .fillMaxWidth()
                 .height(200.mx)
                 .align(Alignment.TopCenter)
-                .background(
-                    Brush.verticalGradient(
-                        0.0f to Color.Black.copy(alpha = 0.72f),
-                        1.0f to Color.Transparent,
-                    ),
+                .gradientScrim(
+                    false,
+                    0.0f to Color.Black.copy(alpha = 0.72f),
+                    1.0f to Color.Black.copy(alpha = 0f),
                 ),
         )
         if (logoShown) {
@@ -3269,10 +3273,11 @@ private fun TvPlayerIdleOverlay(
         if (title.isNotBlank()) {
             val chapterIndex = chapters.indexOfLast { it.startSeconds <= positionSec }
             val place = buildList {
-                (if (logoShown) episodeCode else eyebrow)?.takeIf { it.isNotBlank() }?.let { add(it) }
+                if (seasonNumber == null || episodeNumber == null) (if (logoShown) episodeCode else eyebrow)?.takeIf { it.isNotBlank() }?.let { add(it) }
                 if (chapters.isNotEmpty() && chapterIndex >= 0) add("Chapter ${chapterIndex + 1} of ${chapters.size}")
                 chapters.getOrNull(chapterIndex)?.title?.takeIf { it.isNotBlank() }?.let { add(it) }
-            }.joinToString(" \u00B7 ")
+            }.joinToString(" | ")
+            val heading = if (seasonNumber != null && episodeNumber != null) "Season $seasonNumber | Episode $episodeNumber | $title" else title
             Column(
                 modifier = Modifier
                     .align(Alignment.TopStart)
@@ -3280,7 +3285,7 @@ private fun TvPlayerIdleOverlay(
                 verticalArrangement = Arrangement.spacedBy(6.mx),
             ) {
                 androidx.tv.material3.Text(
-                    text = title,
+                    text = heading,
                     style = org.siloserver.silo.tv.ui.components.vantage.ui(18, androidx.compose.ui.text.font.FontWeight.SemiBold),
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
@@ -3653,7 +3658,12 @@ private fun TvPlayerNextUpOverlay(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.mx), verticalAlignment = Alignment.CenterVertically) {
                             VKicker(eyebrow)
                             shuffle?.scopeLabel?.let { VChip("Shuffling $it") }
-                            if (nextEpisode != null && countdownSeconds != null) VChip("Playing in $countdownSeconds s", ChipTone.Good, dot = true)
+                            if (nextEpisode != null && countdownSeconds != null) Box(
+                                Modifier
+                                    .background(Color.White.copy(alpha = 0.10f), org.siloserver.silo.tv.ui.theme.VantagePill)
+                                    .border(1.5.dp, Level.Good.copy(alpha = 0.8f), org.siloserver.silo.tv.ui.theme.VantagePill)
+                                    .padding(horizontal = 12.dp, vertical = 5.dp),
+                            ) { Text("Playing in $countdownSeconds s", style = mono(12, androidx.compose.ui.text.font.FontWeight.SemiBold, Level.Good), maxLines = 1) }
                         }
                         if (nextEpisode != null) {
                             val heading = nextEpisode.seriesTitle?.takeIf { it.isNotBlank() }
@@ -3671,12 +3681,12 @@ private fun TvPlayerNextUpOverlay(
                                 Text(it, style = ui(16, color = Level.Dim), maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(560.mx))
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(12.mx), verticalAlignment = Alignment.CenterVertically) {
-                                VButton("Play now", onPlayNow, primary = true, small = countdownSeconds?.let { "$it s" }, height = 46.mx, focusRequester = primaryFocus)
-                                if (shuffle != null) VButton("Pick another", onPickAnother, height = 46.mx)
-                                if (!videoEnded) VButton("Keep watching", onKeepWatching, height = 46.mx)
-                                VButton("Auto-play ${if (autoPlayEnabled) "on" else "off"}", onToggleAutoPlay, height = 46.mx)
-                                VButton("Back", onBack, height = 46.mx)
-                                if (shuffle != null) VButton("Stop shuffling", onStopShuffling, height = 46.mx)
+                                VButton("Play now", onPlayNow, primary = true, small = countdownSeconds?.let { "$it s" }, height = 40.mx, focusRequester = primaryFocus)
+                                if (shuffle != null) VButton("Pick another", onPickAnother, height = 40.mx)
+                                if (!videoEnded) VButton("Keep watching", onKeepWatching, height = 40.mx)
+                                VButton("Auto-play ${if (autoPlayEnabled) "on" else "off"}", onToggleAutoPlay, height = 40.mx)
+                                VButton("Back", onBack, height = 40.mx)
+                                if (shuffle != null) VButton("Stop shuffling", onStopShuffling, height = 40.mx)
                             }
                             shuffle?.message?.let { Text(it, style = mono(12, color = Level.Bad)) }
                         } else {
@@ -3684,10 +3694,10 @@ private fun TvPlayerNextUpOverlay(
                             Text(if (shuffle != null) "Nothing else in this shuffle can play." else "No next episode is available.", style = ui(16, color = Level.Dim))
                             Row(horizontalArrangement = Arrangement.spacedBy(12.mx)) {
                                 if (!videoEnded) {
-                                    VButton("Keep watching", onKeepWatching, primary = true, height = 46.mx, focusRequester = primaryFocus)
-                                    VButton("Back", onBack, height = 46.mx)
+                                    VButton("Keep watching", onKeepWatching, primary = true, height = 40.mx, focusRequester = primaryFocus)
+                                    VButton("Back", onBack, height = 40.mx)
                                 } else {
-                                    VButton("Back", onBack, primary = true, height = 46.mx, focusRequester = primaryFocus)
+                                    VButton("Back", onBack, primary = true, height = 40.mx, focusRequester = primaryFocus)
                                 }
                             }
                         }
@@ -3703,11 +3713,11 @@ private fun TvPlayerNextUpOverlay(
                                 paneBoundsInRoot = it.boundsInRoot()
                                 onVideoBoundsChanged(it.videoViewportBounds())
                             }
-                            .clip(RoundedCornerShape(14.dp))
+                                                        .clip(org.siloserver.silo.tv.ui.theme.VantageCard)
                             .border(
                                 width = 2.dp,
                                 color = Color.White.copy(alpha = 0.16f),
-                                shape = RoundedCornerShape(14.dp),
+                                shape = org.siloserver.silo.tv.ui.theme.VantageCard,
                             ),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -3778,11 +3788,10 @@ private fun TvNextUpBackdrop(url: String?, thumbhash: String?, hole: () -> andro
         Box(
             Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        0.55f to Color.Transparent,
-                        1f to Color.Black.copy(alpha = 0.85f),
-                    ),
+                .gradientScrim(
+                    false,
+                    0.55f to Color.Black.copy(alpha = 0f),
+                    1f to Color.Black.copy(alpha = 0.85f),
                 ),
         )
     }
