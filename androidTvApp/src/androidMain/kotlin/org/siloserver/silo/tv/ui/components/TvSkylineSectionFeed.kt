@@ -534,8 +534,9 @@ fun TvSkylineSectionFeed(
     val heroPreload = remember(density) {
         with(density) {
             HeroPreloadSizes(
-                backdropWidth = TvArtworkDimens.HeroArtWidth.roundToPx(),
-                backdropHeight = TvArtworkDimens.HeroArtHeight.roundToPx(),
+                // Vantage hero: the backdrop is full bleed.
+                backdropWidth = 960.dp.roundToPx(),
+                backdropHeight = 540.dp.roundToPx(),
                 logoWidth = TvArtworkDimens.MarqueeLogoWidth.roundToPx(),
                 logoHeight = TvArtworkDimens.MarqueeLogoHeight.roundToPx(),
             )
@@ -1179,7 +1180,8 @@ fun TvSkylineSectionFeed(
                 startPadding = org.siloserver.silo.tv.ui.theme.TvGrid.edge,
                 // The hero block hangs from the shared title-page grid: the kicker always at y84.
                 topPadding = org.siloserver.silo.tv.ui.theme.TvGrid.kickerTop - 2.dp,
-                bottomPadding = refBandHeight + TvSkylineMarqueeBottomGap + TvSkylineHeroTextRaise + (if (actionsMode) TvSkylineActionsBlock else 0.dp),
+                // The hero block has fixed grid heights; nothing to clip against.
+                bottomPadding = 0.dp,
                 eyebrow = if (actionsMode) rows.firstOrNull()?.title else null,
                 modifier = Modifier
                     // No page offset: the hero block sits at fixed grid coordinates.
@@ -1193,7 +1195,7 @@ fun TvSkylineSectionFeed(
                     current = focusedItemIndex.coerceIn(0, heroPagerCount - 1),
                     progress = { rowTimer.value },
                     modifier = Modifier
-                        .offset(x = org.siloserver.silo.tv.ui.theme.TvGrid.edge, y = 300.dp)
+                        .offset(x = org.siloserver.silo.tv.ui.theme.TvGrid.edge, y = 327.dp)
                         .height(4.5.dp)
                         .fillMaxWidth(),
                 )
@@ -1310,6 +1312,7 @@ fun TvSkylineSectionFeed(
                             itemSpacing = TvSkylineItemSpacing,
                             rowTopPadding = TvSkylineRowCardVerticalPadding,
                             rowBottomPadding = TvSkylineRowCardVerticalPadding,
+                            headerGap = 0.dp,
                             posterWidth = RowDimens.DensePosterWidth *
                                 presentation.posterSize.posterScale,
                             firstItemFocusRequester = resolvedFirstRowFocusRequester
@@ -1378,7 +1381,8 @@ fun TvSkylineSectionFeed(
                 }
             }
             // The next section's title under the row, always at the same spot on every row and page.
-            val nextTitle = rows.getOrNull(focusedRowIndex.coerceAtLeast(0) + 1)?.title
+            // Vantage: only the focused row shows; the next title no longer peeks under it.
+            val nextTitle: String? = null
             if (nextTitle != null) {
                 androidx.tv.material3.Text(
                     text = nextTitle,
@@ -1471,7 +1475,7 @@ internal val TvSkylineItemSpacing = 12.dp
 internal val TvSkylineRowPreviewSpacing = 26.dp
 
 /** tvOS rowBandCardVerticalPadding 14pt maps to 7dp. */
-internal val TvSkylineRowCardVerticalPadding = 7.dp
+internal val TvSkylineRowCardVerticalPadding = 5.5.dp
 
 /** tvOS rowBandBottomInset 20pt maps to 10dp. */
 internal val TvSkylineRowBandBottomInset = 10.dp
@@ -1482,7 +1486,7 @@ internal val TvSkylineRowBandBottomInset = 10.dp
 // `large` cards against the marquee. At the standard poster size this
 // derivation reproduces the old 270dp band on a 540dp-tall layout.
 internal val TvSkylineRowHeaderHeight = 26.dp // TvSectionHeader: 22sp title line + 4dp bottom pad
-private val TvSkylineRowHeaderGap = 12.dp // TvMediaRow header→rail spacing
+private val TvSkylineRowHeaderGap = 0.dp // TvMediaRow header→rail spacing
 private val TvSkylineCaptionTitleHeight = 30.dp // TvMediaCard: 11dp spacer + 18.5sp title line
 private val TvSkylineCaptionMetadataHeight = 18.dp // TvMediaCard: 18sp year line
 private val TvSkylineRowPreviewPeek = 24.dp // sliver of the next section's header
@@ -1520,7 +1524,7 @@ internal val TvSkylineActionsBlock = 52.dp
 internal val TvSkylineHeroTextRaise = 14.dp
 
 /** The marquee text and the rows sit this much lower on screen. */
-internal val TvSkylineContentDrop = 8.dp
+internal val TvSkylineContentDrop = 80.dp
 
 /** Gap between the marquee block and the top of the row band. */
 internal val TvSkylineMarqueeBottomGap = 4.dp

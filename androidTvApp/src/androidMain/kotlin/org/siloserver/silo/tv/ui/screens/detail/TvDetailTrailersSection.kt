@@ -193,27 +193,42 @@ private fun TvDetailTrailerCard(
                     modifier = Modifier.size(14.dp),
                 )
             }
+            // Vantage: what it is, top left; how long, bottom right. The title is on the details above.
+            val kind = entry.title.lowercase().let { t ->
+                when {
+                    "trailer" in t -> "Trailer"
+                    "teaser" in t -> "Teaser"
+                    "featurette" in t -> "Featurette"
+                    "clip" in t -> "Clip"
+                    else -> "Video"
+                }
+            }
+            Text(
+                text = kind,
+                style = org.siloserver.silo.tv.ui.components.vantage.mono(10, FontWeight.SemiBold),
+                maxLines = 1,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(6.dp)
+                    .clip(org.siloserver.silo.tv.ui.theme.VantagePill)
+                    .background(Color.Black.copy(alpha = 0.62f))
+                    .padding(horizontal = 5.dp, vertical = 1.5.dp),
+            )
+            trailerSecondaryLine(entry)?.let { secondary ->
+                Text(
+                    text = secondary,
+                    style = org.siloserver.silo.tv.ui.components.vantage.mono(10, FontWeight.SemiBold),
+                    maxLines = 1,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp)
+                        .clip(org.siloserver.silo.tv.ui.theme.VantagePill)
+                        .background(Color.Black.copy(alpha = 0.62f))
+                        .padding(horizontal = 5.dp, vertical = 1.5.dp),
+                )
+            }
         }
 
-        Text(
-            text = entry.title,
-            color = if (isFocused) SiloOnSurface else SiloOnSurface.copy(alpha = 0.92f),
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        trailerSecondaryLine(entry)?.let { secondary ->
-            Text(
-                text = secondary,
-                color = SiloSecondaryText,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-            )
-        }
     }
 }
 

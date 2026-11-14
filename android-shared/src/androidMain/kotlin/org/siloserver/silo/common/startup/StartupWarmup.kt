@@ -46,6 +46,9 @@ data class StartupArtworkPlan(
      * immediately.
      */
     val warmFirstRowHeroArt: Boolean = false,
+    /** Size of the first row's marquee backdrops (a full-bleed hero on TV); 0 uses the backdrop size. */
+    val heroBackdropWidthPx: Int = 0,
+    val heroBackdropHeightPx: Int = 0,
     /** With [warmFirstRowHeroArt]: also warm the first item's logo. */
     val warmFirstRowLogo: Boolean = warmFirstRowHeroArt,
 ) {
@@ -66,6 +69,9 @@ data class StartupArtworkPlan(
                 logoWidthPx = px(440f),
                 logoHeightPx = px(100f),
                 warmFirstRowHeroArt = true,
+                // Vantage Home's hero backdrop is full bleed: the whole 960x540dp canvas.
+                heroBackdropWidthPx = px(960f),
+                heroBackdropHeightPx = px(540f),
             )
         }
 
@@ -220,15 +226,18 @@ private suspend fun warmHomeArtwork(
         if (plan.warmFirstRowHeroArt && plan.warmFirstRowLogo) {
             append(firstRow.items.firstOrNull()?.logoUrl, plan.logoWidthPx, plan.logoHeightPx)
         }
-        for (item in firstRow.items) {
+        for ((index, item) in firstRow.items.withIndex()) {
+            // Full-size hero art is big in memory: only the first few cards get it.
+            val heroW = if (index < 6) plan.heroBackdropWidthPx.takeIf { it > 0 } ?: plan.backdropWidthPx else plan.backdropWidthPx
+            val heroH = if (index < 6) plan.heroBackdropHeightPx.takeIf { it > 0 } ?: plan.backdropHeightPx else plan.backdropHeightPx
             if (episodeRow) {
                 // Episode stills already render the backdrop, so the card art
-                // and the marquee art are one fetch.
-                append(item.backdropUrl ?: item.posterUrl, plan.backdropWidthPx, plan.backdropHeightPx)
+                // and the marquee art are one fetch, at the hero's size when it has one.
+                append(item.backdropUrl ?: item.posterUrl, heroW, heroH)
             } else {
                 append(item.posterUrl, plan.posterWidthPx, plan.posterHeightPx)
                 if (plan.warmFirstRowHeroArt) {
-                    append(item.backdropUrl, plan.backdropWidthPx, plan.backdropHeightPx)
+                    append(item.backdropUrl, heroW, heroH)
                 }
             }
             if (requests.size >= plan.maxUrls) break

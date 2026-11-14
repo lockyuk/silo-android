@@ -17,7 +17,8 @@ internal fun ResolvedSection.isTvAudioProgressSection(): Boolean =
 internal fun ResolvedSection.tvHomeRowStyle(): TvRowStyle = when {
     isTvAudioProgressSection() -> TvRowStyle.Poster
     isTvProgressRow() -> TvRowStyle.Backdrop
-    else -> TvRowStyle.Poster
+    // Vantage: every row is the same 16:9 card, in the same place.
+    else -> TvRowStyle.Backdrop
 }
 
 private fun ResolvedSection.splitAudioProgress(): List<ResolvedSection> {

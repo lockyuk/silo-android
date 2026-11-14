@@ -140,7 +140,7 @@ internal fun TvPersonGridPage(
         }
         // Details card.
         VPanel(
-            Modifier.offset(x = grid.edge, y = grid.bodyTop).width(272.mx).height(238.mx),
+            Modifier.offset(x = grid.edge, y = 504.mx).width(272.mx).height(186.mx),
             title = "Details", sub = "TMDB", gap = 8.mx,
             padding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.mx, vertical = 14.mx),
         ) {
@@ -161,7 +161,7 @@ internal fun TvPersonGridPage(
         }
         // In your library card.
         VPanel(
-            Modifier.offset(x = grid.edge + 288.mx, y = grid.bodyTop).width(272.mx).height(238.mx),
+            Modifier.offset(x = grid.edge + 288.mx, y = 504.mx).width(272.mx).height(186.mx),
             gap = 12.mx,
             padding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.mx, vertical = 14.mx),
         ) {

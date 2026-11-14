@@ -2,6 +2,15 @@
 
 package org.siloserver.silo.tv.ui.screens.player
 
+import org.siloserver.silo.tv.ui.components.vantage.ChipTone
+import org.siloserver.silo.tv.ui.components.vantage.VButton
+import org.siloserver.silo.tv.ui.components.vantage.VChip
+import org.siloserver.silo.tv.ui.components.vantage.VKicker
+import org.siloserver.silo.tv.ui.components.vantage.VSection
+import org.siloserver.silo.tv.ui.components.vantage.mono
+import org.siloserver.silo.tv.ui.components.vantage.mx
+import org.siloserver.silo.tv.ui.components.vantage.ui
+import org.siloserver.silo.tv.ui.theme.Level
 import org.siloserver.silo.playback.SubtitleSyncNotice
 import android.app.Activity
 import android.content.ComponentName
@@ -102,6 +111,8 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import com.google.common.util.concurrent.MoreExecutors
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Job
@@ -2391,6 +2402,15 @@ fun TvPlayerScreen(
                             .firstOrNull { row -> row.checked }
                             ?.let { row -> tvSubtitleRowParts(row.label).title }
                             ?: "Off",
+                        audioValue = state.audioTracks.firstOrNull { it.isSelected }?.displayLabel,
+                        onOpenAudio = {
+                            requestedHudTab = HudTab.Audio
+                            viewModel.openHUD()
+                        },
+                        onOpenSpeed = {
+                            requestedHudTab = HudTab.Video
+                            viewModel.openHUD()
+                        },
                         positionSec = clock.position,
                         durationSec = clock.duration,
                         isPaused = state.isPaused,
@@ -3069,6 +3089,9 @@ private fun TvPlayerIdleOverlay(
     episodeCode: String?,
     // What the Subtitles button says when focused ("English", "Off").
     subtitlesValue: String?,
+    audioValue: String? = null,
+    onOpenAudio: () -> Unit = {},
+    onOpenSpeed: () -> Unit = {},
     positionSec: Double,
     durationSec: Double,
     isPaused: Boolean,
@@ -3210,23 +3233,23 @@ private fun TvPlayerIdleOverlay(
                 ),
         )
 
-        // Top scrim and the title's clear logo, small, in the top-left corner.
+        // Vantage: the clear logo top left, the episode title and its place under it.
         val cornerLogo = org.siloserver.silo.common.settings.titleLogoUrl(logoUrl)
         var logoFailed by remember(cornerLogo) { mutableStateOf(false) }
         val logoShown = !cornerLogo.isNullOrBlank() && !logoFailed
-        if (logoShown) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(110.dp)
-                    .align(Alignment.TopCenter)
-                    .background(
-                        Brush.verticalGradient(
-                            0.0f to Color.Black.copy(alpha = 0.55f),
-                            1.0f to Color.Transparent,
-                        ),
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.mx)
+                .align(Alignment.TopCenter)
+                .background(
+                    Brush.verticalGradient(
+                        0.0f to Color.Black.copy(alpha = 0.72f),
+                        1.0f to Color.Transparent,
                     ),
-            )
+                ),
+        )
+        if (logoShown) {
             ThumbhashImage(
                 url = cornerLogo!!,
                 thumbhash = null,
@@ -3239,10 +3262,36 @@ private fun TvPlayerIdleOverlay(
                 onError = { logoFailed = true },
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .padding(start = TvPlayerChrome.SideInset, top = 28.dp)
-                    .height(44.dp)
-                    .widthIn(max = 220.dp),
+                    .padding(start = 44.mx, top = 36.mx)
+                    .size(300.mx, 60.mx),
             )
+        }
+        if (title.isNotBlank()) {
+            val chapterIndex = chapters.indexOfLast { it.startSeconds <= positionSec }
+            val place = buildList {
+                (if (logoShown) episodeCode else eyebrow)?.takeIf { it.isNotBlank() }?.let { add(it) }
+                if (chapters.isNotEmpty() && chapterIndex >= 0) add("Chapter ${chapterIndex + 1} of ${chapters.size}")
+                chapters.getOrNull(chapterIndex)?.title?.takeIf { it.isNotBlank() }?.let { add(it) }
+            }.joinToString(" \u00B7 ")
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 44.mx, top = if (logoShown) 106.mx else 44.mx),
+                verticalArrangement = Arrangement.spacedBy(6.mx),
+            ) {
+                androidx.tv.material3.Text(
+                    text = title,
+                    style = org.siloserver.silo.tv.ui.components.vantage.ui(18, androidx.compose.ui.text.font.FontWeight.SemiBold),
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+                if (place.isNotBlank()) androidx.tv.material3.Text(
+                    text = place,
+                    style = org.siloserver.silo.tv.ui.components.vantage.mono(12, color = Level.Dim),
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+            }
         }
 
         // Vantage: the time now and when this ends, top right in a glass chip.
@@ -3258,7 +3307,7 @@ private fun TvPlayerIdleOverlay(
             val leftMs = ((durationSec - positionSec).coerceAtLeast(0.0) / playbackSpeed.coerceAtLeast(0.1) * 1000).toLong()
             if (durationSec > 0) {
                 org.siloserver.silo.tv.ui.components.vantage.VChip(
-                    "${fmt.format(java.util.Date(now))} \u00B7 ends ${fmt.format(java.util.Date(now + leftMs))}",
+                    fmt.format(java.util.Date(now)),
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(end = TvPlayerChrome.SideInset, top = 26.dp),
@@ -3279,28 +3328,6 @@ private fun TvPlayerIdleOverlay(
                     bottom = TvPlayerChrome.BottomInset,
                 ),
         ) {
-            // The episode line sits just above the scrub bar. With the show's logo
-            // in the corner the show name is not repeated: an episode reads
-            // "S02E03 · Episode title" on its own.
-            if (title.isNotBlank()) {
-                val episodeOnly = logoShown && !episodeCode.isNullOrBlank()
-                if (!episodeOnly && !eyebrow.isNullOrBlank()) {
-                    androidx.tv.material3.Text(
-                        text = eyebrow.uppercase(),
-                        style = TvPlayerType.Eyebrow,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    )
-                }
-                androidx.tv.material3.Text(
-                    text = if (episodeOnly) "$episodeCode \u00B7 $title" else title,
-                    style = TvPlayerType.Title.copy(fontSize = 17.sp, lineHeight = 21.sp),
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 2.dp, bottom = 6.dp),
-                )
-            }
-
             // Interactive scrubber — capsule track with chapter ticks, interval
             // skip, hold-to-auto-seek, and Select to commit. tvOS spec §4.1.
             TvPlayerScrubber(
@@ -3356,6 +3383,10 @@ private fun TvPlayerIdleOverlay(
             TvPlayerTransportCluster(
                 modifier = Modifier.onFocusChanged { transportHasFocus = it.hasFocus },
                 subtitlesValue = subtitlesValue,
+                audioValue = audioValue,
+                speedValue = org.siloserver.silo.tv.ui.screens.player.tvSpeedLabel(playbackSpeed),
+                onOpenAudio = onOpenAudio,
+                onOpenSpeed = onOpenSpeed,
                 isPlaying = !isPaused,
                 skipBackSeconds = skipBackSeconds,
                 skipForwardSeconds = skipForwardSeconds,
@@ -3391,6 +3422,11 @@ internal fun tvPlayerEyebrow(state: TvPlayerViewModel.UiState): String? {
     }
     val kind = "Movie".takeIf { state.contentType == "movie" }
     return listOfNotNull(kind, state.year?.toString()).joinToString(" · ").ifBlank { null }
+}
+
+internal fun tvSpeedLabel(speed: Double): String {
+    val t = if (speed == speed.toLong().toDouble()) speed.toLong().toString() else "%.2f".format(speed).trimEnd('0')
+    return t + "\u00D7"
 }
 
 private fun formatSleepCountdown(seconds: Int): String {
@@ -3554,8 +3590,8 @@ private fun TvPlayerNextUpOverlay(
     ) {
         // tvOS grid, five cards wide so everything fits one screen: On Deck
         // cards span the content column, the preview covers the first two.
-        val cardSpacing = 20.dp
-        val onDeckCardWidth = (maxWidth - 160.dp - cardSpacing * 4) / 5
+        val cardSpacing = 16.mx
+        val onDeckCardWidth = 176.mx
         // tvOS backgroundArtwork: the next episode's still, else the first
         // On Deck item's art (an episode's series backdrop when its card
         // carries one). Art spoiler protection hides is skipped.
@@ -3593,255 +3629,89 @@ private fun TvPlayerNextUpOverlay(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center,
+                    .height(452.mx),
+                contentAlignment = Alignment.TopStart,
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 80.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(cardSpacing),
-                    verticalAlignment = Alignment.CenterVertically,
+                        .padding(start = 44.mx, end = 44.mx, top = 88.mx),
+                    horizontalArrangement = Arrangement.spacedBy(32.mx),
+                    verticalAlignment = Alignment.Top,
                 ) {
+                    // Vantage Up Next: the title grid on the left, the finished video framed on the right.
+                    val eyebrow = when {
+                        nextEpisode == null -> if (videoEnded) "Finished" else "More to watch"
+                        shuffle != null -> "Up next at random"
+                        videoEnded -> "Playing next"
+                        else -> "Up next"
+                    }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(14.mx),
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.mx), verticalAlignment = Alignment.CenterVertically) {
+                            VKicker(eyebrow)
+                            shuffle?.scopeLabel?.let { VChip("Shuffling $it") }
+                            if (nextEpisode != null && countdownSeconds != null) VChip("Playing in $countdownSeconds s", ChipTone.Good, dot = true)
+                        }
+                        if (nextEpisode != null) {
+                            val heading = nextEpisode.seriesTitle?.takeIf { it.isNotBlank() }
+                                ?: nextEpisode.title.takeUnless { nextEpisode.isEpisode }
+                            heading?.let { Text(it, style = ui(40, FontWeight.SemiBold), maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.mx), verticalAlignment = Alignment.CenterVertically) {
+                                if (nextEpisode.isEpisode) {
+                                    VChip("S${nextEpisode.seasonNumber} · E${nextEpisode.episodeNumber}")
+                                    nextEpisode.title?.takeIf { it.isNotBlank() }?.let { Text(it, style = mono(12, color = Level.Dim), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false)) }
+                                }
+                                if (nextEpisode.runtimeMinutes > 0) VChip("${nextEpisode.runtimeMinutes} min")
+                            }
+                            val hidesOverview = org.siloserver.silo.common.cards.LocalEpisodeSpoilerPrefs.current.hidesOverview(nextEpisode.isUnwatched)
+                            nextEpisode.overview?.takeIf { it.isNotBlank() && !hidesOverview }?.let {
+                                Text(it, style = ui(16, color = Level.Dim), maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(560.mx))
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.mx), verticalAlignment = Alignment.CenterVertically) {
+                                VButton("Play now", onPlayNow, primary = true, small = countdownSeconds?.let { "$it s" }, height = 46.mx, focusRequester = primaryFocus)
+                                if (shuffle != null) VButton("Pick another", onPickAnother, height = 46.mx)
+                                if (!videoEnded) VButton("Keep watching", onKeepWatching, height = 46.mx)
+                                VButton("Auto-play ${if (autoPlayEnabled) "on" else "off"}", onToggleAutoPlay, height = 46.mx)
+                                VButton("Back", onBack, height = 46.mx)
+                                if (shuffle != null) VButton("Stop shuffling", onStopShuffling, height = 46.mx)
+                            }
+                            shuffle?.message?.let { Text(it, style = mono(12, color = Level.Bad)) }
+                        } else {
+                            Text(if (videoEnded) "End of playback" else "Almost finished", style = ui(40, FontWeight.SemiBold))
+                            Text(if (shuffle != null) "Nothing else in this shuffle can play." else "No next episode is available.", style = ui(16, color = Level.Dim))
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.mx)) {
+                                if (!videoEnded) {
+                                    VButton("Keep watching", onKeepWatching, primary = true, height = 46.mx, focusRequester = primaryFocus)
+                                    VButton("Back", onBack, height = 46.mx)
+                                } else {
+                                    VButton("Back", onBack, primary = true, height = 46.mx, focusRequester = primaryFocus)
+                                }
+                            }
+                        }
+                    }
                     // The existing PlayerView is measured and placed into this pane.
                     // It stays mounted while the successor prepares.
                     Box(
                         modifier = Modifier
-                            .width(onDeckCardWidth * 2 + cardSpacing)
+                            .width(460.mx)
                             .aspectRatio(16f / 9f)
                             .onGloballyPositioned {
                                 paneCoordinates = it
                                 paneBoundsInRoot = it.boundsInRoot()
                                 onVideoBoundsChanged(it.videoViewportBounds())
                             }
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .border(
-                                width = 1.dp,
+                                width = 2.dp,
                                 color = Color.White.copy(alpha = 0.16f),
-                                shape = RoundedCornerShape(8.dp),
+                                shape = RoundedCornerShape(14.dp),
                             ),
                         contentAlignment = Alignment.Center,
                     ) {
                         if (spinnerVisible) TvPlayerLoadingSpinner()
-                    }
-
-                    // Next-episode panel. It scrolls on its own when its content
-                    // outgrows the space above On Deck (large font sizes, a
-                    // shuffle's extra rows); the video pane beside it stays put.
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        shuffle?.scopeLabel?.let { scope ->
-                            Row(
-                                modifier = Modifier
-                                    .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
-                                    .background(Color.White.copy(alpha = 0.10f))
-                                    .padding(horizontal = 14.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                androidx.tv.material3.Icon(
-                                    imageVector = Icons.Filled.Shuffle,
-                                    contentDescription = null,
-                                    tint = Color.White.copy(alpha = 0.75f),
-                                    modifier = Modifier.size(16.dp),
-                                )
-                                androidx.tv.material3.Text(
-                                    text = "Shuffling $scope",
-                                    color = Color.White.copy(alpha = 0.75f),
-                                    style = androidx.tv.material3.MaterialTheme.typography.labelLarge,
-                                    maxLines = 1,
-                                )
-                            }
-                        }
-                        val eyebrow = when {
-                            nextEpisode == null -> if (videoEnded) "Finished" else "More To Watch"
-                            shuffle != null -> "Up Next at Random"
-                            videoEnded -> "Playing Next"
-                            else -> "Up Next"
-                        }
-                        androidx.tv.material3.Text(
-                            text = eyebrow.uppercase(),
-                            color = Color.White.copy(alpha = 0.52f),
-                            style = androidx.tv.material3.MaterialTheme.typography.labelLarge,
-                        )
-
-                        if (nextEpisode != null) {
-                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                // A shuffled movie has no series line; its own title heads the panel.
-                                val heading = nextEpisode.seriesTitle?.takeIf { it.isNotBlank() }
-                                    ?: nextEpisode.title.takeUnless { nextEpisode.isEpisode }
-                                heading?.let { title ->
-                                    androidx.tv.material3.Text(
-                                        text = title,
-                                        color = Color.White,
-                                        style = androidx.tv.material3.MaterialTheme.typography.headlineSmall,
-                                        maxLines = 1,
-                                    )
-                                }
-                                if (nextEpisode.isEpisode) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    androidx.tv.material3.Text(
-                                        text = "S${nextEpisode.seasonNumber}·E${nextEpisode.episodeNumber}",
-                                        color = Color.White.copy(alpha = 0.62f),
-                                        style = androidx.tv.material3.MaterialTheme.typography.titleMedium,
-                                    )
-                                    androidx.tv.material3.Text(
-                                        text = nextEpisode.title ?: "Next Episode",
-                                        color = Color.White,
-                                        style = androidx.tv.material3.MaterialTheme.typography.titleMedium,
-                                        maxLines = 1,
-                                        modifier = Modifier.weight(1f, fill = false),
-                                    )
-                                    // Runtime shares the episode line to keep the panel short.
-                                    if (nextEpisode.runtimeMinutes > 0) {
-                                        androidx.tv.material3.Text(
-                                            text = "· ${nextEpisode.runtimeMinutes} min",
-                                            color = Color.White.copy(alpha = 0.46f),
-                                            style = androidx.tv.material3.MaterialTheme.typography.titleMedium,
-                                        )
-                                    }
-                                }
-                                if (!nextEpisode.isEpisode && nextEpisode.runtimeMinutes > 0) {
-                                    androidx.tv.material3.Text(
-                                        text = "${nextEpisode.runtimeMinutes} min",
-                                        color = Color.White.copy(alpha = 0.46f),
-                                        style = androidx.tv.material3.MaterialTheme.typography.labelMedium,
-                                    )
-                                }
-                                val hidesOverview = org.siloserver.silo.common.cards.LocalEpisodeSpoilerPrefs.current
-                                    .hidesOverview(nextEpisode.isUnwatched)
-                                nextEpisode.overview?.takeIf { it.isNotBlank() && !hidesOverview }?.let { overview ->
-                                    androidx.tv.material3.Text(
-                                        text = overview,
-                                        color = Color.White.copy(alpha = 0.58f),
-                                        style = androidx.tv.material3.MaterialTheme.typography.bodyMedium,
-                                        maxLines = 2,
-                                    )
-                                }
-                            }
-
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(20.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                TvDialogActionRow(
-                                    title = "Play Now",
-                                    onClick = onPlayNow,
-                                    modifier = Modifier
-                                        .width(220.dp)
-                                        .focusRequester(primaryFocus),
-                                )
-                                if (countdownSeconds != null) {
-                                    TvCountdownRing(
-                                        seconds = countdownSeconds,
-                                        totalSeconds = countdownTotalSeconds,
-                                    )
-                                }
-                            }
-
-                            if (shuffle != null) {
-                                TvDialogActionRow(
-                                    title = "Pick Another",
-                                    onClick = onPickAnother,
-                                    enabled = !shuffle.pickingAnother,
-                                    modifier = Modifier.width(260.dp),
-                                )
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                if (!videoEnded) {
-                                    TvDialogActionRow(
-                                        title = "Keep Watching",
-                                        onClick = onKeepWatching,
-                                        modifier = Modifier.width(220.dp),
-                                    )
-                                }
-                                TvDialogActionRow(
-                                    title = "Back",
-                                    onClick = onBack,
-                                    modifier = Modifier.width(140.dp),
-                                )
-                            }
-                            shuffle?.message?.let { message ->
-                                androidx.tv.material3.Text(
-                                    text = message,
-                                    color = Color(0xFFFFB4AB),
-                                    style = androidx.tv.material3.MaterialTheme.typography.bodyMedium,
-                                )
-                            }
-                            // Interactive toggle (was a dead focusable): OK flips
-                            // auto-play; focus inverts the pill so the D-pad stop is
-                            // visible.
-                            var autoPlayToggleFocused by remember { mutableStateOf(false) }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                androidx.tv.material3.Text(
-                                    text = "Auto-play is ${if (autoPlayEnabled) "On" else "Off"}",
-                                    color = if (autoPlayToggleFocused) Color.Black else Color.White.copy(alpha = 0.54f),
-                                    style = androidx.tv.material3.MaterialTheme.typography.labelMedium,
-                                    modifier = Modifier
-                                        .onFocusChanged { autoPlayToggleFocused = it.isFocused }
-                                        .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
-                                        .background(if (autoPlayToggleFocused) Color.White else Color.Transparent)
-                                        .clickable { onToggleAutoPlay() }
-                                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                                )
-                                if (shuffle != null) {
-                                    var stopFocused by remember { mutableStateOf(false) }
-                                    androidx.tv.material3.Text(
-                                        text = "·",
-                                        color = Color.White.copy(alpha = 0.54f),
-                                        style = androidx.tv.material3.MaterialTheme.typography.labelMedium,
-                                    )
-                                    androidx.tv.material3.Text(
-                                        text = "Stop shuffling",
-                                        color = if (stopFocused) Color.Black else Color.White.copy(alpha = 0.54f),
-                                        style = androidx.tv.material3.MaterialTheme.typography.labelMedium,
-                                        modifier = Modifier
-                                            .onFocusChanged { stopFocused = it.isFocused }
-                                            .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
-                                            .background(if (stopFocused) Color.White else Color.Transparent)
-                                            .clickable { onStopShuffling() }
-                                            .padding(horizontal = 12.dp, vertical = 4.dp),
-                                    )
-                                }
-                            }
-                        } else {
-                            // Finished / no-next-episode state.
-                            androidx.tv.material3.Text(
-                                text = if (videoEnded) "End of playback" else "Almost finished",
-                                color = Color.White,
-                                style = androidx.tv.material3.MaterialTheme.typography.headlineSmall,
-                            )
-                            androidx.tv.material3.Text(
-                                text = if (shuffle != null) "Nothing else in this shuffle can play." else "No next episode is available.",
-                                color = Color.White.copy(alpha = 0.62f),
-                                style = androidx.tv.material3.MaterialTheme.typography.bodyMedium,
-                            )
-                            if (!videoEnded) {
-                                TvDialogActionRow(
-                                    title = "Keep Watching",
-                                    onClick = onKeepWatching,
-                                    modifier = Modifier
-                                        .width(260.dp)
-                                        .focusRequester(primaryFocus),
-                                )
-                                TvDialogActionRow(
-                                    title = "Back",
-                                    onClick = onBack,
-                                    modifier = Modifier.width(160.dp),
-                                )
-                            } else {
-                                TvDialogActionRow(
-                                    title = "Back",
-                                    onClick = onBack,
-                                    modifier = Modifier
-                                        .width(160.dp)
-                                        .focusRequester(primaryFocus),
-                                )
-                            }
-                        }
                     }
                 }
             }
@@ -3929,48 +3799,28 @@ private fun TvNextUpOnDeckRow(
 ) {
     val spoilers = org.siloserver.silo.common.cards.LocalEpisodeSpoilerPrefs.current
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(14.mx),
     ) {
-        androidx.tv.material3.Text(
-            text = "On Deck",
-            color = Color.White.copy(alpha = 0.86f),
-            style = androidx.tv.material3.MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 80.dp),
-        )
-        // TV's default focus pivot slides the row so the focused card sits a
-        // third of the way across, shifting it left as focus arrives from the
-        // panel; scroll only when a card nears an edge.
+        Box(Modifier.padding(horizontal = 44.mx)) { VSection("On deck", "${items.size} in progress") }
+        // Scroll only when a card nears an edge, not on every move.
         CompositionLocalProvider(LocalBringIntoViewSpec provides TvSmoothBringIntoViewSpec) {
             androidx.compose.foundation.lazy.LazyRow(
-                contentPadding = PaddingValues(horizontal = 80.dp),
+                contentPadding = PaddingValues(horizontal = 44.mx),
                 horizontalArrangement = Arrangement.spacedBy(cardSpacing),
             ) {
                 items(items.size, key = { items[it].contentId }) { index ->
                     val item = items[index]
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        TvMediaCard(
-                            title = item.title,
-                            hideArtwork = spoilers.hidesImage(item.unwatchedEpisode, item.artIsEpisodeStill),
-                            posterUrl = item.artUrl,
-                            posterThumbhash = item.artThumbhash,
-                            onClick = { onPlay(item) },
-                            progress = item.progressFraction,
-                            artworkAspectRatio = 16f / 9f,
-                            width = cardWidth,
-                        )
-                        item.subtitle?.let { subtitle ->
-                            androidx.tv.material3.Text(
-                                text = subtitle,
-                                color = Color.White.copy(alpha = 0.52f),
-                                style = androidx.tv.material3.MaterialTheme.typography.labelMedium,
-                                maxLines = 1,
-                                modifier = Modifier.width(cardWidth),
-                            )
-                        }
-                    }
+                    TvMediaCard(
+                        title = item.title,
+                        hideArtwork = spoilers.hidesImage(item.unwatchedEpisode, item.artIsEpisodeStill),
+                        posterUrl = item.artUrl,
+                        posterThumbhash = item.artThumbhash,
+                        onClick = { onPlay(item) },
+                        progress = item.progressFraction,
+                        artworkAspectRatio = 16f / 9f,
+                        width = cardWidth,
+                    )
                 }
             }
         }

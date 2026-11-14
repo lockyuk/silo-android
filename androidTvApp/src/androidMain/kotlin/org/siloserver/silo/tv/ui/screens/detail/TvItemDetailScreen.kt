@@ -1040,14 +1040,6 @@ private fun TvDetailContent(
                             machineTranslated = heroMachineTranslated && !hidesHeroOverview &&
                                 !activeEpisodeTranslating,
                             compactSeries = isSeriesDetail,
-                            sidePanel = {
-                                TvVantageDetailPanels(
-                                    detail = detail,
-                                    seasons = state.seasons,
-                                    nextUp = state.nextUpEpisode,
-                                    upcoming = upcomingEpisode,
-                                )
-                            },
                             playbackSummary = {
                                 TvDetailPlaybackSelectionSummary(
                                     detail = detail,

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,7 +26,9 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +57,7 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.siloserver.silo.common.ui.components.ThumbhashImage
 import org.siloserver.silo.tv.server.ArrDashboard
+import org.siloserver.silo.tv.server.ArrItem
 import org.siloserver.silo.tv.server.ArrEvent
 import org.siloserver.silo.tv.server.AutomationApp
 import org.siloserver.silo.tv.server.LogLine
@@ -87,6 +91,9 @@ import org.siloserver.silo.tv.ui.theme.Level
 import org.siloserver.silo.tv.ui.theme.VantageCard
 import org.siloserver.silo.tv.ui.theme.VantagePanel
 import org.siloserver.silo.tv.ui.theme.VantagePill
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
@@ -171,7 +178,7 @@ fun TvServerScreen(
         Box(Modifier.fillMaxSize().padding(start = 44.mx, end = 44.mx, top = 88.mx)) {
             when (tab) {
                 ServerTab.Overview -> OverviewPage(overview, repo)
-                ServerTab.System -> SystemPage(repo, serverName)
+                ServerTab.System -> SystemPage(repo, serverName, overview)
                 ServerTab.Streams -> StreamsPage(overview)
                 ServerTab.Requests -> RequestsPage(repo)
                 ServerTab.Radarr -> ArrPage(AutomationApp.Radarr, repo)
@@ -205,9 +212,26 @@ private fun uptime(start: Instant?): String {
 }
 
 @Composable
+private fun BigCard(label: String, value: String, suffix: String, color: Color = Level.Fg, modifier: Modifier) {
+    Column(
+        modifier
+            .height(112.mx)
+            .background(Level.Glass, VantagePanel)
+            .border(1.dp, Level.Edge, VantagePanel)
+            .padding(horizontal = 18.mx),
+        verticalArrangement = Arrangement.spacedBy(6.mx, Alignment.CenterVertically),
+    ) {
+        VLabel(label)
+        VBig(value, suffix, 34, color)
+    }
+}
+
+@Composable
 private fun OverviewPage(o: ServerOverview?, repo: TvServerRepository) {
     val scope = rememberCoroutineScope()
     var scanNote by remember { mutableStateOf<String?>(null) }
+    var recent by remember { mutableStateOf<List<LogLine>>(emptyList()) }
+    LaunchedEffect(Unit) { while (true) { recent = runCatching { repo.warningLogs() }.getOrDefault(recent); delay(10_000) } }
     if (o == null) { Loading(); return }
     val warnings = buildList {
         o.disks.filter { it.fraction > 0.9f }.forEach { add("${it.label} disk above 90%") }
@@ -215,84 +239,77 @@ private fun OverviewPage(o: ServerOverview?, repo: TvServerRepository) {
         if (!o.dbOk) add("Database not answering")
         if (!o.redisOk) add("Redis not answering")
     }
-    val healthy = warnings.isEmpty() && o.errors24h == 0
+    val warnCount = warnings.size + o.warnings24h
+    val kickColor = if (o.errors24h == 0 && warnings.isEmpty()) Level.Good else Level.Warn
+    val problems = (recent + o.logs).filter { it.level == "error" || it.level == "warn" || it.level == "warning" }.distinctBy { it.time to it.message }.sortedByDescending { it.time }.take(3)
+    val events = o.logs.filterNot { it.message.equals("api request", true) }.take(4 - warnings.size.coerceAtMost(2))
     Column {
-        PageHead(
-            kick = "● Server Control · ${o.serverName} · ${uptime(o.startedAt)}",
-            title = if (healthy) "Healthy" else if (warnings.isEmpty()) "Running" else "Healthy",
-            warn = when {
-                warnings.size == 1 -> "1 warning"
-                warnings.size > 1 -> "${warnings.size} warnings"
-                o.errors24h > 0 -> "${o.errors24h} errors today"
-                else -> null
-            },
-            kickColor = if (healthy) Level.Good else Level.Warn,
-        )
-        Spacer(Modifier.height(20.mx))
-        Row(horizontalArrangement = Arrangement.spacedBy(20.mx)) {
-            // Left column: streams + bandwidth.
-            Column(Modifier.width(560.mx), verticalArrangement = Arrangement.spacedBy(16.mx)) {
-                VPanel(Modifier.fillMaxWidth().height(290.mx), title = "Live streams", sub = "${o.streams.size} playing · ${o.users} users") {
-                    if (o.streams.isEmpty()) {
-                        Text("Nothing is playing right now.", style = mono(12, color = Level.Dim))
-                    }
-                    o.streams.take(3).forEachIndexed { i, s ->
-                        if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(Level.Edge))
-                        StreamRow(s)
-                    }
-                }
-                VPanel(Modifier.fillMaxWidth().height(158.mx), title = "Bandwidth out", sub = "last 3 hours · peak ${"%.0f".format(o.egress.maxOrNull() ?: 0f)} Mbps") {
-                    VLineChart(o.egress, modifier = Modifier.fillMaxWidth().height(80.mx))
-                }
-            }
-            // Middle: hardware + library.
-            Column(Modifier.width(300.mx), verticalArrangement = Arrangement.spacedBy(16.mx)) {
-                VPanel(Modifier.fillMaxWidth().height(290.mx), title = "Hardware", sub = "NAS") {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        VRing((o.cpuPct ?: 0.0).toInt(), Level.Good, "CPU %", 74.mx)
-                        VRing(((o.gpuSessions ?: 0) * 20).coerceAtMost(100), Level.liveAccent, "GPU jobs", 74.mx)
-                        VRing(if ((o.memTotalMb ?: 0.0) > 0) ((o.memUsedMb ?: 0.0) * 100 / o.memTotalMb!!).toInt() else 0, Level.liveAccent, "RAM %", 74.mx)
-                    }
-                    KeyValues(
-                        "Load" to "%.2f · %d cores".format(o.load1 ?: 0.0, o.cores ?: 0),
-                        "Network" to "↑ %s  ↓ %s".format(mbps(o.netTxBps), mbps(o.netRxBps)),
-                        "Database" to (if (o.dbOk) "OK · %.1f ms".format(o.dbLatencyMs ?: 0.0) else "DOWN"),
-                        "Cache" to (if (o.redisOk) "Redis OK" else "Redis DOWN"),
-                        "GPU" to (o.gpu ?: "none"),
-                        colors = mapOf("Database" to if (o.dbOk) Level.Good else Level.Bad, "Cache" to if (o.redisOk) Level.Good else Level.Bad),
-                    )
-                }
-                VPanel(Modifier.fillMaxWidth().height(158.mx), title = "Library", sub = "%,d files".format(o.files)) {
-                    VBig("%,d".format(o.totalItems), "titles")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.mx)) {
-                        VChip("%,d movies".format(o.movies))
-                        VChip("%,d series".format(o.shows))
+        // Kicker sits level with the sub-tabs (y92); cards at y142, panels at y270, errors at y526.
+        Spacer(Modifier.height(4.mx))
+        Row(Modifier.height(34.mx), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                buildAnnotatedString {
+                    append("● SERVER · ${uptime(o.startedAt).uppercase()}")
+                    if (warnCount > 0) { append(" · "); withStyle(SpanStyle(color = Level.Warn)) { append("$warnCount ${if (warnCount == 1) "WARNING" else "WARNINGS"}") } }
+                    if (o.errors24h > 0) { append(" · "); withStyle(SpanStyle(color = Level.Bad)) { append("${o.errors24h} ${if (o.errors24h == 1) "ERROR" else "ERRORS"}") } }
+                },
+                style = mono(11, color = kickColor, tracking = 0.16f), maxLines = 1,
+            )
+        }
+        Spacer(Modifier.height(16.mx))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.mx)) {
+            val ram = if ((o.memTotalMb ?: 0.0) > 0) ((o.memUsedMb ?: 0.0) * 100 / o.memTotalMb!!).toInt() else 0
+            BigCard("Streams", "${o.streams.size}", "/ ${o.users} users", if (o.streams.isNotEmpty()) Level.Good else Level.Fg, Modifier.weight(1f))
+            BigCard("CPU", "${(o.cpuPct ?: 0.0).toInt()}", "%", modifier = Modifier.weight(1f))
+            BigCard("RAM", "$ram", "%", modifier = Modifier.weight(1f))
+            BigCard("GPU", "${o.gpuSessions ?: 0}", "jobs", modifier = Modifier.weight(1f))
+            BigCard("Network out", "%.0f".format((o.netTxBps ?: 0.0) * 8 / 1e6), "Mbps", modifier = Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(16.mx))
+        Row(horizontalArrangement = Arrangement.spacedBy(16.mx)) {
+            VPanel(Modifier.width(700.mx).height(240.mx), title = "Live streams", sub = "${o.streams.size} of ${o.users} users", gap = 14.mx) {
+                if (o.streams.isEmpty()) Text("Nothing is playing right now.", style = mono(12, color = Level.Dim))
+                Column(verticalArrangement = Arrangement.spacedBy(10.mx)) {
+                    o.streams.take(3).forEach { s ->
+                        val direct = s.method.contains("direct", true) || s.method.contains("remux", true)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.mx)) {
+                            VArt(s.posterUrl, 80.mx, 45.mx, progress = s.progress)
+                            Text("${s.who} · ${s.title}", style = ui(14, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                            VChip(
+                                if (direct) (if (s.method.contains("direct", true)) "Direct play" else "Direct stream") else "Transcode" + (s.resolution?.let { " $it" } ?: ""),
+                                tone = if (direct) ChipTone.Good else ChipTone.Warn, dot = true,
+                            )
+                        }
                     }
                 }
             }
-            // Right: storage + health log + actions.
-            Column(Modifier.width(292.mx), verticalArrangement = Arrangement.spacedBy(16.mx)) {
-                VPanel(Modifier.fillMaxWidth(), title = "Storage", sub = "${o.disks.size} volumes") {
-                    o.disks.forEach { DiskBar(it.label, it.usedGb, it.totalGb, it.fraction) }
-                }
-                VPanel(
-                    Modifier.fillMaxWidth().height(166.mx),
-                    title = "Health log",
-                    sub = if (warnings.isEmpty()) "all clear" else "${warnings.size} warning${if (warnings.size > 1) "s" else ""}",
-                    subColor = if (warnings.isEmpty()) Level.Good else Level.Warn,
-                    edge = if (warnings.isEmpty()) Level.Edge else Level.Warn.copy(alpha = 0.45f),
-                    gap = 6.mx,
-                ) {
-                    warnings.take(2).forEach { HealthLine("▲", Level.Warn, "now", it) }
-                    o.logs.take(4 - warnings.size.coerceAtMost(2)).forEach { l ->
-                        HealthLine("●", if (l.level == "error") Level.Bad else if (l.level == "warn") Level.Warn else Level.Good, l.time.hm(), l.message)
+            VPanel(Modifier.width(476.mx).height(240.mx), title = "Health", sub = "last hour", gap = 14.mx) {
+                Column(verticalArrangement = Arrangement.spacedBy(14.mx)) {
+                    warnings.take(2).forEach { VEventLine(it, Level.Warn, "now") }
+                    if (warnings.isEmpty() && events.isEmpty()) VEventLine("All systems normal", Level.Good, "now")
+                    events.forEach { l ->
+                        VEventLine(l.message, if (l.level == "error") Level.Bad else if (l.level == "warn") Level.Warn else Level.Good, l.time.hm())
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.mx)) {
+                Spacer(Modifier.weight(1f))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.mx), verticalAlignment = Alignment.CenterVertically) {
                     VButton("Scan library", onClick = {
                         scope.launch { scanNote = if (repo.scanLibraries()) "Scan started" else "Scan failed" }
                     }, primary = true, height = 42.mx, textPx = 13)
-                    if (scanNote != null) Text(scanNote!!, style = mono(11, color = Level.Dim), modifier = Modifier.align(Alignment.CenterVertically))
+                    if (scanNote != null) Text(scanNote!!, style = mono(11, color = Level.Dim))
+                }
+            }
+        }
+        Spacer(Modifier.height(16.mx))
+        VPanel(Modifier.fillMaxWidth().height(166.mx), title = "Recent errors", sub = "last 24 hours", gap = 10.mx) {
+            if (problems.isEmpty()) Text("No errors or warnings.", style = mono(12, color = Level.Good))
+            problems.forEach { e ->
+                val bad = e.level == "error"
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.mx)) {
+                    Text(e.time.hm(), style = mono(12, color = Level.Faint), modifier = Modifier.width(60.mx), maxLines = 1)
+                    VChip(if (bad) "ERROR" else "WARN", if (bad) ChipTone.Bad else ChipTone.Warn, modifier = Modifier.width(72.mx))
+                    Text(e.component, style = mono(12, color = Level.Dim), modifier = Modifier.width(84.mx), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(e.message, style = mono(12), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -334,12 +351,40 @@ private fun DiskBar(label: String, usedGb: Double, totalGb: Double, fraction: Fl
     }
 }
 
+/**
+ * Where the viewer is up to: the seek-preview frame for the stream's current position, refreshed
+ * as the position moves. Falls back to the poster when the server has no previews for the file.
+ */
+@Composable
+private fun LiveFrame(s: org.siloserver.silo.tv.server.LiveStream, w: androidx.compose.ui.unit.Dp, h: androidx.compose.ui.unit.Dp) {
+    val manifests: org.siloserver.silo.playback.trickplay.TrickplayManifestSource = koinInject()
+    val scope = rememberCoroutineScope()
+    val previews = remember { org.siloserver.silo.common.player.trickplay.trickplayPreviews(manifests, scope) }
+    val frame by previews.thumbnail.collectAsState()
+    val target = remember(s.contentId, s.fileId) {
+        if (!s.contentId.isNullOrBlank() && s.fileId != null) org.siloserver.silo.playback.trickplay.TrickplayTarget(s.contentId, s.fileId) else null
+    }
+    LaunchedEffect(target) { previews.bind(target) }
+    LaunchedEffect(target, s.positionSeconds) { if (target != null) previews.show(s.positionSeconds) }
+    val img = frame
+    if (img == null) {
+        VArt(s.posterUrl, w, h, progress = s.progress)
+    } else {
+        Box(Modifier.size(w, h).clip(VantageCard).border(1.dp, Color.White.copy(alpha = 0.1f), VantageCard)) {
+            androidx.compose.foundation.Image(img, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            Box(Modifier.align(Alignment.BottomCenter).padding(horizontal = 7.mx, vertical = 6.mx).fillMaxWidth().height(4.mx).clip(RoundedCornerShape(2.dp)).background(Color.Black.copy(alpha = 0.55f))) {
+                Box(Modifier.fillMaxHeight().fillMaxWidth(s.progress.coerceIn(0f, 1f)).background(Level.liveAccent))
+            }
+        }
+    }
+}
+
 @Composable
 private fun StreamRow(s: org.siloserver.silo.tv.server.LiveStream, big: Boolean = false) {
     val direct = s.method.contains("direct", true)
     val remux = s.method.contains("remux", true)
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.mx)) {
-        VArt(s.posterUrl, if (big) 176.mx else 116.mx, if (big) 99.mx else 65.mx, progress = s.progress)
+        LiveFrame(s, if (big) 176.mx else 116.mx, if (big) 99.mx else 65.mx)
         Column(Modifier.weight(1f)) {
             Text("${s.who} · ${s.title}", style = ui(if (big) 18 else 14, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Row(Modifier.padding(top = 6.mx), horizontalArrangement = Arrangement.spacedBy(6.mx)) {
@@ -359,29 +404,76 @@ private fun StreamRow(s: org.siloserver.silo.tv.server.LiveStream, big: Boolean 
     }
 }
 
+private fun hms(sec: Double): String {
+    val t = sec.toLong().coerceAtLeast(0)
+    return "%d:%02d:%02d".format(t / 3600, t / 60 % 60, t % 60)
+}
+
+@Composable
+private fun StreamCard(s: org.siloserver.silo.tv.server.LiveStream) {
+    val direct = s.method.contains("direct", true)
+    val remux = s.method.contains("remux", true)
+    val dur = if (s.progress > 0.001f) s.positionSeconds / s.progress else 0.0
+    val method = when { direct -> "Direct play"; remux -> "Direct stream"; else -> "Transcode" + (s.resolution?.let { " $it" } ?: "") }
+    Row(
+        Modifier.fillMaxWidth().height(114.mx).background(Level.Glass, VantagePanel).border(1.dp, Level.Edge, VantagePanel).padding(start = 12.mx, end = 20.mx, top = 12.mx, bottom = 12.mx),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.mx),
+    ) {
+        Box {
+            LiveFrame(s, 160.mx, 90.mx)
+            Row(
+                Modifier.padding(8.mx).background(Color.Black.copy(alpha = 0.6f), VantagePill).padding(horizontal = 8.mx, vertical = 3.mx),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.mx),
+            ) {
+                VDot(if (s.paused) Level.Warn else Level.Good, 6.mx)
+                Text(hms(s.positionSeconds), style = mono(11, FontWeight.SemiBold), maxLines = 1)
+            }
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.mx)) {
+            Text(s.title, style = ui(17, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("${s.who} · ${s.client}", style = mono(12, color = Level.Dim), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(7.mx)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.mx)) {
+                if (s.paused) VChip("Paused", ChipTone.Warn)
+                VChip(method, if (direct || remux) ChipTone.Good else ChipTone.Warn, dot = true)
+            }
+            s.bitrateMbps?.let { Row(verticalAlignment = Alignment.Bottom) { Text("%.1f".format(it), style = ui(15, FontWeight.SemiBold)); Text(" Mbps", style = mono(11, color = Level.Dim)) } }
+            Text(if (dur > 0) "${hms(s.positionSeconds)} of ${hms(dur)}" else hms(s.positionSeconds), style = mono(11, color = Level.Faint), maxLines = 1)
+        }
+    }
+}
+
 @Composable
 private fun StreamsPage(o: ServerOverview?) {
     if (o == null) { Loading(); return }
+    val direct = o.streams.count { it.method.contains("direct", true) }
+    val trans = o.streams.size - direct
     Column {
-        PageHead("Streams · ${o.streams.size} playing", if (o.streams.isEmpty()) "Quiet" else "Now playing")
-        Spacer(Modifier.height(20.mx))
-        Row(horizontalArrangement = Arrangement.spacedBy(16.mx)) {
-            VPanel(Modifier.width(760.mx).height(470.mx), title = "Sessions", sub = "live") {
-                if (o.streams.isEmpty()) Text("Nobody is watching right now.", style = mono(12, color = Level.Dim))
-                o.streams.forEachIndexed { i, s ->
-                    if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(Level.Edge))
-                    StreamRow(s, big = true)
-                }
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(16.mx)) {
-                VPanel(Modifier.width(416.mx).height(227.mx), title = "Concurrent streams", sub = "last 3 hours") {
-                    VLineChart(o.streamCounts, Level.Good, Modifier.fillMaxWidth().height(130.mx), maxOverride = (o.streamCounts.maxOrNull() ?: 1f).coerceAtLeast(1f))
-                }
-                VPanel(Modifier.width(416.mx).height(227.mx), title = "Bandwidth out", sub = "now %s".format(mbps(o.netTxBps))) {
-                    VLineChart(o.egress, modifier = Modifier.fillMaxWidth().height(130.mx))
-                }
+        Spacer(Modifier.height(4.mx))
+        Row(Modifier.height(34.mx), verticalAlignment = Alignment.CenterVertically) {
+            Text("● STREAMS · ${o.streams.size} LIVE", style = mono(11, color = if (o.streams.isEmpty()) Level.Faint else Level.Good, tracking = 0.16f), maxLines = 1)
+        }
+        Spacer(Modifier.height(16.mx))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.mx)) {
+            BigCard("Streams", "${o.streams.size}", "/ ${o.users} users", if (o.streams.isNotEmpty()) Level.Good else Level.Fg, Modifier.weight(1f))
+            BigCard("Direct play", "$direct", "", modifier = Modifier.weight(1f))
+            BigCard("Transcoding", "$trans", "", if (trans > 0) Level.Warn else Level.Fg, Modifier.weight(1f))
+            BigCard("Network out", "%.0f".format((o.netTxBps ?: 0.0) * 8 / 1e6), "Mbps", modifier = Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(16.mx))
+        Row(Modifier.fillMaxWidth().height(26.mx), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(12.mx)) {
+            Text("Now playing", style = ui(17, FontWeight.SemiBold), maxLines = 1)
+            Text("${o.streams.size} of ${o.users} users", style = mono(11, color = Level.Faint), maxLines = 1)
+            Spacer(Modifier.weight(1f))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.mx)) {
+                VDot(Level.Good)
+                Text("Live · frames and positions refresh every second", style = mono(11, color = Level.Good), maxLines = 1)
             }
         }
+        Spacer(Modifier.height(16.mx))
+        if (o.streams.isEmpty()) Text("Nobody is watching right now.", style = mono(12, color = Level.Dim))
+        Column(verticalArrangement = Arrangement.spacedBy(12.mx)) { o.streams.take(3).forEach { StreamCard(it) } }
     }
 }
 
@@ -480,6 +572,85 @@ private fun SetupPanel(app: AutomationApp, pluginInstalled: Boolean) {
     }
 }
 
+private data class ServerCard(val label: String, val value: String, val suffix: String = "", val color: Color = Level.Fg)
+
+/** The shared Server layout from the mock-up: a kicker at y92, big numbers at y142 and panels from y270. */
+@Composable
+private fun ServerFrame(kick: String, kickColor: Color, cards: List<ServerCard>, content: @Composable () -> Unit) {
+    Column {
+        Spacer(Modifier.height(4.mx))
+        Row(Modifier.height(34.mx), verticalAlignment = Alignment.CenterVertically) {
+            Text(kick.uppercase(), style = mono(11, color = kickColor, tracking = 0.16f), maxLines = 1)
+        }
+        Spacer(Modifier.height(16.mx))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.mx)) {
+            cards.forEach { BigCard(it.label, it.value, it.suffix, it.color, Modifier.weight(1f)) }
+        }
+        Spacer(Modifier.height(16.mx))
+        content()
+    }
+}
+
+/** A queue line: art, title, detail and a bar on the left; percent and rate on the right. */
+@Composable
+private fun QueueRow(item: ArrItem, withArt: Boolean = true) {
+    val stalled = item.right.contains("stalled", true) || item.subtitle.contains("stalled", true)
+    val bar = if (stalled) Level.Warn else Level.liveAccent
+    Row(
+        Modifier.fillMaxWidth().height(78.mx).background(Level.Glass, androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+            .border(1.dp, Level.Edge, androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).padding(start = 10.mx, end = 14.mx),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.mx),
+    ) {
+        if (withArt) VArt(item.imageUrl, 96.mx, 54.mx)
+        Column(Modifier.weight(1f)) {
+            Text(item.title, style = ui(14, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(item.subtitle, style = mono(11, color = Level.Dim), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.mx))
+            VBar(item.progress ?: 0f, bar, 4.mx, Modifier.padding(top = 7.mx))
+        }
+        Column(horizontalAlignment = Alignment.End, modifier = Modifier.width(110.mx)) {
+            Text("${((item.progress ?: 0f) * 100).toInt()}%", style = ui(14, FontWeight.SemiBold), maxLines = 1)
+            Text(item.right, style = mono(11, color = Level.Faint), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.mx))
+        }
+    }
+}
+
+/** A line with art, a title and detail, and a status chip at the right. */
+@Composable
+private fun StatusRow(imageUrl: String?, title: String, sub: String, chip: String, tone: ChipTone, withArt: Boolean = true) {
+    Row(
+        Modifier.fillMaxWidth().height(78.mx).background(Level.Glass, androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+            .border(1.dp, Level.Edge, androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).padding(start = 10.mx, end = 14.mx),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.mx),
+    ) {
+        if (withArt) VArt(imageUrl, 96.mx, 54.mx)
+        Column(Modifier.weight(1f)) {
+            Text(title, style = ui(14, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(sub, style = mono(11, color = Level.Dim), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.mx))
+        }
+        if (chip.isNotBlank()) VChip(chip, tone)
+    }
+}
+
+private fun Tone.chip(): ChipTone = when (this) { Tone.Good -> ChipTone.Good; Tone.Warn -> ChipTone.Warn; Tone.Bad -> ChipTone.Bad; Tone.Info -> ChipTone.Plain }
+
+@Composable
+private fun ServerPanels(
+    leftTitle: String, leftSub: String, left: @Composable () -> Unit,
+    rightTitle: String, rightSub: String, right: @Composable () -> Unit,
+    actions: @Composable () -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(16.mx)) {
+        VPanel(Modifier.width(588.mx).height(376.mx), title = leftTitle, sub = leftSub, gap = 12.mx) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.mx)) { left() }
+        }
+        VPanel(Modifier.width(588.mx).height(376.mx), title = rightTitle, sub = rightSub, gap = 12.mx) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.mx)) { right() }
+        }
+    }
+    Spacer(Modifier.height(16.mx))
+    Row(horizontalArrangement = Arrangement.spacedBy(10.mx), verticalAlignment = Alignment.CenterVertically) { actions() }
+}
+
 @Composable
 private fun ArrPage(app: AutomationApp, repo: TvServerRepository) {
     var status by remember { mutableStateOf<org.siloserver.silo.tv.server.AutomationStatus?>(null) }
@@ -504,94 +675,48 @@ private fun ArrPage(app: AutomationApp, repo: TvServerRepository) {
     if (failed) { Unreachable(app); return }
     val d = dash ?: run { Loading(); return }
     val isRadarr = app == AutomationApp.Radarr
-    Column {
-        PageHead(
-            "${app.title} · ${if (isRadarr) "movies" else "series"}",
-            if (isRadarr) "Movies" else "Series",
-            version = "v${d.version.substringBeforeLast('.').ifBlank { d.version }} · ${if (d.health.none { it.tone == Tone.Bad }) "healthy" else "check health"}",
+    val healthy = d.health.none { it.tone == Tone.Bad }
+    val cards = if (isRadarr) listOf(
+        ServerCard("Movies", "%,d".format(d.total ?: 0), d.totalLabel.takeIf { it.length < 10 } ?: ""),
+        ServerCard("Missing", "${d.missing ?: 0}", "", if ((d.missing ?: 0) > 0) Level.Warn else Level.Fg),
+        ServerCard("In queue", "${d.queue.size}"),
+        ServerCard("Upcoming", "${d.upcoming ?: 0}", "next 30 days"),
+        ServerCard("Cutoff unmet", "${d.cutoffUnmet ?: 0}"),
+    ) else listOf(
+        ServerCard("Series", "%,d".format(d.total ?: 0)),
+        ServerCard("Airing this week", "${d.upcoming ?: 0}", "episodes"),
+        ServerCard("Missing", "${d.missing ?: 0}", "", if ((d.missing ?: 0) > 0) Level.Warn else Level.Fg),
+        ServerCard("In queue", "${d.queue.size}"),
+        ServerCard("Cutoff unmet", "${d.cutoffUnmet ?: 0}"),
+    )
+    ServerFrame(
+        kick = "● ${app.title} · v${d.version.substringBeforeLast('.').ifBlank { d.version }} · ${if (healthy) "connected" else "check health"}",
+        kickColor = if (healthy) Level.Good else Level.Warn,
+        cards = cards,
+    ) {
+        ServerPanels(
+            leftTitle = "Queue", leftSub = if (d.queue.isEmpty()) "idle" else "${d.queue.size} downloading",
+            left = {
+                if (d.queue.isEmpty()) Text("Nothing downloading.", style = mono(12, color = Level.Dim))
+                d.queue.take(3).forEach { QueueRow(it) }
+            },
+            rightTitle = if (isRadarr) "Missing and upcoming" else "Airing this week",
+            rightSub = if (isRadarr) "monitored, not on disk" else "${d.calendar.firstOrNull()?.date?.format(DateTimeFormatter.ofPattern("EEE d")) ?: ""} to ${d.calendar.lastOrNull()?.date?.format(DateTimeFormatter.ofPattern("EEE d")) ?: ""}",
+            right = {
+                val soon = d.calendar.flatMap { day -> day.items.map { day.date to it } }.take(3)
+                if (soon.isEmpty()) Text(if (isRadarr) "Nothing due in the next 30 days." else "Nothing airing this week.", style = mono(12, color = Level.Dim))
+                soon.forEach { (date, m) -> StatusRow(m.imageUrl, m.title, "${date.format(DateTimeFormatter.ofPattern("EEE d"))} · ${m.subtitle}".trim(' ', '·'), m.right.takeIf { it.isNotBlank() } ?: "", ChipTone.Plain) }
+            },
+            actions = {
+                VButton("Search missing", onClick = {
+                    scope.launch { note = if (repo.arrCommand(app, if (isRadarr) "MissingMoviesSearch" else "MissingEpisodeSearch")) "Search started" else "Failed" }
+                }, primary = true, height = 42.mx, textPx = 13)
+                VButton(if (isRadarr) "Refresh library" else "Refresh series", onClick = {
+                    scope.launch { note = if (repo.arrCommand(app, if (isRadarr) "RefreshMovie" else "RefreshSeries")) "Refresh started" else "Failed" }
+                }, height = 42.mx, textPx = 13)
+                note?.let { Text(it, style = mono(11, color = Level.Dim)) }
+            },
         )
-        Spacer(Modifier.height(18.mx))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.mx)) {
-            if (isRadarr) VStat("Movies", "%,d".format(d.total ?: 0), d.totalLabel, modifier = Modifier.weight(1f))
-            else VStat("Airing this week", "${d.upcoming ?: 0}", "episodes", modifier = Modifier.weight(1f))
-            VStat("Missing", "${d.missing ?: 0}", if (isRadarr) "monitored, no file" else "episodes", if ((d.missing ?: 0) > 0) Level.Warn else Level.Fg, Modifier.weight(1f))
-            VStat(if (isRadarr) "Upcoming" else "Cutoff unmet", "${if (isRadarr) d.upcoming ?: 0 else d.cutoffUnmet ?: 0}", if (isRadarr) "next 30 days" else "upgrades wanted", modifier = Modifier.weight(1f))
-            VStat("Queue", "${d.queue.size}", if (d.queue.isEmpty()) "idle" else "${d.queue.count { (it.progress ?: 0f) > 0f }} downloading", modifier = Modifier.weight(1f))
-        }
-        Spacer(Modifier.height(16.mx))
-        if (!isRadarr) {
-            // Week calendar.
-            VPanel(Modifier.fillMaxWidth().height(196.mx), title = "Airing this week", sub = "${d.calendar.firstOrNull()?.date?.format(DateTimeFormatter.ofPattern("EEE d")) ?: ""} to ${d.calendar.lastOrNull()?.date?.format(DateTimeFormatter.ofPattern("EEE d")) ?: ""}") {
-                Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(10.mx)) {
-                    val today = java.time.LocalDate.now()
-                    d.calendar.forEach { day ->
-                        val isToday = day.date == today
-                        Column(
-                            Modifier.weight(1f).fillMaxHeight()
-                                .background(if (isToday) Level.liveAccent.copy(alpha = 0.16f) else Level.Glass2, androidx.compose.foundation.shape.RoundedCornerShape(9.dp))
-                                .border(1.dp, if (isToday) Level.liveAccent else Level.Edge, androidx.compose.foundation.shape.RoundedCornerShape(9.dp))
-                                .padding(8.mx),
-                            verticalArrangement = Arrangement.spacedBy(5.mx),
-                        ) {
-                            VLabel(day.date.format(DateTimeFormatter.ofPattern("EEE d")), if (isToday) Level.liveAccent else Level.Faint)
-                            if (day.items.isEmpty()) Text("nothing airing", style = mono(10, color = Level.Faint))
-                            day.items.take(2).forEach { e -> VArt(e.imageUrl, 132.mx, 52.mx) }
-                            if (day.items.size > 2) Text("+${day.items.size - 2} more", style = mono(10, color = Level.Dim))
-                        }
-                    }
-                }
-            }
-            Spacer(Modifier.height(16.mx))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(16.mx)) {
-            Column(Modifier.width(600.mx), verticalArrangement = Arrangement.spacedBy(16.mx)) {
-                VPanel(Modifier.fillMaxWidth().height(if (isRadarr) 206.mx else 186.mx), title = "Queue", sub = "from the download client", gap = 12.mx) {
-                    if (d.queue.isEmpty()) Text("Nothing downloading.", style = mono(12, color = Level.Dim))
-                    d.queue.take(2).forEachIndexed { i, q -> VListRow(q.title, q.subtitle, q.right, q.imageUrl, q.progress, divider = i == 0 && d.queue.size > 1) }
-                }
-                if (isRadarr) {
-                    VPanel(Modifier.fillMaxWidth().height(186.mx), title = "Recent activity", sub = "latest first", gap = 9.mx) {
-                        d.activity.take(4).forEach { VEventLine(it.text, it.tone.color(), it.time.hm()) }
-                    }
-                }
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.mx)) {
-                if (isRadarr) {
-                    VPanel(Modifier.fillMaxWidth().height(206.mx), title = "Coming soon", sub = "release dates") {
-                        val soon = d.calendar.flatMap { day -> day.items.map { day.date to it } }.take(4)
-                        if (soon.isEmpty()) Text("Nothing due in the next 30 days.", style = mono(12, color = Level.Dim))
-                        Row(horizontalArrangement = Arrangement.spacedBy(14.mx)) {
-                            soon.forEach { (date, m) ->
-                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.mx)) {
-                                    VArt(m.imageUrl, 128.mx, 72.mx)
-                                    VChip(date.format(DateTimeFormatter.ofPattern("EEE d")))
-                                }
-                            }
-                        }
-                        Text(soon.joinToString(" · ") { it.second.title }, style = mono(11, color = Level.Dim), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                }
-                VPanel(Modifier.fillMaxWidth().height(186.mx), title = if (isRadarr) "Health and wanted" else "Recent activity and wanted", sub = if (d.health.isEmpty()) "no health issues" else "${d.health.size} notices", gap = 8.mx) {
-                    if (isRadarr) {
-                        d.health.take(2).forEach { VEventLine(it.text, it.tone.color(), "") }
-                        if (d.health.isEmpty()) VEventLine("Indexers and download client", Level.Good, "OK")
-                    } else {
-                        d.activity.take(2).forEach { VEventLine(it.text, it.tone.color(), it.time.hm()) }
-                        d.health.take(1).forEach { VEventLine(it.text, it.tone.color(), "") }
-                    }
-                    VEventLine("Cutoff unmet", Level.Warn, "${d.cutoffUnmet ?: 0} ${if (isRadarr) "movies" else "episodes"}")
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.mx), verticalAlignment = Alignment.CenterVertically) {
-                        VButton("Search missing", onClick = {
-                            scope.launch { note = if (repo.arrCommand(app, if (isRadarr) "MissingMoviesSearch" else "MissingEpisodeSearch")) "Search started" else "Failed" }
-                        }, primary = true, height = 32.mx, textPx = 12)
-                        VButton(if (isRadarr) "Refresh library" else "Refresh series", onClick = {
-                            scope.launch { note = if (repo.arrCommand(app, if (isRadarr) "RefreshMovie" else "RefreshSeries")) "Refresh started" else "Failed" }
-                        }, height = 32.mx, textPx = 12)
-                        note?.let { Text(it, style = mono(11, color = Level.Dim)) }
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -624,78 +749,97 @@ private fun SabPage(repo: TvServerRepository) {
     if (failed) { Unreachable(AutomationApp.Sabnzbd); return }
     val d = dash ?: run { Loading(); return }
     val sp = speeds.value
-    Column {
-        PageHead("SABnzbd · downloads", if (d.paused) "Paused" else if (d.queue.isEmpty()) "Idle" else "Downloading", version = "v${d.version} · ${if (d.paused) "paused" else "running"}")
-        Spacer(Modifier.height(18.mx))
-        Row(horizontalArrangement = Arrangement.spacedBy(16.mx)) {
-            Column(Modifier.width(600.mx), verticalArrangement = Arrangement.spacedBy(16.mx)) {
-                VPanel(Modifier.fillMaxWidth().height(206.mx), title = "Speed", sub = "last 3 minutes") {
-                    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(22.mx)) {
-                        VBig("%.1f".format(d.speedMBs), "MB/s", 58)
-                        Text("avg %.1f · peak %.1f\nlimit: %s".format(if (sp.isEmpty()) 0f else sp.average().toFloat(), sp.maxOrNull() ?: 0f, d.speedLimit), style = mono(11, color = Level.Dim))
-                    }
-                    VLineChart(sp, modifier = Modifier.fillMaxWidth().height(60.mx))
-                }
-                VPanel(Modifier.fillMaxWidth().height(260.mx), title = "Queue", sub = "${d.queue.size} jobs · ${d.sizeLeft} left · ETA ${d.timeLeft}", gap = 12.mx) {
-                    if (d.queue.isEmpty()) Text("The queue is empty.", style = mono(12, color = Level.Dim))
-                    d.queue.take(3).forEachIndexed { i, q -> VListRow(q.title, q.subtitle, q.right, null, q.progress, divider = i < minOf(2, d.queue.size - 1), artWidth = 0.mx) }
-                }
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.mx)) {
-                VPanel(Modifier.fillMaxWidth().height(206.mx), title = "Usenet servers", sub = "${d.servers.size} providers", gap = 11.mx) {
-                    d.servers.take(2).forEach { s ->
-                        Column {
-                            Row {
-                                Text(s.name, style = mono(12))
-                                Text("  ● ${s.activeConnections ?: 0}${s.maxConnections?.let { " / $it" } ?: ""} connections", style = mono(12, color = Level.Good))
-                                Spacer(Modifier.weight(1f))
-                                Text(s.detail, style = mono(12, color = Level.Dim))
-                            }
-                            Spacer(Modifier.height(5.mx))
-                            VBar(if ((s.maxConnections ?: 0) > 0) (s.activeConnections ?: 0).toFloat() / s.maxConnections!! else 0f)
-                        }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.mx)) {
-                        VButton(if (d.paused) "Resume" else "Pause", onClick = {
-                            scope.launch { repo.sabAction(if (d.paused) "resume" else "pause"); refresh++ }
-                        }, primary = true, height = 32.mx, textPx = 12)
-                        VButton(if (d.speedLimit == "none") "Limit to 50%" else "Remove limit", onClick = {
-                            scope.launch { repo.sabAction("speedlimit", if (d.speedLimit == "none") 50 else 100); refresh++ }
-                        }, height = 32.mx, textPx = 12)
-                    }
-                }
-                VPanel(Modifier.fillMaxWidth().height(160.mx), title = "History", sub = "latest", gap = 9.mx) {
-                    d.history.take(3).forEach { VEventLine(it.text, it.tone.color(), it.time.hm()) }
-                }
-                VPanel(Modifier.fillMaxWidth().height(84.mx), title = "Disk and warnings", sub = "incomplete folder", gap = 8.mx) {
-                    val total = d.diskTotalGb ?: 0.0; val free = d.diskFreeGb ?: 0.0
-                    Row {
-                        Text("Free ${storageTb(free)} of ${storageTb(total)}", style = mono(12, color = Level.Dim), modifier = Modifier.weight(1f))
-                        Text("${d.warnings} warnings", style = mono(12, color = if (d.warnings == 0) Level.Good else Level.Warn))
-                    }
-                    VBar(if (total > 0) ((total - free) / total).toFloat() else 0f)
-                }
-            }
-        }
+    ServerFrame(
+        kick = "● SABnzbd · v${d.version} · ${if (d.paused) "paused" else "running"}",
+        kickColor = if (d.paused) Level.Warn else Level.Good,
+        cards = listOf(
+            ServerCard("Speed", "%.1f".format(d.speedMBs), "MB/s", if (d.speedMBs > 0) Level.Good else Level.Fg),
+            ServerCard("Queue", "${d.queue.size}", "jobs"),
+            ServerCard("Remaining", d.sizeLeft.substringBefore(' '), d.sizeLeft.substringAfter(' ', "")),
+            ServerCard("Time left", d.timeLeft.ifBlank { "–" }),
+            ServerCard("Free space", storageTb(d.diskFreeGb ?: 0.0).substringBefore(' '), storageTb(d.diskFreeGb ?: 0.0).substringAfter(' ', ""), if (d.diskTotalGb != null && d.diskTotalGb > 0 && (d.diskFreeGb ?: 0.0) / d.diskTotalGb < 0.1) Level.Warn else Level.Fg),
+        ),
+    ) {
+        ServerPanels(
+            leftTitle = "Queue", leftSub = if (d.queue.isEmpty()) "idle" else "downloading · ${d.timeLeft} left",
+            left = {
+                if (d.queue.isEmpty()) Text("The queue is empty.", style = mono(12, color = Level.Dim))
+                d.queue.take(3).forEach { QueueRow(it, withArt = false) }
+            },
+            rightTitle = "History", rightSub = "latest",
+            right = {
+                if (d.history.isEmpty()) Text("Nothing finished yet.", style = mono(12, color = Level.Dim))
+                d.history.take(3).forEach { StatusRow(null, it.text, it.time.hm(), if (it.tone == Tone.Bad) "Failed" else "Completed", it.tone.chip(), withArt = false) }
+            },
+            actions = {
+                VButton(if (d.paused) "Resume" else "Pause", onClick = {
+                    scope.launch { repo.sabAction(if (d.paused) "resume" else "pause"); refresh++ }
+                }, primary = true, height = 42.mx, textPx = 13)
+                VButton(if (d.speedLimit == "none") "Limit to 50%" else "Remove limit", onClick = {
+                    scope.launch { repo.sabAction("speedlimit", if (d.speedLimit == "none") 50 else 100); refresh++ }
+                }, height = 42.mx, textPx = 13)
+                if (sp.isNotEmpty()) Text("avg %.1f · peak %.1f MB/s".format(sp.average().toFloat(), sp.maxOrNull() ?: 0f), style = mono(11, color = Level.Dim))
+            },
+        )
     }
 }
 
 @Composable
 private fun StoragePage(o: ServerOverview?) {
     if (o == null) { Loading(); return }
-    val used = o.disks.filter { it.label != "Transcode scratch" }.sumOf { it.usedGb }
-    val total = o.disks.filter { it.label != "Transcode scratch" }.sumOf { it.totalGb }
-    Column {
-        PageHead("Storage · ${o.disks.size} volumes", "${storageTb(total - used)} free")
-        Spacer(Modifier.height(20.mx))
+    val library = o.disks.filter { it.label != "Transcode scratch" }
+    val used = library.sumOf { it.usedGb }
+    val total = library.sumOf { it.totalGb }
+    val fullest = o.disks.maxOfOrNull { it.fraction } ?: 0f
+    fun tb(gb: Double) = storageTb(gb)
+    ServerFrame(
+        kick = "● Storage · ${o.disks.size} volumes",
+        kickColor = if (fullest > 0.9f) Level.Warn else Level.Good,
+        cards = listOf(
+            ServerCard("Used", tb(used).substringBefore(' '), tb(used).substringAfter(' ', "")),
+            ServerCard("Free", tb(total - used).substringBefore(' '), tb(total - used).substringAfter(' ', "")),
+            ServerCard("Library", tb(o.storageBytes / 1e9).substringBefore(' '), tb(o.storageBytes / 1e9).substringAfter(' ', "")),
+            ServerCard("Fullest volume", "${(fullest * 100).toInt()}", "%", if (fullest > 0.85f) Level.Warn else Level.Fg),
+            ServerCard("Files", "%,d".format(o.files)),
+        ),
+    ) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.mx)) {
-            VPanel(Modifier.width(760.mx), title = "Volumes", sub = "library and scratch", gap = 18.mx) {
-                o.disks.forEach { DiskBar(it.label, it.usedGb, it.totalGb, it.fraction) }
+            VPanel(Modifier.width(588.mx).height(376.mx), title = "Volumes", sub = "${o.disks.size} mounted", gap = 12.mx) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.mx)) {
+                    o.disks.take(3).forEach { d ->
+                        val pct = (d.fraction * 100).toInt()
+                        val c = if (d.fraction > 0.85f) Level.Warn else Level.liveAccent
+                        Column(
+                            Modifier.fillMaxWidth().background(Level.Glass, androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                                .border(1.dp, Level.Edge, androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).padding(horizontal = 16.mx, vertical = 14.mx),
+                            verticalArrangement = Arrangement.spacedBy(9.mx),
+                        ) {
+                            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.mx)) {
+                                Text(d.label, style = ui(16, FontWeight.SemiBold), maxLines = 1, modifier = Modifier.weight(1f))
+                                Text("$pct%", style = ui(16, FontWeight.SemiBold, if (d.fraction > 0.85f) Level.Warn else Level.Fg))
+                            }
+                            VBar(d.fraction, c, 10.mx)
+                            Row {
+                                Text("${tb(d.usedGb)} of ${tb(d.totalGb)}", style = mono(12, color = Level.Dim), modifier = Modifier.weight(1f))
+                                Text("${tb(d.totalGb - d.usedGb)} free", style = mono(12, color = if (d.fraction > 0.85f) Level.Warn else Level.Faint))
+                            }
+                        }
+                    }
+                }
             }
-            Column(verticalArrangement = Arrangement.spacedBy(16.mx)) {
-                VStat("Library size", storageTb(o.storageBytes / 1e9), "on disk", modifier = Modifier.width(416.mx))
-                VStat("Files", "%,d".format(o.files), "${o.movies} movies · ${o.shows} series", modifier = Modifier.width(416.mx))
-                VStat("Fullest volume", "${((o.disks.maxOfOrNull { it.fraction } ?: 0f) * 100).toInt()}%", o.disks.maxByOrNull { it.fraction }?.label.orEmpty(), if ((o.disks.maxOfOrNull { it.fraction } ?: 0f) > 0.9f) Level.Warn else Level.Fg, Modifier.width(416.mx))
+            VPanel(Modifier.width(588.mx).height(376.mx), title = "Library", sub = "what is on the disks", gap = 12.mx) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.mx)) {
+                    VChip("%,d titles".format(o.totalItems))
+                    VChip("%,d movies".format(o.movies))
+                    VChip("%,d series".format(o.shows))
+                }
+                Spacer(Modifier.height(8.mx))
+                VLabel("Library size")
+                VBig(tb(o.storageBytes / 1e9).substringBefore(' '), tb(o.storageBytes / 1e9).substringAfter(' ', ""), 48)
+                if (fullest > 0.9f) {
+                    val worst = o.disks.maxByOrNull { it.fraction }
+                    VChip("${worst?.label} is above 90%", ChipTone.Warn, dot = true)
+                }
             }
         }
     }
@@ -704,26 +848,49 @@ private fun StoragePage(o: ServerOverview?) {
 @Composable
 private fun LogsPage(o: ServerOverview?, repo: TvServerRepository) {
     var warns by remember { mutableStateOf<List<LogLine>>(emptyList()) }
+    var filter by remember { mutableStateOf("all") }
     LaunchedEffect(Unit) { while (true) { warns = runCatching { repo.warningLogs() }.getOrDefault(warns); delay(10_000) } }
     if (o == null) { Loading(); return }
     val all = (warns + o.logs).distinctBy { it.time to it.message }.sortedByDescending { it.time }
-    Column {
-        PageHead("Logs · ${o.errors24h} errors · ${o.warnings24h} warnings today", "Server log")
+    fun isWarn(l: LogLine) = l.level == "warn" || l.level == "warning"
+    val shown = when (filter) {
+        "error" -> all.filter { it.level == "error" }
+        "warn" -> all.filter { isWarn(it) }
+        "info" -> all.filter { it.level != "error" && !isWarn(it) }
+        else -> all
+    }
+    val lastError = all.firstOrNull { it.level == "error" }
+    ServerFrame(
+        kick = "● Logs · last 24 hours",
+        kickColor = if (o.errors24h > 0) Level.Bad else Level.Good,
+        cards = listOf(
+            ServerCard("Errors", "${o.errors24h}", "", if (o.errors24h > 0) Level.Bad else Level.Fg),
+            ServerCard("Warnings", "${o.warnings24h}", "", if (o.warnings24h > 0) Level.Warn else Level.Fg),
+            ServerCard("Lines loaded", "${all.size}"),
+            ServerCard("Last error", lastError?.time.hm().ifBlank { "–" }, if (lastError != null) "today" else ""),
+        ),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.mx), verticalAlignment = Alignment.CenterVertically) {
+            listOf("all" to "All", "error" to "Errors ${o.errors24h}", "warn" to "Warnings ${o.warnings24h}", "info" to "Info").forEach { (k, label) ->
+                VButton(label, onClick = { filter = k }, primary = filter == k, height = 34.mx, textPx = 12)
+            }
+        }
         Spacer(Modifier.height(16.mx))
-        Box(Modifier.fillMaxSize().padding(bottom = 28.mx).background(Level.Glass, VantagePanel).border(1.dp, Level.Edge, VantagePanel).padding(16.mx)) {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(6.mx)) {
-                items(all) { l ->
-                    val c = when (l.level) { "error" -> Level.Bad; "warn", "warning" -> Level.Warn; else -> Level.Good }
+        VPanel(Modifier.fillMaxWidth().height(372.mx), title = "Log", sub = "newest first · showing ${shown.size.coerceAtMost(50)} of ${shown.size}", gap = 8.mx) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(2.mx)) {
+                items(shown.take(50)) { l ->
+                    val c = when { l.level == "error" -> Level.Bad; isWarn(l) -> Level.Warn; else -> Level.Good }
                     val source = remember { MutableInteractionSource() }
                     val f by source.collectIsFocusedAsState()
                     Row(
-                        Modifier.fillMaxWidth().background(if (f) Level.Glass2 else Color.Transparent, VantagePill).focusable(interactionSource = source).padding(horizontal = 8.mx, vertical = 3.mx),
-                        horizontalArrangement = Arrangement.spacedBy(12.mx),
+                        Modifier.fillMaxWidth().height(30.mx).background(if (f) Color.White.copy(alpha = 0.07f) else Color.Transparent, VantagePill)
+                            .focusable(interactionSource = source).padding(horizontal = 12.mx),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.mx),
                     ) {
-                        Text(l.time.hm(), style = mono(12, color = c))
-                        Text(l.level.uppercase().take(4), style = mono(12, color = c), modifier = Modifier.width(44.mx))
-                        Text(l.component, style = mono(12, color = Level.Faint), maxLines = 1, modifier = Modifier.width(110.mx))
-                        Text(l.message, style = mono(12), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(l.time.hm(), style = mono(12, color = Level.Faint), modifier = Modifier.width(52.mx), maxLines = 1)
+                        VChip(l.level.uppercase().take(5), if (l.level == "error") ChipTone.Bad else if (isWarn(l)) ChipTone.Warn else ChipTone.Plain, size = 10, modifier = Modifier.width(64.mx))
+                        Text(l.component, style = mono(12, color = Level.Dim), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(110.mx))
+                        Text(l.message, style = mono(12), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     }
                 }
             }
@@ -752,7 +919,7 @@ private fun Loading() {
 
 // ---- System -------------------------------------------------------------------------------
 
-private data class SysSample(val hostCpu: Float, val siloCpu: Float, val ffCpu: Float, val goroutines: Float, val ioMBs: Float)
+private data class SysSample(val hostCpu: Float, val siloCpu: Float, val ffCpu: Float, val goroutines: Float, val ioMBs: Float, val gpu: Float = 0f, val net: Float = 0f)
 
 private fun bytesShort(b: Long?): String = when {
     b == null -> "–"
@@ -769,9 +936,10 @@ private fun cpuTime(sec: Double?): String {
 private val Purple = Color(0xFFC79BFF)
 
 @Composable
-private fun SystemPage(repo: TvServerRepository, serverName: String) {
+private fun SystemPage(repo: TvServerRepository, serverName: String, overview: ServerOverview?) {
     var stats by remember { mutableStateOf<org.siloserver.silo.tv.server.SystemStats?>(null) }
     val history = remember { mutableStateOf(listOf<SysSample>()) }
+    val netMbps by rememberUpdatedState(((overview?.netTxBps ?: 0.0) * 8 / 1e6).toFloat())
     LaunchedEffect(Unit) {
         var prev: org.siloserver.silo.tv.server.SystemStats? = null
         while (true) {
@@ -783,7 +951,7 @@ private fun SystemPage(repo: TvServerRepository, serverName: String) {
                     if (dt > 0.5) {
                         fun pct(a: Double?, b: Double?) = if (a != null && b != null) (((a - b) / dt) / now.cores * 100).coerceIn(0.0, 100.0).toFloat() else 0f
                         val io = if (now.readBytes != null && p.readBytes != null) ((now.readBytes - p.readBytes + (now.writeBytes ?: 0) - (p.writeBytes ?: 0)) / dt / 1e6).toFloat().coerceAtLeast(0f) else 0f
-                        history.value = (history.value + SysSample(now.hostCpuPct.toFloat(), pct(now.processCpuSeconds, p.processCpuSeconds), pct(now.ffmpegCpuSeconds, p.ffmpegCpuSeconds), (now.goroutines ?: 0).toFloat(), io)).takeLast(3600)
+                        history.value = (history.value + SysSample(now.hostCpuPct.toFloat(), pct(now.processCpuSeconds, p.processCpuSeconds), pct(now.ffmpegCpuSeconds, p.ffmpegCpuSeconds), (now.goroutines ?: 0).toFloat(), io, (now.gpuSessions * 25f).coerceAtMost(100f), netMbps)).takeLast(3600)
                     }
                 }
                 prev = now; stats = now
@@ -799,110 +967,87 @@ private fun SystemPage(repo: TvServerRepository, serverName: String) {
     val procGb = (s.processRssBytes ?: 0) / 1.073741824e9
     val contGb = ((s.containerWorkingSetBytes ?: 0) / 1.073741824e9 - procGb).coerceAtLeast(0.0)
     val ffGb = s.ffmpegRssBytes / 1.073741824e9
-    val otherGb = (usedGb - procGb - contGb - ffGb).coerceAtLeast(0.0)
-    val siloGb = procGb + contGb + ffGb
-    val swapGb = (s.swapBytes ?: 0) / 1.073741824e9
-    val busy = s.ffmpegCount > 0 || s.hostCpuPct > 60
+    val siloGb = procGb + contGb
+    val otherGb = (usedGb - siloGb - ffGb).coerceAtLeast(0.0)
+    val freeGb = (totalGb - usedGb).coerceAtLeast(0.0)
     val tight = usedGb / totalGb.coerceAtLeast(0.1) > 0.85 || (s.oomKills ?: 0) > 0 || (s.cpuThrottledSeconds ?: 0.0) > 0
+    val gpuPct = (s.gpuSessions * 25).coerceAtMost(100)
+    val io = last?.ioMBs ?: 0f
+    val uplink = 110f
     Column {
-        PageHead(
-            kick = "● System · $serverName · ${s.cores}-core · %.1f GB RAM".format(totalGb),
-            title = when { tight -> "Running tight"; busy -> "Busy"; else -> "Plenty of headroom" },
-            kickColor = if (tight) Level.Warn else Level.Good,
-        )
-        Spacer(Modifier.height(20.mx))
-        Row(horizontalArrangement = Arrangement.spacedBy(16.mx)) {
-            VPanel(Modifier.width(600.mx).height(282.mx), title = "Memory", sub = "host RAM, and what Silo is using", gap = 9.mx) {
-                Row(horizontalArrangement = Arrangement.spacedBy(22.mx), verticalAlignment = Alignment.Bottom) {
-                    Column { VLabel("NAS in use"); VBig("%.1f".format(usedGb), "of %.1f GB · %d%%".format(totalGb, (usedGb * 100 / totalGb.coerceAtLeast(0.1)).toInt())) }
-                    Column { VLabel("Silo"); VBig(if (siloGb >= 1) "%.2f GB".format(siloGb) else "%.0f MB".format(siloGb * 1024), if (ffGb > 0) "incl. ${s.ffmpegCount} transcoder${if (s.ffmpegCount > 1) "s" else ""}" else "container · process ${bytesShort(s.processRssBytes)}", color = Level.liveAccent) }
-                }
-                val segs = listOf(
-                    Triple(procGb, Level.liveAccent, "Silo process"),
-                    Triple(contGb, Level.liveAccent.copy(alpha = 0.45f), "Rest of Silo container"),
-                    Triple(ffGb, Purple, "Transcoders (ffmpeg)"),
-                    Triple(otherGb, Color.White.copy(alpha = 0.32f), "Other apps on the NAS"),
-                )
-                Row(Modifier.fillMaxWidth().height(16.mx).clip(androidx.compose.foundation.shape.RoundedCornerShape(5.dp)).background(Color.White.copy(alpha = 0.08f)).border(1.dp, Level.Edge, androidx.compose.foundation.shape.RoundedCornerShape(5.dp))) {
-                    segs.forEach { (gb, c, _) -> if (gb > 0) Box(Modifier.weight((gb / totalGb).toFloat().coerceAtLeast(0.002f)).fillMaxHeight().background(c)) }
-                    val free = (totalGb - usedGb).coerceAtLeast(0.0)
-                    if (free > 0) Spacer(Modifier.weight((free / totalGb).toFloat().coerceAtLeast(0.002f)))
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(5.mx)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(14.mx)) { segs.take(2).forEach { Legend(it.second, it.third, gbText(it.first)) } }
-                    Row(horizontalArrangement = Arrangement.spacedBy(14.mx)) {
-                        segs.drop(2).forEach { Legend(it.second, it.third, gbText(it.first)) }
-                        Legend(Color.White.copy(alpha = 0.08f), "Free", gbText(totalGb - usedGb))
-                    }
-                }
-                Box(Modifier.fillMaxWidth().height(1.dp).background(Level.Edge))
-                Row(horizontalArrangement = Arrangement.spacedBy(20.mx)) {
-                    Column(Modifier.weight(1f)) { KeyValues("Go heap" to "${bytesShort(s.heapLiveBytes)} live", "Container charged" to "${bytesShort(s.containerChargedBytes)} incl. cache") }
-                    Column(Modifier.weight(1f)) {
-                        KeyValues("Swap (container)" to "%.2f GB".format(swapGb), "Out-of-memory kills" to "${s.oomKills ?: 0}",
-                            colors = mapOf("Out-of-memory kills" to if ((s.oomKills ?: 0) == 0L) Level.Good else Level.Bad))
-                    }
-                }
-            }
-            VPanel(Modifier.weight(1f).height(282.mx), title = "CPU", sub = "live · since this page opened", gap = 10.mx) {
-                Row(horizontalArrangement = Arrangement.spacedBy(14.mx), verticalAlignment = Alignment.CenterVertically) {
-                    CpuRing(s.hostCpuPct.toInt(), Level.Good, "NAS", "${s.cores} cores")
-                    CpuRing((last?.siloCpu ?: 0f).toInt(), Level.liveAccent, "Silo", "%.1f cores".format((last?.siloCpu ?: 0f) * s.cores / 100))
-                    CpuRing((last?.ffCpu ?: 0f).toInt(), Purple, "ffmpeg", if (s.ffmpegCount == 0) "idle" else "${s.ffmpegCount} running")
-                    Column(Modifier.weight(1f)) {
-                        Box(Modifier.fillMaxWidth().height(70.mx)) {
-                            VLineChart(h.map { it.hostCpu }, Level.Good, Modifier.fillMaxSize(), maxOverride = 100f)
-                            VLineChart(h.map { it.siloCpu }, Level.liveAccent, Modifier.fillMaxSize(), maxOverride = 100f)
-                        }
-                        Row(Modifier.padding(top = 4.mx), horizontalArrangement = Arrangement.spacedBy(12.mx)) { Legend(Level.Good, "NAS", null); Legend(Level.liveAccent, "Silo", null) }
-                    }
-                }
-                Box(Modifier.fillMaxWidth().height(1.dp).background(Level.Edge))
-                Row(horizontalArrangement = Arrangement.spacedBy(20.mx)) {
-                    Column(Modifier.weight(1f)) { KeyValues("Load (1 min)" to "%.2f / %d".format(s.load1, s.cores), "Throttled" to "%.0f s".format(s.cpuThrottledSeconds ?: 0.0), colors = mapOf("Throttled" to if ((s.cpuThrottledSeconds ?: 0.0) > 0) Level.Warn else Level.Good)) }
-                    Column(Modifier.weight(1f)) { KeyValues("Silo CPU time" to cpuTime(s.processCpuSeconds), "CPU pressure" to "%.0f%%".format(s.cpuPressurePct ?: 0.0)) }
-                }
-            }
+        Spacer(Modifier.height(4.mx))
+        Row(Modifier.height(34.mx), verticalAlignment = Alignment.CenterVertically) {
+            Text("● SYSTEM · ${serverName.uppercase()} · ${s.cores}-CORE", style = mono(11, color = if (tight) Level.Warn else Level.Good, tracking = 0.16f), maxLines = 1)
+        }
+        Spacer(Modifier.height(16.mx))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.mx)) {
+            BigCard("RAM", "%.1f".format(usedGb), "GB", modifier = Modifier.weight(1f))
+            BigCard("CPU", "${s.hostCpuPct.toInt()}", "%", if (s.hostCpuPct > 85) Level.Warn else Level.Fg, Modifier.weight(1f))
+            BigCard("GPU", "$gpuPct", "%", modifier = Modifier.weight(1f))
+            BigCard("Network out", "%.0f".format(netMbps), "Mbps", modifier = Modifier.weight(1f))
+            BigCard("Disk I/O", "%.1f".format(io), "MB/s", modifier = Modifier.weight(1f))
         }
         Spacer(Modifier.height(16.mx))
         Row(horizontalArrangement = Arrangement.spacedBy(16.mx)) {
-            VPanel(Modifier.weight(1f).height(228.mx), title = "Uptime", sub = "Silo server") {
-                val up = s.startedAt?.let { Duration.between(it, Instant.now()) }
-                if (up != null) VBig(if (up.toDays() > 0) "${up.toDays()}d ${up.toHours() % 24}h" else "${up.toHours()}h", "${up.toMinutes() % 60}m", 44)
-                Text(
-                    "since ${s.startedAt?.let { DateTimeFormatter.ofPattern("EEE d MMM, H:mm").withZone(ZoneId.systemDefault()).format(it) } ?: "–"}",
-                    style = mono(11, color = Level.Dim),
+            VPanel(Modifier.width(294.mx).height(336.mx), title = "Memory", sub = "host RAM", gap = 14.mx) {
+                Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.mx)) {
+                    Text("%.1f".format(usedGb), style = ui(40, FontWeight.SemiBold), maxLines = 1)
+                    Text("GB of %.1f".format(totalGb), style = mono(13, color = Level.Dim), maxLines = 1, modifier = Modifier.padding(bottom = 4.mx))
+                }
+                val segs = listOf(
+                    Triple(siloGb, Level.liveAccent, "Silo"),
+                    Triple(ffGb, Purple, "Transcoding"),
+                    Triple(otherGb, Color.White.copy(alpha = 0.38f), "Other apps"),
                 )
-                Row { Text("restart needed: ", style = mono(11, color = Level.Dim)); Text(if (s.restartRequired) "yes" else "no", style = mono(11, color = if (s.restartRequired) Level.Warn else Level.Good)) }
-                Spacer(Modifier.weight(1f))
-                Text("build ${s.build.ifBlank { "–" }}" + (s.builtAt?.let { " · built " + DateTimeFormatter.ofPattern("d MMM H:mm").withZone(ZoneId.systemDefault()).format(it) } ?: ""), style = mono(10.5, color = Level.Faint), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            VPanel(Modifier.weight(1f).height(228.mx), title = "Silo process", sub = "Go runtime") {
-                Row { MiniStat("Goroutines", "${s.goroutines ?: "–"}", null, Modifier.weight(1f)); MiniStat("Threads", "${s.threads ?: "–"}", null, Modifier.weight(1f)) }
-                Row {
-                    MiniStat("Open files", "${s.openFds ?: "–"}", s.maxFds?.let { if (it >= 1000) "of ${it / 1000}k" else "of $it" }, Modifier.weight(1f))
-                    MiniStat("Go memory", "${(s.goMemoryBytes ?: 0) / 1_000_000}", "MB", Modifier.weight(1f))
+                Row(Modifier.fillMaxWidth().height(22.mx).clip(androidx.compose.foundation.shape.RoundedCornerShape(11.dp)).background(Color.White.copy(alpha = 0.08f)), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    segs.forEach { (gb, c, _) -> if (gb > 0) Box(Modifier.weight((gb / totalGb).toFloat().coerceAtLeast(0.002f)).fillMaxHeight().background(c)) }
+                    if (freeGb > 0) Spacer(Modifier.weight((freeGb / totalGb).toFloat().coerceAtLeast(0.002f)))
                 }
-                VLineChart(h.map { it.goroutines }, modifier = Modifier.fillMaxWidth().height(30.mx), maxOverride = (h.maxOfOrNull { it.goroutines } ?: 1f) * 1.1f)
-                VLabel("goroutines")
-            }
-            VPanel(Modifier.weight(1f).height(228.mx), title = "Disk I/O", sub = "by Silo, since start") {
-                Row { MiniStat("Read", "%.1f".format((s.readBytes ?: 0) / 1e9), "GB", Modifier.weight(1f)); MiniStat("Written", "%.1f".format((s.writeBytes ?: 0) / 1e9), "GB", Modifier.weight(1f)) }
-                VLineChart(h.map { it.ioMBs }, modifier = Modifier.fillMaxWidth().height(46.mx), maxOverride = (h.maxOfOrNull { it.ioMBs } ?: 1f).coerceAtLeast(1f) * 1.1f)
-                Text("now %.1f MB/s".format(last?.ioMBs ?: 0f), style = mono(11, color = Level.Dim))
-            }
-            VPanel(Modifier.weight(1f).height(228.mx), title = "Transcoding", sub = if (s.ffmpegCount > 0) "busy" else "idle", edge = if (s.ffmpegCount > 0) Purple.copy(alpha = 0.55f) else Level.Edge) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.mx)) {
-                    if (s.hwAccel.isEmpty()) VChip("Software only", ChipTone.Warn)
-                    s.hwAccel.forEachIndexed { i, b -> VChip(if (i == 0) "$b verified" else b, if (i == 0) ChipTone.Good else ChipTone.Plain, dot = i == 0) }
+                Column(verticalArrangement = Arrangement.spacedBy(11.mx)) {
+                    (segs + Triple(freeGb, Color.White.copy(alpha = 0.10f), "Free")).forEach { (gb, c, label) ->
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.mx)) {
+                            Box(Modifier.size(14.mx).clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp)).background(c).border(1.dp, Color.White.copy(alpha = 0.18f), androidx.compose.foundation.shape.RoundedCornerShape(4.dp)))
+                            Text(label, style = ui(14, FontWeight.SemiBold), maxLines = 1, modifier = Modifier.weight(1f))
+                            Text("%.1f".format(gb), style = mono(13, color = Level.Dim), maxLines = 1)
+                            Text("%d%%".format(Math.round(gb * 100 / totalGb.coerceAtLeast(0.1))), style = mono(13, FontWeight.SemiBold), maxLines = 1, modifier = Modifier.width(38.mx))
+                        }
+                    }
                 }
-                Text(listOfNotNull(s.gpuName, s.gpuDevice).joinToString(" · "), style = mono(12, color = Level.Dim), maxLines = 1)
-                Row { MiniStat("ffmpeg", "${s.ffmpegCount}", "running", Modifier.weight(1f)); MiniStat("RAM", if (ffGb >= 1) "%.1f".format(ffGb) else "%.0f".format(ffGb * 1024), if (ffGb >= 1) "GB" else "MB", Modifier.weight(1f)) }
-                VLabel("GPU sessions")
-                VBar((s.gpuSessions / 4f).coerceAtMost(1f), Purple, 8.mx)
-                Text(if (s.ffmpegCount == 0) "No transcodes. Direct play uses no GPU." else "${s.ffmpegCount} transcode${if (s.ffmpegCount > 1) "s" else ""} on the GPU", style = mono(10.5, color = Level.Faint), maxLines = 1)
+            }
+            VPanel(Modifier.width(882.mx).height(336.mx), title = "Last hour", sub = "CPU · GPU · network · disk", gap = 10.mx) {
+                val ioMax = (h.maxOfOrNull { it.ioMBs } ?: 1f).coerceAtLeast(1f)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.mx)) {
+                    Column(Modifier.height(150.mx), verticalArrangement = Arrangement.SpaceBetween, horizontalAlignment = Alignment.End) {
+                        listOf("100%", "75%", "50%", "25%", "0%").forEach { Text(it, style = mono(10.5, color = Level.Faint), maxLines = 1) }
+                    }
+                    Box(Modifier.weight(1f).height(150.mx)) {
+                        VLineChart(h.map { it.hostCpu }, Level.liveAccent, Modifier.fillMaxSize(), maxOverride = 100f)
+                        VLineChart(h.map { it.gpu }, Purple, Modifier.fillMaxSize(), maxOverride = 100f)
+                        VLineChart(h.map { it.net }, Level.Good, Modifier.fillMaxSize(), maxOverride = uplink)
+                        VLineChart(h.map { it.ioMBs }, Color(0xFFF5C26B), Modifier.fillMaxSize(), maxOverride = ioMax * 1.1f)
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.mx)) {
+                    SysKey(Level.liveAccent, "CPU", "${s.hostCpuPct.toInt()}%")
+                    SysKey(Purple, "GPU", "$gpuPct%")
+                    SysKey(Level.Good, "Network", "%.0f Mbps".format(netMbps))
+                    SysKey(Color(0xFFF5C26B), "Disk I/O", "%.1f MB/s".format(io))
+                }
+                Text("Network is drawn as a share of your 110 Mbps uplink; disk I/O against its busiest moment", style = mono(11, color = Level.Faint))
             }
         }
+    }
+}
+
+@Composable
+private fun SysKey(color: Color, label: String, now: String) {
+    Row(
+        Modifier.background(Level.Glass2, VantagePill).border(1.dp, Level.Edge, VantagePill).padding(horizontal = 12.mx, vertical = 6.mx),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.mx),
+    ) {
+        Box(Modifier.width(22.mx).height(4.mx).clip(androidx.compose.foundation.shape.RoundedCornerShape(2.dp)).background(color))
+        Text(label, style = ui(13, FontWeight.SemiBold), maxLines = 1)
+        Text("now $now", style = mono(12, color = Level.Dim), maxLines = 1)
     }
 }
 

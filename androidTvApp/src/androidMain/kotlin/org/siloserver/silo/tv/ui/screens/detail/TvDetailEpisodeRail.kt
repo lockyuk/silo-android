@@ -101,7 +101,8 @@ internal fun tvSeriesEpisodeRailHeight(): Dp {
         SeriesStillToCaption + SeriesCaptionTitleStyle.lineHeight.toDp() +
             SeriesCaptionLineGap + SeriesCaptionMetadataStyle.lineHeight.toDp()
     }
-    return tvEpisodeCardWidth() * (9f / 16f) + captionHeight + 12.dp
+    // Vantage: the card is the still alone; the episode number and tick sit on it.
+    return tvEpisodeCardWidth() * (9f / 16f) + 12.dp
 }
 
 @Composable
@@ -521,6 +522,19 @@ private fun TvDetailEpisodeCard(
                 defaultArtwork = DefaultArtworkKind.Tv,
             )
 
+            if (usesSeriesGeometry) {
+                Text(
+                    text = "Ep ${episode.episodeNumber}",
+                    style = org.siloserver.silo.tv.ui.components.vantage.mono(10, androidx.compose.ui.text.font.FontWeight.SemiBold),
+                    maxLines = 1,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp)
+                        .clip(org.siloserver.silo.tv.ui.theme.VantagePill)
+                        .background(Color.Black.copy(alpha = 0.62f))
+                        .padding(horizontal = 5.dp, vertical = 1.5.dp),
+                )
+            }
             if (episode.userData?.played == true) {
                 Box(
                     modifier = Modifier
@@ -529,18 +543,18 @@ private fun TvDetailEpisodeCard(
                 )
                 Box(
                     modifier = Modifier
-                        .padding(6.dp)
-                        .size(20.dp)
-                        .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
-                        .background(Color.White)
+                        .padding(7.dp)
+                        .size(16.5.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(org.siloserver.silo.tv.ui.theme.Level.Good)
                         .align(Alignment.TopEnd),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
-                        tint = Color.Black,
-                        modifier = Modifier.size(9.dp),
+                        tint = Color(0xFF06130D),
+                        modifier = Modifier.size(10.dp),
                     )
                 }
             }
@@ -578,7 +592,7 @@ private fun TvDetailEpisodeCard(
                 runtimeMinutes = episode.runtime,
             )
         }
-        Column(verticalArrangement = Arrangement.spacedBy(if (usesSeriesGeometry) SeriesCaptionLineGap else 4.dp)) {
+        if (!usesSeriesGeometry) Column(verticalArrangement = Arrangement.spacedBy(if (usesSeriesGeometry) SeriesCaptionLineGap else 4.dp)) {
             Text(
                 text = title,
                 style = if (usesSeriesGeometry) SeriesCaptionTitleStyle else CaptionTitleStyle,

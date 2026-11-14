@@ -49,6 +49,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
+import org.siloserver.silo.tv.ui.components.vantage.mx
 import org.siloserver.silo.tv.ui.components.TvSeekIntervalIcon
 
 /**
@@ -70,6 +71,11 @@ fun TvPlayerTransportCluster(
     onPlayPause: () -> Unit,
     onSkipForward: () -> Unit,
     onOpenQuickSubtitles: () -> Unit,
+    // Vantage pills: what Audio and Speed say, and where they lead (the settings panel).
+    audioValue: String? = null,
+    speedValue: String = "1×",
+    onOpenAudio: () -> Unit = {},
+    onOpenSpeed: () -> Unit = {},
     /**
      * Non-null only when there is a next episode to show. Mirrors
      * silo-apple#86: the automatic trigger fires at the credits, and this lets
@@ -92,14 +98,15 @@ fun TvPlayerTransportCluster(
     // The groups sit at opposite ends of the row. Left/Right cross the gap
     // between them explicitly; a plain search from skip-forward can land on
     // the scrubber above instead.
+    val skipBackFocus = remember { FocusRequester() }
     val skipForwardFocus = remember { FocusRequester() }
-    val firstSecondaryFocus = remember { FocusRequester() }
+    val subtitlesPillFocus = remember { FocusRequester() }
+    val firstRightPillFocus = remember { FocusRequester() }
+    // Vantage: the circles centred, Audio and Subtitles pills left, Speed and Next episode pills
+    // right, all on one band under the scrub bar.
     androidx.compose.foundation.layout.Box(
-        modifier = modifier.fillMaxWidth(),
-        contentAlignment = Alignment.CenterStart,
+        modifier = modifier.fillMaxWidth().height(64.mx),
     ) {
-        // Vantage: the primary group is centred under the scrubber, the secondary group is
-        // pinned right and the title (when given) sits left.
         Row(
             modifier = Modifier.align(Alignment.Center),
             verticalAlignment = Alignment.CenterVertically,
@@ -109,6 +116,8 @@ fun TvPlayerTransportCluster(
                 seekGlyph = SeekGlyph(forward = false, seconds = skipBackSeconds),
                 description = "Skip back $skipBackSeconds seconds",
                 onClick = onSkipBack,
+                focusRequester = skipBackFocus,
+                leftNeighbor = subtitlesPillFocus,
                 onMoveUp = onMoveUpToScrubber,
             )
             DockGap()
@@ -127,63 +136,94 @@ fun TvPlayerTransportCluster(
                 description = "Skip forward $skipForwardSeconds seconds",
                 onClick = onSkipForward,
                 focusRequester = skipForwardFocus,
-                rightNeighbor = firstSecondaryFocus,
+                rightNeighbor = firstRightPillFocus,
                 onMoveUp = onMoveUpToScrubber,
             )
         }
-
-        // The title, filling the gap between the groups.
-        androidx.compose.foundation.layout.Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(end = 24.dp),
-            contentAlignment = Alignment.CenterStart,
-        ) { centerContent?.invoke() }
-
-        // Secondary group — pushed right.
         Row(
-            modifier = Modifier.align(Alignment.CenterEnd),
-            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.align(Alignment.BottomStart),
+            horizontalArrangement = Arrangement.spacedBy(10.mx),
         ) {
-            onUpNext?.let { showUpNext ->
-                TransportIconButton(
-                    icon = Icons.Rounded.SkipNext,
-                    description = "Up Next",
-                    label = "Up next",
-                    onClick = showUpNext,
-                    focusRequester = firstSecondaryFocus,
-                    leftNeighbor = skipForwardFocus,
-                    onMoveUp = onMoveUpToScrubber,
-                )
-                DockGap()
-            }
-            TransportIconButton(
-                icon = Icons.Rounded.Subtitles,
-                description = "Subtitles",
-                label = "Subtitles",
-                value = subtitlesValue,
-                onClick = onOpenQuickSubtitles,
-                focusRequester = firstSecondaryFocus.takeIf { onUpNext == null },
-                leftNeighbor = skipForwardFocus.takeIf { onUpNext == null },
-                onMoveUp = onMoveUpToScrubber,
-            )
-            DockGap()
-            TransportIconButton(
-                icon = Icons.Rounded.Tune,
-                description = "Info and options",
-                label = "Options",
-                onClick = onOpenHUD,
-                onMoveUp = onMoveUpToScrubber,
-            )
-            DockGap()
-            TransportIconButton(
-                icon = Icons.Rounded.Close,
-                description = "Close player",
-                label = "Close",
-                onClick = onClose,
-                onMoveUp = onMoveUpToScrubber,
+            TransportPill("Audio", audioValue, onOpenAudio, rightNeighbor = null, onMoveUp = onMoveUpToScrubber)
+            TransportPill(
+                "Subtitles", subtitlesValue, onOpenQuickSubtitles,
+                focusRequester = subtitlesPillFocus, rightNeighbor = skipBackFocus, onMoveUp = onMoveUpToScrubber,
             )
         }
+        Row(
+            modifier = Modifier.align(Alignment.BottomEnd),
+            horizontalArrangement = Arrangement.spacedBy(10.mx),
+        ) {
+            TransportPill(
+                "Speed", speedValue, onOpenSpeed,
+                focusRequester = firstRightPillFocus, leftNeighbor = skipForwardFocus, onMoveUp = onMoveUpToScrubber,
+            )
+            onUpNext?.let { TransportPill("Next episode", null, it, onMoveUp = onMoveUpToScrubber) }
+        }
+    }
+}
+
+/** A labelled pill (.chip): "Audio · English 5.1"; white with the accent halo when focused. */
+@Composable
+private fun TransportPill(
+    label: String,
+    value: String?,
+    onClick: () -> Unit,
+    focusRequester: FocusRequester? = null,
+    leftNeighbor: FocusRequester? = null,
+    rightNeighbor: FocusRequester? = null,
+    onMoveUp: () -> Unit = {},
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val halo = org.siloserver.silo.tv.ui.theme.animatedAccent()
+    val shape = org.siloserver.silo.tv.ui.theme.VantagePill
+    val fill by animateColorAsState(if (isFocused) TvPlayerChrome.Paper else TvPlayerChrome.ButtonRest, tween(120), label = "pillBg")
+    Row(
+        modifier = Modifier
+            .height(36.mx)
+            .drawBehind {
+                if (isFocused) {
+                    val grow = 4.5.dp.toPx()
+                    val r = size.height / 2f + grow
+                    drawRoundRect(
+                        halo.copy(alpha = 0.55f),
+                        topLeft = androidx.compose.ui.geometry.Offset(-grow, -grow),
+                        size = androidx.compose.ui.geometry.Size(size.width + grow * 2, size.height + grow * 2),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r),
+                    )
+                }
+            }
+            .clip(shape)
+            .background(fill)
+            .then(if (isFocused) Modifier else Modifier.border(1.dp, TvPlayerChrome.ButtonRing, shape))
+            .let { mod -> if (focusRequester != null) mod.focusRequester(focusRequester) else mod }
+            .focusProperties {
+                leftNeighbor?.let { left = it }
+                rightNeighbor?.let { right = it }
+            }
+            .focusable(interactionSource = interactionSource)
+            .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyUp) return@onPreviewKeyEvent false
+                when (event.key) {
+                    Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> { onClick(); true }
+                    Key.DirectionUp -> { onMoveUp(); true }
+                    else -> false
+                }
+            }
+            .semantics {
+                contentDescription = listOfNotNull(label, value).joinToString(", ")
+                role = Role.Button
+            }
+            .padding(horizontal = 16.mx),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val color = if (isFocused) TvPlayerChrome.Ink else TvPlayerChrome.Paper
+        androidx.tv.material3.Text(
+            text = if (value.isNullOrBlank()) label else "$label · $value",
+            style = org.siloserver.silo.tv.ui.components.vantage.mono(12, color = color),
+            maxLines = 1,
+        )
     }
 }
 

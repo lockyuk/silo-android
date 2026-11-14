@@ -15,21 +15,21 @@ object TvGrid {
 
     // Left column
     val leftW = px(560)
-    val kickerTop = px(84)
+    val kickerTop = px(100)
     val kickerH = px(26)
-    val logoTop = px(118)
-    val logoW = px(520)
-    val logoH = px(104)
-    val factsTop = px(230)
+    val logoTop = px(134)
+    val logoW = px(580)
+    val logoH = px(116)
+    val factsTop = px(262)
     val factsH = px(28)
-    val synopsisTop = px(270)
-    val synopsisW = px(560)
+    val synopsisTop = px(300)
+    val synopsisW = px(600)
     /** Five lines of 16 px / 1.5, always reserved. */
     val synopsisH = px(120)
-    val actionTop = px(398)
+    val actionTop = px(432)
     val actionH = px(46)
 
-    // Right column
+    // Right column (no longer used on title pages; kept for pages that still place a card there)
     val rightTop = px(88)
     val rightW = px(248)
     val detailsH = px(182)
@@ -38,8 +38,8 @@ object TvGrid {
 
     // Bottom
     /** Where the section header starts; the hero ends here. */
-    val bodyTop = px(452)
-    val rowTop = px(494)
+    val bodyTop = px(548)
+    val rowTop = px(590)
     val cardW = px(176)
     val cardH = px(99)
     val cardGap = px(16)

@@ -103,6 +103,8 @@ fun TvMediaRow(
     endPadding: androidx.compose.ui.unit.Dp = horizontalPadding,
     itemSpacing: androidx.compose.ui.unit.Dp = 20.dp,
     rowTopPadding: androidx.compose.ui.unit.Dp = 24.dp,
+    /** Space between the section title and the cards. */
+    headerGap: androidx.compose.ui.unit.Dp = 12.dp,
     rowBottomPadding: androidx.compose.ui.unit.Dp = 24.dp,
     posterWidth: androidx.compose.ui.unit.Dp? = null,
     eyebrow: String? = null,
@@ -281,7 +283,7 @@ fun TvMediaRow(
 
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(headerGap),
     ) {
         if (showHeader) {
             TvSectionHeader(

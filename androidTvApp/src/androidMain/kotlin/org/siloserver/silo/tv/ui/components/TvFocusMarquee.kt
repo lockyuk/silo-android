@@ -212,10 +212,10 @@ private fun TvMarqueeBlock(
         }
         // The clear logo; the title in Outfit when there is none. One fixed slot for all of them.
         androidx.compose.foundation.layout.Spacer(Modifier.height(6.dp))
-        Box(Modifier.size(390.dp, 78.dp), contentAlignment = Alignment.CenterStart) {
+        Box(Modifier.size(org.siloserver.silo.tv.ui.theme.TvGrid.logoW, org.siloserver.silo.tv.ui.theme.TvGrid.logoH), contentAlignment = Alignment.CenterStart) {
             VantageLogo(content, onLines = { titleLineCount = it })
         }
-        androidx.compose.foundation.layout.Spacer(Modifier.height(6.dp))
+        androidx.compose.foundation.layout.Spacer(Modifier.height(9.dp))
         // Chips: certificate (solid), year, genre, quality; then IMDb / RT / TMDB scores.
         Row(
             modifier = Modifier.height(org.siloserver.silo.tv.ui.theme.TvGrid.factsH),
@@ -245,7 +245,7 @@ private fun TvMarqueeBlock(
                 src.ratingRtCritic?.let { VantageRate("RT", Color(0xFFFA320A), Color.White, "$it%") }
             }
         }
-        androidx.compose.foundation.layout.Spacer(Modifier.height(9.dp))
+        androidx.compose.foundation.layout.Spacer(Modifier.height(7.5.dp))
         Box(Modifier.height(90.dp)) {
         synopsisText?.let { synopsis ->
             val pulse: State<Float>? = if (translating) {
@@ -266,7 +266,7 @@ private fun TvMarqueeBlock(
                 maxLines = 5,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
-                    .widthIn(max = 420.dp)
+                    .widthIn(max = org.siloserver.silo.tv.ui.theme.TvGrid.synopsisW)
                     .drawAlpha { pulse?.value ?: 1f },
             )
         }
@@ -314,7 +314,7 @@ private fun VantageLogo(content: TvMarqueeContent, onLines: (Int) -> Unit) {
     }
 }
 
-private const val LogoArea = 300f * 74f
+private const val LogoArea = 300f * 74f // legacy sizing constants, unused by the grid logo box
 private const val LogoMinWidth = 130f
 private const val LogoMaxWidth = 360f
 private const val LogoMinHeight = 36f

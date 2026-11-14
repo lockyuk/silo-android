@@ -65,6 +65,9 @@ data class LiveStream(
     val paused: Boolean,
     val posterUrl: String?,
     val resolution: String?,
+    val contentId: String? = null,
+    val fileId: Int? = null,
+    val positionSeconds: Double = 0.0,
 )
 
 data class Disk(val label: String, val usedGb: Double, val totalGb: Double) {
@@ -285,6 +288,9 @@ class TvServerRepository(private val http: RawHttpApi) {
                     paused = s["is_paused"].bool() ?: false,
                     posterUrl = s["poster_url"].str(),
                     resolution = s["target_resolution"].str(),
+                    contentId = s["content_id"].str(),
+                    fileId = s["media_file_id"].num()?.toInt(),
+                    positionSeconds = pos,
                 )
             },
             egress = points.map { ((it["egress_kbps"].num() ?: 0.0) / 1000.0).toFloat() },
@@ -514,6 +520,7 @@ class TvServerRepository(private val http: RawHttpApi) {
         val monday = LocalDate.now().with(java.time.DayOfWeek.MONDAY)
         val cal = async { arr(app, "/calendar?start=$monday&end=${monday.plusDays(7)}&includeSeries=true&unmonitored=false") }
         val health = async { arr(app, "/health") }
+        val seriesList = async { arr(app, "/series") }
         val s = status.await() ?: return@coroutineScope null
         val week = cal.await().arr().orEmpty()
         val byDay = week.mapNotNull { e ->
@@ -529,7 +536,7 @@ class TvServerRepository(private val http: RawHttpApi) {
         ArrDashboard(
             app = AutomationApp.Sonarr,
             version = s["version"].str().orEmpty(),
-            total = null,
+            total = seriesList.await().arr()?.size?.toLong(),
             totalLabel = "",
             missing = missing.await()["totalRecords"].long(),
             cutoffUnmet = cutoff.await()["totalRecords"].long(),

@@ -158,7 +158,7 @@ internal fun TvHomeHeroPanel(
             startPadding = org.siloserver.silo.tv.ui.theme.TvGrid.edge,
             topPadding = org.siloserver.silo.tv.ui.theme.TvGrid.kickerTop - 2.dp,
             // No buttons any more: the text block runs down to just above the first row's title.
-            bottomPadding = (maxHeight - TvHeroTextBottom).coerceAtLeast(0.dp),
+            bottomPadding = 0.dp,
             modifier = Modifier.fillMaxSize(),
         )
     }

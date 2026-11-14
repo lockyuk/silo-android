@@ -12,6 +12,7 @@ import android.os.SystemClock
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -440,6 +441,9 @@ fun TvPlayerScrubber(
                             )
                         }
                         .size(puckSize)
+                        .drawBehind {
+                            drawCircle(org.siloserver.silo.tv.ui.theme.Level.Accent.copy(alpha = 0.45f), radius = size.minDimension / 2f + 4.dp.toPx())
+                        }
                         .shadow(8.dp, org.siloserver.silo.tv.ui.theme.LevelChamfer, clip = false)
                         .clip(org.siloserver.silo.tv.ui.theme.LevelChamfer)
                         .background(Color.White),
@@ -485,14 +489,26 @@ fun TvPlayerScrubber(
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .size(160.dp, 90.dp)
-                            .clip(RoundedCornerShape(18.dp)),
+                            .size(195.dp, 110.dp)
+                            .clip(RoundedCornerShape(14.dp)),
                     )
-                    Text(
-                        text = formatScrubberTime(scrubPreviewSec),
-                        style = TvPlayerType.Time,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
+                    Row(
+                        modifier = Modifier.padding(top = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = formatScrubberTime(scrubPreviewSec),
+                            style = TvPlayerType.Time.copy(fontSize = 16.sp, lineHeight = 20.sp),
+                        )
+                        chapters.lastOrNull { it.timeSec <= scrubPreviewSec }?.title?.takeIf { it.isNotBlank() }?.let { name ->
+                            Text(
+                                text = name,
+                                style = TvPlayerType.Time.copy(fontSize = 11.sp, lineHeight = 14.sp, color = TvPlayerChrome.Graphite),
+                                maxLines = 1,
+                            )
+                        }
+                    }
                 }
             }
 
@@ -527,13 +543,6 @@ fun TvPlayerScrubber(
                     text = formatScrubberTime(labelPositionSec),
                     style = TvPlayerType.Time.copy(fontSize = 24.sp, lineHeight = 28.sp),
                 )
-                if (durationSec > 0) {
-                    Text(
-                        text = "  / ${formatScrubberTime(durationSec)}",
-                        style = TvPlayerType.Time.copy(color = TvPlayerChrome.Graphite),
-                        modifier = Modifier.padding(bottom = 2.dp),
-                    )
-                }
             }
             val remainingSec = (durationSec - labelPositionSec).coerceAtLeast(0.0)
             val wallClockRemainingSec = if (playbackSpeed > 0.0) remainingSec / playbackSpeed else remainingSec
