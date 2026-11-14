@@ -172,7 +172,7 @@ fun TvSubtitleSearchDialog(
                 .padding(start = 36.dp, top = 50.dp, end = 36.dp, bottom = 42.dp),
             contentAlignment = Alignment.Center,
         ) {
-            val panelShape = RoundedCornerShape(14.dp)
+            val panelShape = androidx.compose.ui.graphics.RectangleShape
             Column(
                 modifier = Modifier
                     .width(340.dp)
@@ -291,7 +291,7 @@ private fun TvSubtitleResultRow(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
-    val shape = RoundedCornerShape(16.dp)
+    val shape = androidx.compose.ui.graphics.RectangleShape
 
     Surface(
         onClick = { if (enabled) onClick() },
@@ -341,7 +341,7 @@ private fun TvSubtitleResultRow(
             // Score badge — bucket color, white score text.
             Box(
                 modifier = Modifier
-                    .background(subtitleScoreColor(result.score), RoundedCornerShape(8.dp))
+                    .background(subtitleScoreColor(result.score), androidx.compose.ui.graphics.RectangleShape)
                     .padding(horizontal = 8.dp, vertical = 4.dp),
             ) {
                 Text(
@@ -376,7 +376,7 @@ private fun TvSubtitleResultRow(
                         modifier = Modifier
                             .background(
                                 subtitleProviderColor(result.provider),
-                                RoundedCornerShape(6.dp),
+                                androidx.compose.ui.graphics.RectangleShape,
                             )
                             .padding(horizontal = 6.dp, vertical = 2.dp),
                     ) {
@@ -440,7 +440,7 @@ internal fun TvDialogCyclerRow(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
-    val shape = RoundedCornerShape(16.dp)
+    val shape = androidx.compose.ui.graphics.RectangleShape
 
     Surface(
         onClick = { if (enabled) onNext() },
@@ -541,7 +541,7 @@ internal fun TvDialogActionRow(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
-    val shape = RoundedCornerShape(16.dp)
+    val shape = androidx.compose.ui.graphics.RectangleShape
 
     Surface(
         onClick = { if (enabled) onClick() },

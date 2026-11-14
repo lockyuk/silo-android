@@ -144,13 +144,13 @@ private val HudMaxWidth = 780.dp
  */
 private val HudCardMinHeight = 156.dp
 private val HudCardMaxHeight = 336.dp
-private val HudPanelCorner = 22.dp
+private val HudPanelCorner = 0.dp
 private val HudPanelPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 20.dp, bottom = 18.dp)
 private val HudRailTop = 24.dp
 private val HudTabCardGap = 10.dp
 private val HudTabHeight = 32.dp
 private val HudRowHeight = 34.dp
-private val HudRowCorner = 10.dp
+private val HudRowCorner = 0.dp
 private val HudRowPadding = 10.dp
 private val HudCheckColumn = 20.dp
 private val HudPaneColumnGap = 26.dp
@@ -485,7 +485,7 @@ internal fun TvPlayerHud(
             // two-row Audio pane is a two-row card and a nine-row Stats pane
             // scrolls inside a full one. Shadow sits outside the clip.
             val panelWindow = remember { HudPanelWindow() }
-            val panelShape = RoundedCornerShape(HudPanelCorner)
+            val panelShape = androidx.compose.ui.graphics.RectangleShape
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -682,7 +682,7 @@ internal enum class HudSubtitlePage { Root, Appearance, Timing }
 
 /** The rail floats on the picture, so it carries its own smoked ground. */
 private val HudRailFill = TvPlayerChrome.Smoke.copy(alpha = 0.78f)
-private val HudPreviewCorner = 12.dp
+private val HudPreviewCorner = 0.dp
 
 /**
  * The window the subtitle sample cuts in the panel, in panel coordinates.
@@ -989,7 +989,7 @@ private fun HudSectionSpacer() {
 private fun HudChip(text: String, onPaper: Boolean = false) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
+            .clip(androidx.compose.ui.graphics.RectangleShape)
             .background(if (onPaper) TvPlayerChrome.Ink.copy(alpha = 0.10f) else TvPlayerChrome.Chip)
             .padding(horizontal = 5.dp, vertical = 2.dp),
     ) {
@@ -2108,7 +2108,7 @@ private fun HudSubtitlePreview(
             .fillMaxWidth()
             .height(58.dp)
             .onGloballyPositioned { window?.report(it) }
-            .clip(RoundedCornerShape(HudPreviewCorner))
+            .clip(androidx.compose.ui.graphics.RectangleShape)
             // A light veil keeps the sample legible over a bright frame.
             .background(Color.Black.copy(alpha = 0.14f))
             .padding(horizontal = 10.dp, vertical = 7.dp),
@@ -2117,7 +2117,7 @@ private fun HudSubtitlePreview(
         val boxed = safe.backgroundStyle == SubtitleBackgroundStylePreset.Box
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(3.dp))
+                .clip(androidx.compose.ui.graphics.RectangleShape)
                 .background(backgroundColor)
                 .padding(horizontal = if (boxed) 8.dp else 0.dp, vertical = if (boxed) 2.dp else 0.dp),
             contentAlignment = Alignment.Center,
@@ -2364,7 +2364,7 @@ private fun hudRowColors(focused: Boolean, current: Boolean = false): HudRowColo
 /** The shared row ground: 34dp tall, a 10dp radius, filled by state. */
 private fun Modifier.hudRow(background: Color): Modifier =
     heightIn(min = HudRowHeight)
-        .clip(RoundedCornerShape(HudRowCorner))
+        .clip(androidx.compose.ui.graphics.RectangleShape)
         .background(background)
 
 /** The leading check column, kept even when empty so labels line up. */
@@ -2575,7 +2575,7 @@ private fun HudChapterRow(
             .fillMaxWidth()
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .heightIn(min = 35.dp)
-            .clip(RoundedCornerShape(HudRowCorner))
+            .clip(androidx.compose.ui.graphics.RectangleShape)
             .background(colors.background)
             .clickable(enabled = true, interactionSource = interactionSource, indication = null) { onSelect() }
             .semantics { selected = isCurrent },
@@ -2635,7 +2635,7 @@ private fun HudChapterRow(
                     .padding(start = HudRowPadding + 42.dp, end = HudRowPadding + 140.dp, bottom = 3.dp)
                     .fillMaxWidth()
                     .height(2.dp)
-                    .clip(RoundedCornerShape(1.dp))
+                    .clip(androidx.compose.ui.graphics.RectangleShape)
                     .background(if (isFocused) TvPlayerChrome.Ink.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.14f)),
             ) {
                 Box(
@@ -2886,7 +2886,7 @@ internal fun HudPickerDialog(
             .then(optionFocusModifier)
             .width(360.dp)
             .heightIn(max = 470.dp)
-            .tvDialogSurface(RoundedCornerShape(HudPanelCorner))
+            .tvDialogSurface(androidx.compose.ui.graphics.RectangleShape)
             .focusGroup()
             .focusProperties { exit = { FocusRequester.Cancel } }
             .padding(start = 14.dp, end = 14.dp, top = 20.dp, bottom = 14.dp),

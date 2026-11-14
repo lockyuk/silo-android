@@ -62,6 +62,7 @@ import org.siloserver.silo.tv.server.ArrEvent
 import org.siloserver.silo.tv.server.AutomationApp
 import org.siloserver.silo.tv.server.LogLine
 import org.siloserver.silo.tv.server.RequestRow
+import org.siloserver.silo.tv.server.SeerrRequests
 import org.siloserver.silo.tv.server.SabDashboard
 import org.siloserver.silo.tv.server.ServerOverview
 import org.siloserver.silo.tv.server.Tone
@@ -479,77 +480,101 @@ private fun StreamsPage(o: ServerOverview?) {
 
 @Composable
 private fun RequestsPage(repo: TvServerRepository) {
-    var rows by remember { mutableStateOf<List<RequestRow>?>(null) }
-    LaunchedEffect(Unit) { while (true) { rows = runCatching { repo.requests() }.getOrNull() ?: rows; delay(15_000) } }
-    val list = rows ?: run { Loading(); return }
-    val active = list.filter { it.outcome == "active" || it.status !in setOf("available", "completed", "declined", "failed") }
+    var data by remember { mutableStateOf<SeerrRequests?>(null) }
+    var loaded by remember { mutableStateOf(false) }
+    var busy by remember { mutableStateOf<Long?>(null) }
+    var notice by remember { mutableStateOf<String?>(null) }
+    var confirm by remember { mutableStateOf<Pair<Long, String>?>(null) }
+    val scope = rememberCoroutineScope()
+    suspend fun refresh() { data = runCatching { repo.requests() }.getOrNull() ?: data; loaded = true }
+    LaunchedEffect(Unit) { while (true) { refresh(); delay(15_000) } }
+    if (!loaded) { Loading(); return }
+    val d = data ?: run {
+        Column {
+            PageHead("Requests · not connected", "Set up Seerr in Silo")
+            Spacer(Modifier.height(20.mx))
+            VPanel(Modifier.width(680.mx), title = "Where to set it up", sub = "on the server, not this TV") {
+                Text("In Silo on the web: Admin → Plugins → Automation dashboards → Seerr. Enter the address and API key and save. This page fills in by itself.", style = ui(15, FontWeight.Normal, Level.Synopsis))
+            }
+        }
+        return
+    }
+    val pending = d.rows.count { it.status == 1 }
+    fun act(id: Long, action: String) {
+        scope.launch {
+            busy = id
+            val ok = runCatching { repo.requestAction(id, action) }.getOrDefault(false)
+            notice = if (ok) when (action) { "approve" -> "Approved"; "decline" -> "Declined"; else -> "Deleted" } else "Seerr did not accept that, try again"
+            confirm = null
+            refresh()
+            busy = null
+        }
+    }
     Column {
         Spacer(Modifier.height(4.mx))
-        Row(Modifier.height(34.mx), verticalAlignment = Alignment.CenterVertically) {
-            Text("● REQUESTS · ${active.size} ACTIVE", style = mono(11, color = Level.liveAccent, tracking = 0.16f), maxLines = 1)
+        Row(Modifier.height(34.mx), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.mx)) {
+            Text("● REQUESTS · $pending PENDING", style = mono(11, color = if (pending > 0) Level.Warn else Level.Faint, tracking = 0.16f), maxLines = 1)
+            Text(
+                if (d.channelsOn.isEmpty()) "Seerr notifications: none on, so requesters are not told. Switch a channel on in Seerr → Settings → Notifications."
+                else "Seerr tells requesters by ${d.channelsOn.joinToString(", ")}",
+                style = mono(11, color = if (d.channelsOn.isEmpty()) Level.Warn else Level.Faint), maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
+            notice?.let { Text("· $it", style = mono(11, color = Level.Good), maxLines = 1) }
         }
-        Spacer(Modifier.height(16.mx))
-        // Bottom padding keeps the last request's artwork fully on screen.
+        Spacer(Modifier.height(12.mx))
         LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(14.mx),
+            verticalArrangement = Arrangement.spacedBy(10.mx),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 60.mx),
             modifier = Modifier.fillMaxSize(),
         ) {
-            items(list) { r -> RequestPipelineRow(r) }
+            items(d.rows, key = { it.id }) { r ->
+                SeerrRow(r, busy == r.id, confirm?.takeIf { it.first == r.id }?.second, { confirm = r.id to it }, { confirm = null }, { a -> act(r.id, a) })
+            }
         }
     }
 }
 
-private val Pipeline = listOf("Requested", "Approved", "Searching", "Downloading", "Importing", "Ready")
-
-private fun stageOf(r: RequestRow): Int = when (r.status.lowercase()) {
-    "pending", "requested" -> 0
-    "approved" -> 1
-    "processing", "searching", "queued" -> 2
-    "downloading" -> 3
-    "importing", "partially_available" -> 4
-    "available", "completed" -> 5
-    else -> 1
+private fun seerrStatus(r: RequestRow): Pair<String, ChipTone> = when {
+    r.status == 1 -> "Pending" to ChipTone.Warn
+    r.status == 3 -> "Declined" to ChipTone.Bad
+    r.status == 4 -> "Failed" to ChipTone.Bad
+    r.mediaStatus == 5 -> "Available" to ChipTone.Good
+    r.mediaStatus == 4 -> "Partly available" to ChipTone.Good
+    r.mediaStatus == 3 -> "Downloading" to ChipTone.Plain
+    r.status == 2 -> "Approved" to ChipTone.Plain
+    else -> "Done" to ChipTone.Good
 }
 
 @Composable
-private fun RequestPipelineRow(r: RequestRow) {
-    val source = remember { MutableInteractionSource() }
-    val focused by source.collectIsFocusedAsState()
-    val at = stageOf(r)
+private fun SeerrRow(r: RequestRow, busy: Boolean, confirming: String?, ask: (String) -> Unit, cancel: () -> Unit, run: (String) -> Unit) {
+    val (chip, tone) = seerrStatus(r)
+    val whenText = r.requestedAt?.let { DateTimeFormatter.ofPattern("d MMM").withZone(ZoneId.systemDefault()).format(it) }.orEmpty()
+    val kind = if (r.mediaType == "tv") "Series" + if (r.seasons.isNotEmpty()) " · S" + r.seasons.joinToString(",") else "" else "Movie"
     Row(
-        Modifier
-            .fillMaxWidth()
-            .then(if (focused) Modifier.border(3.dp, Level.Fg, VantagePanel) else Modifier)
-            .background(Level.Glass, VantagePanel)
-            .border(1.dp, Level.Edge, VantagePanel)
-            .focusable(interactionSource = source)
-            .padding(12.mx),
-        horizontalArrangement = Arrangement.spacedBy(20.mx),
-        verticalAlignment = Alignment.CenterVertically,
+        Modifier.fillMaxWidth().height(84.mx).background(Level.Glass, VantagePanel).border(1.dp, Level.Edge, VantagePanel).padding(start = 10.mx, end = 14.mx),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.mx),
     ) {
-        VArt(r.backdropUrl, 176.mx, 99.mx)
-        Column(Modifier.width(300.mx)) {
-            Text(r.title + (r.year?.let { " ($it)" } ?: ""), style = ui(20, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(r.detail.ifBlank { r.status }, style = mono(12, color = Level.Dim), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.mx))
-            Text("Requested ${r.requestedAt?.let { DateTimeFormatter.ofPattern("d MMM").withZone(ZoneId.systemDefault()).format(it) } ?: ""} · ${r.mediaType}", style = mono(11, color = Level.Faint), modifier = Modifier.padding(top = 3.mx))
+        VArt(r.posterUrl, 44.mx, 64.mx)
+        Column(Modifier.weight(1f)) {
+            Text(r.title + if (r.year.isNotBlank()) " (${r.year})" else "", style = ui(16, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("$kind · ${r.requestedBy} · $whenText", style = mono(11, color = Level.Dim), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.mx))
         }
-        Column(Modifier.weight(1f).padding(end = 10.mx)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(4.mx)) {
-                Pipeline.indices.forEach { i ->
-                    Box(
-                        Modifier.weight(1f).height(6.mx).clip(VantagePill).background(
-                            when {
-                                i < at -> Level.Good
-                                i == at -> Level.liveAccent
-                                else -> Color.White.copy(alpha = 0.14f)
-                            },
-                        ),
-                    )
+        VChip(chip, tone)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.mx), verticalAlignment = Alignment.CenterVertically) {
+            when {
+                busy -> Text("Working…", style = mono(12, color = Level.Dim))
+                confirming != null -> {
+                    Text(if (confirming == "delete") "Delete this request?" else "Deny this request?", style = mono(12, color = Level.Warn))
+                    VButton(if (confirming == "delete") "Yes, delete" else "Yes, deny", { run(confirming) }, primary = true, height = 36.mx, textPx = 14)
+                    VButton("Cancel", cancel, height = 36.mx, textPx = 14)
                 }
-            }
-            Row(Modifier.fillMaxWidth().padding(top = 6.mx), horizontalArrangement = Arrangement.SpaceBetween) {
-                Pipeline.forEachIndexed { i, t -> Text(t, style = mono(10, color = if (i == at) Level.Fg else Level.Faint)) }
+                else -> {
+                    if (r.status == 1) {
+                        VButton("Approve", { run("approve") }, primary = true, height = 36.mx, textPx = 14)
+                        VButton("Deny", { ask("decline") }, height = 36.mx, textPx = 14)
+                    }
+                    VButton("Delete", { ask("delete") }, height = 36.mx, textPx = 14)
+                }
             }
         }
     }

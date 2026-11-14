@@ -1493,9 +1493,12 @@ fun TvMainShell(
                     )
                 }
                 shellComposable(TvMainRoute.Server.route) {
-                    org.siloserver.silo.tv.ui.screens.server.TvServerScreen(
-                        serverName = accountSnapshot.serverName.ifBlank { "Silo" },
-                    )
+                    // Server and its Requests tab are for the admin on the main profile only.
+                    if (accountSnapshot.isAdmin) {
+                        org.siloserver.silo.tv.ui.screens.server.TvServerScreen(
+                            serverName = accountSnapshot.serverName.ifBlank { "Silo" },
+                        )
+                    }
                 }
                 shellComposable(TvMainRoute.Requests.route) {
                     TvRequestsPage(

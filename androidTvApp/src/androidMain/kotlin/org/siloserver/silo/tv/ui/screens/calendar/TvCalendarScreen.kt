@@ -630,9 +630,9 @@ private fun CalendarControlRow(
         Row(
             modifier = Modifier
                 .focusGroup()
-                .clip(RoundedCornerShape(100.dp))
+                .clip(androidx.compose.ui.graphics.RectangleShape)
                 .background(org.siloserver.silo.tv.ui.theme.Level.Glass)
-                .border(1.dp, org.siloserver.silo.tv.ui.theme.Level.Edge, RoundedCornerShape(100.dp))
+                .border(1.dp, org.siloserver.silo.tv.ui.theme.Level.Edge, androidx.compose.ui.graphics.RectangleShape)
                 .padding(6.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -673,9 +673,9 @@ private fun FilterBar(
     Row(
         modifier = Modifier
             .focusGroup()
-            .clip(RoundedCornerShape(100.dp))
+            .clip(androidx.compose.ui.graphics.RectangleShape)
             .background(org.siloserver.silo.tv.ui.theme.Level.Glass)
-            .border(1.dp, org.siloserver.silo.tv.ui.theme.Level.Edge, RoundedCornerShape(100.dp))
+            .border(1.dp, org.siloserver.silo.tv.ui.theme.Level.Edge, androidx.compose.ui.graphics.RectangleShape)
             .padding(6.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -702,7 +702,7 @@ private fun FilterSegment(
     focusRequester: FocusRequester?,
     onFocused: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(100.dp)
+    val shape = androidx.compose.ui.graphics.RectangleShape
     Surface(
         onClick = onClick,
         shape = ClickableSurfaceDefaults.shape(shape = shape),
@@ -857,7 +857,7 @@ private fun ChevronButton(
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun TodayButton(onClick: () -> Unit, onFocused: () -> Unit) {
-    val shape = RoundedCornerShape(100.dp)
+    val shape = androidx.compose.ui.graphics.RectangleShape
     Surface(
         onClick = onClick,
         shape = ClickableSurfaceDefaults.shape(shape = shape),
@@ -904,7 +904,7 @@ private fun DayCell(
     // tvOS CalendarDayButton is 84x96 pt with 18/26 pt type and an 8 pt
     // event dot. Type is floored at 14/16sp for 10-ft legibility, and the
     // cell grows past half scale (52x60) to hold it — audit 2026-07-20.
-    val shape = RoundedCornerShape(14.dp)
+    val shape = androidx.compose.ui.graphics.RectangleShape
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
     val inverted = isSelected || isFocused
@@ -1456,7 +1456,7 @@ private val NoVerticalBringIntoViewSpec: BringIntoViewSpec = object : BringIntoV
 private val CalendarPosterWidth = 124.dp
 private val CalendarPosterHeight = 186.dp
 private val CalendarCardSpacing = 18.dp
-private val posterShape = RoundedCornerShape(10.dp)
+private val posterShape = androidx.compose.ui.graphics.RectangleShape
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -1550,7 +1550,7 @@ private fun CalendarEventCard(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(6.dp)
-                            .clip(RoundedCornerShape(100.dp))
+                            .clip(androidx.compose.ui.graphics.RectangleShape)
                             .background(Color.Black.copy(alpha = 0.62f))
                             .padding(horizontal = 9.dp, vertical = 3.dp),
                     ) {
@@ -1597,7 +1597,7 @@ private fun CalendarEventCard(
 private fun BadgePill(text: String) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(100.dp))
+            .clip(androidx.compose.ui.graphics.RectangleShape)
             .background(Color.White.copy(alpha = 0.92f))
             .padding(horizontal = 8.dp, vertical = 3.dp),
     ) {
@@ -1669,7 +1669,7 @@ private fun CalendarMessage(
                 actions.forEach { action ->
                     Surface(
                         onClick = action.onClick,
-                        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(100.dp)),
+                        shape = ClickableSurfaceDefaults.shape(shape = androidx.compose.ui.graphics.RectangleShape),
                         colors = ClickableSurfaceDefaults.colors(
                             containerColor = Color.White.copy(alpha = 0.10f),
                             contentColor = Color.White,
@@ -1814,7 +1814,7 @@ private fun DayColumn(
             if (landed == TvObservedFocusResult.Focused) onFocusApplied()
         }
     }
-    val shape = RoundedCornerShape(16.dp)
+    val shape = androidx.compose.ui.graphics.RectangleShape
     val accent = level.DefaultAccent
     Column(
         modifier = modifier
@@ -1930,9 +1930,9 @@ private fun CalendarMonthView(
             modifier = Modifier
                 .width(430.dp)
                 .fillMaxHeight()
-                .clip(RoundedCornerShape(18.dp))
+                .clip(androidx.compose.ui.graphics.RectangleShape)
                 .background(level.Glass)
-                .border(1.dp, level.Edge, RoundedCornerShape(18.dp))
+                .border(1.dp, level.Edge, androidx.compose.ui.graphics.RectangleShape)
                 .padding(12.dp)
                 .focusGroup(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1993,7 +1993,7 @@ private fun MonthNavButton(label: String, onClick: () -> Unit) {
     val level = org.siloserver.silo.tv.ui.theme.Level
     Surface(
         onClick = onClick,
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(100.dp)),
+        shape = ClickableSurfaceDefaults.shape(androidx.compose.ui.graphics.RectangleShape),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = level.Glass2, contentColor = level.Fg,
             focusedContainerColor = FocusedContainer, focusedContentColor = FocusedContent,
@@ -2020,7 +2020,7 @@ private fun MonthDayCell(
     modifier: Modifier = Modifier,
 ) {
     val level = org.siloserver.silo.tv.ui.theme.Level
-    val shape = RoundedCornerShape(12.dp)
+    val shape = androidx.compose.ui.graphics.RectangleShape
     var focused by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
@@ -2047,7 +2047,7 @@ private fun MonthDayCell(
             Text(date.dayOfMonth.toString(), style = org.siloserver.silo.tv.ui.components.vantage.ui(15, FontWeight.SemiBold, Color.Unspecified))
             Row(horizontalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.height(7.dp).padding(top = 2.dp)) {
                 repeat(count.coerceAtMost(4)) {
-                    Box(Modifier.size(5.dp).clip(RoundedCornerShape(100.dp)).background(if (isSelected || focused) level.Ink else level.DefaultAccent))
+                    Box(Modifier.size(5.dp).background(if (isSelected || focused) level.Ink else level.DefaultAccent))
                 }
             }
         }
@@ -2058,7 +2058,7 @@ private fun MonthDayCell(
 @Composable
 private fun MonthAgendaRow(item: CalendarItem, focusRequester: FocusRequester? = null, onClick: () -> Unit) {
     val level = org.siloserver.silo.tv.ui.theme.Level
-    val shape = RoundedCornerShape(14.dp)
+    val shape = androidx.compose.ui.graphics.RectangleShape
     Surface(
         onClick = onClick,
         shape = ClickableSurfaceDefaults.shape(shape),
@@ -2076,7 +2076,7 @@ private fun MonthAgendaRow(item: CalendarItem, focusRequester: FocusRequester? =
             ThumbhashImage(
                 url = item.posterUrl, thumbhash = item.posterThumbhash, contentDescription = item.title,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.size(width = 46.dp, height = 69.dp).clip(RoundedCornerShape(8.dp)),
+                modifier = Modifier.size(width = 46.dp, height = 69.dp).clip(androidx.compose.ui.graphics.RectangleShape),
                 defaultArtwork = DefaultArtworkKind.forItemType(item.type),
             )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {

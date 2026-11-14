@@ -1036,7 +1036,7 @@ private fun SearchStage(
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val mediaTypes = availableMediaTypes
-    val fieldShape = RoundedCornerShape(14.dp)
+    val fieldShape = androidx.compose.ui.graphics.RectangleShape
     val clearButtonFocusRequester = remember { FocusRequester() }
     val voiceButtonFocusRequester = remember { FocusRequester() }
     val canClear = query.isNotEmpty()

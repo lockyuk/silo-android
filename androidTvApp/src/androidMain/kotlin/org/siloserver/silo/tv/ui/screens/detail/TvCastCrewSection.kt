@@ -242,7 +242,7 @@ internal fun TvCastCard(
                 )
                 .clip(org.siloserver.silo.tv.ui.theme.VantageCard)
                 .background(DarkSurfaceElevated)
-                .border(if (isFocused) 2.25.dp else 1.5.dp, if (isFocused) L.Fg else Color.White.copy(alpha = 0.15f), org.siloserver.silo.tv.ui.theme.VantageCard),
+                .border(if (isFocused) 2.25.dp else 1.5.dp, if (isFocused) L.Fg else L.ImageEdge, org.siloserver.silo.tv.ui.theme.VantageCard),
             contentAlignment = Alignment.Center,
         ) {
             if (!member.photoUrl.isNullOrBlank()) {

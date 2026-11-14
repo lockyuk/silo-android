@@ -1438,6 +1438,22 @@ private fun TvPlaybackSettingsPane(
                 )
             }
         }
+        item {
+            val themeContext = androidx.compose.ui.platform.LocalContext.current
+            SettingsGroup(title = "Colour theme") {
+                SettingsValueRow(
+                    label = "Theme",
+                    value = org.siloserver.silo.tv.ui.theme.Themes.name,
+                    onClick = {
+                        val t = org.siloserver.silo.tv.ui.theme.Themes
+                        t.select(themeContext, (t.index + 1) % t.all.size)
+                    },
+                )
+                SettingsFooterText(
+                    text = "Colours titles, navigation and buttons, and draws a faint line of the same colour around every image. Press OK to try the next one. This is saved on this device.",
+                )
+            }
+        }
         if (state.episodeSpoilers.isSupported) {
             item {
                 // Spoiler protection (see EpisodeSpoilers.MIN_CONTRACT_REVISION). Profile-wide, so

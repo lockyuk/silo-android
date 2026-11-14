@@ -143,6 +143,7 @@ internal fun TvHomeHeroPanel(
     /** Also focuses Resume; the feed sends Up from the hero row here. */
     resumeRequester: FocusRequester? = null,
     seasonCount: Int? = null,
+    episodeCount: Int? = null,
     modifier: Modifier = Modifier,
 ) {
     val resumeReq = resumeRequester ?: remember { FocusRequester() }
@@ -161,6 +162,7 @@ internal fun TvHomeHeroPanel(
             // No buttons any more: the text block runs down to just above the first row's title.
             bottomPadding = 0.dp,
             seasonCount = seasonCount,
+            episodeCount = episodeCount,
             modifier = Modifier.fillMaxSize(),
         )
     }

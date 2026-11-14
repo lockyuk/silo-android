@@ -90,6 +90,7 @@ fun TvFocusMarquee(
     eyebrow: String? = null,
     /** Season count of a show, shown above the logo when no episode is being resumed. */
     seasonCount: Int? = null,
+    episodeCount: Int? = null,
 ) {
     Box(
         modifier = modifier
@@ -145,6 +146,7 @@ fun TvFocusMarquee(
                             footer = footer,
                             eyebrow = eyebrow,
                             seasonCount = seasonCount,
+                            episodeCount = episodeCount,
                         )
                     }
                 }
@@ -158,6 +160,7 @@ fun TvFocusMarquee(
                 footer = footer,
                 eyebrow = eyebrow,
                 seasonCount = seasonCount,
+                            episodeCount = episodeCount,
             )
         }
     }
@@ -172,6 +175,7 @@ private fun TvMarqueeBlock(
     footer: (@Composable (TvMarqueeContent) -> Unit)? = null,
     eyebrow: String? = null,
     seasonCount: Int? = null,
+    episodeCount: Int? = null,
 ) {
     val level = org.siloserver.silo.tv.ui.theme.Level
     val src = content.source
@@ -206,10 +210,32 @@ private fun TvMarqueeBlock(
             src.type.equals("series", ignoreCase = true)
         Box(Modifier.height(org.siloserver.silo.tv.ui.theme.TvGrid.kickerH), contentAlignment = Alignment.CenterStart) {
         if (season != null || episode != null || tagParts.isNotEmpty() || showsSeasons) {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (showsSeasons) org.siloserver.silo.tv.ui.components.vantage.VChip("${seasonCount} ${if (seasonCount == 1) "SEASON" else "SEASONS"}")
-                season?.let { org.siloserver.silo.tv.ui.components.vantage.VChip("SEASON $it") }
-                episode?.let { org.siloserver.silo.tv.ui.components.vantage.VChip("EPISODE $it") }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (showsSeasons) org.siloserver.silo.tv.ui.components.vantage.VChip("$seasonCount ${if (seasonCount == 1) "Season" else "Seasons"}" + (episodeCount?.takeIf { it > 0 }?.let { " | $it ${if (it == 1) "Episode" else "Episodes"}" } ?: ""))
+                if (season != null && episode != null) {
+                    // An episode reads "SEASON 17 | EPISODE 7 | Episode title", as on its page.
+                    val kick = org.siloserver.silo.tv.ui.components.vantage.mono(12, FontWeight.SemiBold, level.Fg, 0.12f)
+                    val bar = @androidx.compose.runtime.Composable {
+                        Box(Modifier.width(1.5.dp).height(14.dp).background(Color.White.copy(alpha = 0.45f)))
+                    }
+                    Text("SEASON $season", style = kick, maxLines = 1)
+                    bar()
+                    Text("EPISODE $episode", style = kick, maxLines = 1)
+                    val episodeTitle = src.title.takeIf { src.type.equals("episode", ignoreCase = true) && it.isNotBlank() }
+                    if (episodeTitle != null) {
+                        bar()
+                        Text(
+                            episodeTitle,
+                            style = org.siloserver.silo.tv.ui.components.vantage.ui(14, FontWeight.Medium),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                    }
+                } else {
+                    season?.let { org.siloserver.silo.tv.ui.components.vantage.VChip("SEASON $it") }
+                    episode?.let { org.siloserver.silo.tv.ui.components.vantage.VChip("EPISODE $it") }
+                }
                 if (tagParts.isNotEmpty()) {
                     Box(Modifier.padding(start = if (season != null || episode != null) 4.dp else 0.dp)) {
                         org.siloserver.silo.tv.ui.components.vantage.VTag(tagParts.joinToString(" \u00B7 "))

@@ -108,16 +108,23 @@ data class ServerOverview(
     val logs: List<LogLine>,
 )
 
+/** One request in Seerr. [status]: 1 pending, 2 approved, 3 declined, 4 failed, 5 completed. */
 data class RequestRow(
+    val id: Long,
     val title: String,
-    val year: Int?,
+    val year: String,
     val mediaType: String,
-    val status: String,
-    val outcome: String,
-    val backdropUrl: String?,
+    val status: Int,
+    /** Seerr's media state: 2 pending, 3 processing, 4 partly available, 5 available. */
+    val mediaStatus: Int,
+    val requestedBy: String,
+    val posterUrl: String?,
     val requestedAt: Instant?,
-    val detail: String,
+    val seasons: List<Int>,
 )
+
+/** Seerr's list plus which of its notification channels are on. */
+data class SeerrRequests(val rows: List<RequestRow>, val total: Int, val channelsOn: List<String>)
 
 data class ArrItem(
     val title: String,
@@ -372,24 +379,36 @@ class TvServerRepository(private val http: RawHttpApi) {
         }
     }
 
-    suspend fun requests(): List<RequestRow> {
-        val a = siloJson("/api/v1/admin/requests?limit=30")
-        return a["requests"].arr().orEmpty().map { r ->
-            val targets = r["targets"].arr().orEmpty()
-            val detail = targets.joinToString(" · ") { t ->
-                listOfNotNull(t["instance_name"].str(), t["quality"].str(), t["status"].str()).joinToString(" ")
-            }
+    /** Seerr's requests through the Automation plugin; null when Seerr is not set up there. */
+    suspend fun requests(): SeerrRequests? {
+        val base = pluginBase() ?: return null
+        val st = siloJson("$base/status") ?: run { pluginBase = null; return null }
+        if (st["seerr"].bool() != true) return null
+        val a = siloJson("$base/seerr/requests?take=40") ?: return null
+        val rows = a["results"].arr().orEmpty().map { r ->
+            val media = r["media"]
             RequestRow(
-                title = r["title"].str().orEmpty(),
-                year = r["year"].long()?.toInt(),
-                mediaType = r["media_type"].str().orEmpty(),
-                status = r["status"].str().orEmpty(),
-                outcome = r["outcome"].str().orEmpty(),
-                backdropUrl = r["backdrop_path"].str()?.let { "https://image.tmdb.org/t/p/w780$it" },
-                requestedAt = r["created_at"].str()?.let { runCatching { Instant.parse(it) }.getOrNull() },
-                detail = detail,
+                id = r["id"].long() ?: 0,
+                title = r["title"].str().orEmpty().ifBlank { "Request ${r["id"].long() ?: 0}" },
+                year = r["year"].str().orEmpty(),
+                mediaType = r["type"].str().orEmpty(),
+                status = r["status"].long()?.toInt() ?: 0,
+                mediaStatus = media["status"].long()?.toInt() ?: 0,
+                requestedBy = r["requestedBy"]["displayName"].str() ?: r["requestedBy"]["username"].str().orEmpty(),
+                posterUrl = r["poster"].str()?.takeIf { it.isNotBlank() }?.let { "https://image.tmdb.org/t/p/w185$it" },
+                requestedAt = parseTime(r["createdAt"].str()),
+                seasons = r["seasons"].arr().orEmpty().mapNotNull { it["seasonNumber"].long()?.toInt() },
             )
         }
+        val ch = siloJson("$base/seerr/notifications")
+        val on = listOf("email", "webpush", "discord", "telegram", "slack", "pushover", "gotify", "ntfy", "webhook").filter { ch[it].bool() == true }
+        return SeerrRequests(rows, a["pageInfo"]["results"].long()?.toInt() ?: rows.size, on)
+    }
+
+    /** [action] is approve, decline or delete. Seerr tells the requester through its own channels. */
+    suspend fun requestAction(id: Long, action: String): Boolean {
+        val base = pluginBase() ?: return false
+        return http.siloPost("$base/seerr/request/$id/$action", "{}")
     }
 
     // ---- Radarr / Sonarr ---------------------------------------------------------------------

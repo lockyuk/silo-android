@@ -545,7 +545,7 @@ private fun TvDetailEpisodeCard(
                     modifier = Modifier
                         .padding(7.dp)
                         .size(16.5.dp)
-                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .clip(androidx.compose.ui.graphics.RectangleShape)
                         .background(org.siloserver.silo.tv.ui.theme.Level.Good)
                         .align(Alignment.TopEnd),
                     contentAlignment = Alignment.Center,

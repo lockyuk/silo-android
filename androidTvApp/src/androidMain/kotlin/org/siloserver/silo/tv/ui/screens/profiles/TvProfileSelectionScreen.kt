@@ -508,10 +508,11 @@ private fun ProfileTileGrid(
 /** A white ring around a focused avatar, drawn outside it. */
 private fun Modifier.focusRing(focused: Boolean): Modifier = drawBehind {
     if (focused) {
-        drawCircle(
+        val g = 6.dp.toPx()
+        drawRect(
             color = MarqueeColors.Ink,
-            radius = size.minDimension / 2f + 6.dp.toPx(),
-            center = Offset(size.width / 2f, size.height / 2f),
+            topLeft = Offset(-g, -g),
+            size = androidx.compose.ui.geometry.Size(size.width + g * 2, size.height + g * 2),
             style = Stroke(width = 3.dp.toPx()),
         )
     }
@@ -555,6 +556,7 @@ private fun TvProfileTile(
                 profile,
                 size = ProfileAvatarSize,
                 baseSize = 92.dp,
+                shape = androidx.compose.ui.graphics.RectangleShape,
                 modifier = Modifier.alpha(if (manageMode) 0.6f else 1f),
             )
             if (manageMode) {
@@ -616,9 +618,10 @@ private fun TvAddTile(
                 .background(Color.White.copy(alpha = if (focused) 0.14f else 0f), org.siloserver.silo.tv.ui.theme.LevelChamfer)
                 .drawBehind {
                     val stroke = 2.dp.toPx()
-                    drawCircle(
+                    drawRect(
                         color = Color.White.copy(alpha = if (focused) 0.7f else 0.25f),
-                        radius = size.minDimension / 2f - stroke / 2f,
+                        topLeft = Offset(stroke / 2f, stroke / 2f),
+                        size = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke),
                         style = Stroke(width = stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 5.dp.toPx()))),
                     )
                 },

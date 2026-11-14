@@ -107,7 +107,7 @@ fun TvHeroActionPill(
     val restBg = if (selected) Color.White.copy(alpha = 0.14f) else baseRestBg
     val restBorder = if (selected) Color.White.copy(alpha = 0.70f) else baseRestBorder
 
-    val pillShape = RoundedCornerShape(100.dp)
+    val pillShape = androidx.compose.ui.graphics.RectangleShape
     val controlHeight = heightOverride ?: when (variant) {
         TvPillVariant.Filled -> 58.dp
         TvPillVariant.Hollow -> 44.dp

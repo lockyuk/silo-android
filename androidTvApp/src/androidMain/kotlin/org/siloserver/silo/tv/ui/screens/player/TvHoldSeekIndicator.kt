@@ -80,7 +80,7 @@ fun TvHoldSeekIndicator(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (thumbnail != null || keepsPreviewSlot) {
-                val shape = RoundedCornerShape(10.dp)
+                val shape = androidx.compose.ui.graphics.RectangleShape
                 val frame = Modifier
                     .size(240.dp, 135.dp)
                     .shadow(9.dp, shape, clip = false)
@@ -132,14 +132,14 @@ fun TvHoldSeekIndicator(
                     modifier = Modifier
                         .width(260.dp)
                         .height(2.dp)
-                        .clip(RoundedCornerShape(1.dp))
+                        .clip(androidx.compose.ui.graphics.RectangleShape)
                         .background(Color.White.copy(alpha = 0.22f)),
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(progress)
                             .height(2.dp)
-                            .background(Color.White, RoundedCornerShape(1.dp)),
+                            .background(Color.White, androidx.compose.ui.graphics.RectangleShape),
                     )
                 }
             }

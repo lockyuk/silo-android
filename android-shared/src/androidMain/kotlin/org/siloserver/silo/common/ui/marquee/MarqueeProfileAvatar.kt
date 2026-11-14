@@ -71,8 +71,10 @@ fun MarqueeProfileAvatar(
     modifier: Modifier = Modifier,
     baseSize: Dp = 92.dp,
     showsBadges: Boolean = true,
+    shape: androidx.compose.ui.graphics.Shape = CircleShape,
 ) {
     val scale = size / baseSize
+    val badgeShape = if (shape === CircleShape) CircleShape else androidx.compose.ui.graphics.RectangleShape
     val tint = ProfileTilePalette.tint(profile.id)
     val avatar = profile.avatarRef()
     val image = rememberProfileAvatarImage(avatar)
@@ -80,7 +82,7 @@ fun MarqueeProfileAvatar(
         Box(
             Modifier
                 .size(size)
-                .clip(CircleShape)
+                .clip(shape)
                 .drawBehind {
                     drawRect(
                         Brush.radialGradient(
@@ -90,7 +92,7 @@ fun MarqueeProfileAvatar(
                         ),
                     )
                 }
-                .border(1.dp, Color.White.copy(alpha = 0.14f), CircleShape),
+                .border(1.dp, Color.White.copy(alpha = 0.14f), shape),
             contentAlignment = Alignment.Center,
         ) {
             when {
@@ -125,9 +127,9 @@ fun MarqueeProfileAvatar(
                     .align(Alignment.BottomEnd)
                     .offset(x = lock * 0.08f, y = lock * 0.08f)
                     .size(lock)
-                    .clip(CircleShape)
+                    .clip(badgeShape)
                     .background(Color(0xFF1C1C1E))
-                    .border(lock * 0.07f, Color.Black, CircleShape),
+                    .border(lock * 0.07f, Color.Black, badgeShape),
                 contentAlignment = Alignment.Center,
             ) {
                 LockGlyph(lock * 0.42f)
@@ -140,7 +142,7 @@ fun MarqueeProfileAvatar(
                     .align(Alignment.TopEnd)
                     .offset(x = (font * 0.5f).dp, y = (-font * 0.2f).dp)
                     .height((font * 2f).dp)
-                    .clip(CircleShape)
+                    .clip(badgeShape)
                     .background(Color.White)
                     .padding(horizontal = (font * 0.75f).dp),
                 contentAlignment = Alignment.Center,

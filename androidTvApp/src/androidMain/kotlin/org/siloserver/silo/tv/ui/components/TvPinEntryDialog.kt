@@ -111,7 +111,7 @@ fun TvPinEntryDialog(
                     .then(rememberTvDialogInitialFocus(fiveFocusRequester)),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                MarqueeProfileAvatar(profile, size = 80.dp, baseSize = 110.dp, showsBadges = false)
+                MarqueeProfileAvatar(profile, size = 80.dp, baseSize = 110.dp, showsBadges = false, shape = androidx.compose.ui.graphics.RectangleShape)
                 Text(
                     text = profile.name,
                     fontSize = 19.sp,

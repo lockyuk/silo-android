@@ -158,7 +158,7 @@ private fun TvIntroPromptPill(
         contentKey = if (shouldFocus) Unit else null,
     )
 
-    val shape = RoundedCornerShape(28.dp)
+    val shape = androidx.compose.ui.graphics.RectangleShape
     val borderColor = if (isFocused) Color.White else Color.White.copy(alpha = 0.25f)
     Column(horizontalAlignment = Alignment.End) {
         if (caption != null) {

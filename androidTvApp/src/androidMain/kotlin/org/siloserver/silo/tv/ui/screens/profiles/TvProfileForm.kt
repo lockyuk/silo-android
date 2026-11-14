@@ -554,7 +554,7 @@ private fun TvProfileTilePreview(
 ) {
     val avatarText = remember(avatar, name) { profileAvatarDisplayText(avatar, name) }
     val avatarImage = rememberProfileAvatarImage(avatar)
-    val shape = RoundedCornerShape(18.dp)
+    val shape = androidx.compose.ui.graphics.RectangleShape
     val tint = remember(name, avatar) { profilePreviewTint("$name-${avatar.avatar}") }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -681,7 +681,7 @@ internal fun TvChoiceChip(
     onSelect: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = androidx.compose.ui.graphics.RectangleShape
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
     Surface(
@@ -730,7 +730,7 @@ private fun TvPresetAvatarCell(
     onSelect: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(18.dp)
+    val shape = androidx.compose.ui.graphics.RectangleShape
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
     Surface(

@@ -464,7 +464,7 @@ fun TvPlayerScrubber(
             if (isScrubbing && previewThumbnail != null) {
                 var cardSize by remember { mutableStateOf(IntSize.Zero) }
                 val liftPx = with(density) { (if (autoSeekRate != 0) 52.dp else 22.dp).toPx() }
-                val cardShape = RoundedCornerShape(22.dp)
+                val cardShape = androidx.compose.ui.graphics.RectangleShape
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
@@ -490,7 +490,7 @@ fun TvPlayerScrubber(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .size(195.dp, 110.dp)
-                            .clip(RoundedCornerShape(14.dp)),
+                            .clip(androidx.compose.ui.graphics.RectangleShape),
                     )
                     Row(
                         modifier = Modifier.padding(top = 6.dp),

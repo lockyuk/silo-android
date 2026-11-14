@@ -68,6 +68,7 @@ object Level {
      * tone so it reads on the dark glass (hsl(h, 90%, 68%) as in the mock-up).
      */
     fun followBackdrop(sample: Color?) {
+        if (Themes.index != 0) return
         if (sample == null) {
             liveAccent = DefaultAccent
             return
@@ -80,8 +81,51 @@ object Level {
         liveAccent = if (hsv[1] < 0.12f) DefaultAccent else Color.hsl(hsv[0], 0.9f, 0.68f)
     }
 
+    /** The faint coloured line around every image: the theme colour, quiet. */
+    val ImageEdge: Color get() = liveAccent.copy(alpha = 0.42f)
+
     /** A spine colour for an artwork hue (kept for the old spine card). */
     fun spine(hue: Float): Color = Color.hsl(hue.coerceIn(0f, 359.9f), 0.22f, 0.2f)
+}
+
+/**
+ * The colour theme the viewer picked in Settings. Index 0 follows each backdrop; the rest are
+ * fixed colours for the accent (titles, navigation, buttons, the line around images).
+ */
+object Themes {
+    val all: List<Pair<String, Color>> = listOf(
+        "Follow the backdrop" to Level.DefaultAccent,
+        "Light blue" to Color(0xFF7DD3FC),
+        "Violet" to Color(0xFFA78BFA),
+        "Silo purple" to Color(0xFF8F7BFF),
+        "Emerald" to Color(0xFF4ADE9B),
+        "Teal" to Color(0xFF2DD4BF),
+        "Amber" to Color(0xFFF5B84B),
+        "Coral" to Color(0xFFFB923C),
+        "Rose" to Color(0xFFF472B6),
+    )
+
+    var index by androidx.compose.runtime.mutableIntStateOf(1)
+        private set
+
+    val name: String get() = all[index].first
+
+    fun load(context: android.content.Context) {
+        val saved = runCatching {
+            context.getSharedPreferences("silo_ui", android.content.Context.MODE_PRIVATE).getInt("theme", 1)
+        }.getOrDefault(1)
+        apply(saved.coerceIn(0, all.lastIndex))
+    }
+
+    fun select(context: android.content.Context, i: Int) {
+        apply(i.coerceIn(0, all.lastIndex))
+        runCatching { context.getSharedPreferences("silo_ui", android.content.Context.MODE_PRIVATE).edit().putInt("theme", index).apply() }
+    }
+
+    private fun apply(i: Int) {
+        index = i
+        Level.liveAccent = all[i].second
+    }
 }
 
 /** The Vantage tokens under their own name. */

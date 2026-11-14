@@ -1144,6 +1144,7 @@ fun TvSkylineSectionFeed(
                     playFocusRequester = resolvedFirstRowFocusRequester,
                     resumeRequester = heroResumeRequester,
                     seasonCount = heroMarquee.enrichment?.seasonCount,
+                    episodeCount = heroMarquee.enrichment?.episodeCount,
                     onFocusedChange = { heroFocused = it },
                     onPlay = { item?.let(hero.onPlay) },
                     onMoreInfo = { item?.let(hero.onMoreInfo) },
@@ -1193,6 +1194,7 @@ fun TvSkylineSectionFeed(
                 bottomPadding = 0.dp,
                 eyebrow = if (actionsMode) rows.firstOrNull()?.title else null,
                 seasonCount = marquee.enrichment?.seasonCount,
+                episodeCount = marquee.enrichment?.episodeCount,
                 modifier = Modifier
                     // No page offset: the hero block sits at fixed grid coordinates.
                     .fillMaxSize(),

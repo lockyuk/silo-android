@@ -147,7 +147,7 @@ fun TvAiTranslateDialog(
                 .padding(start = 36.dp, top = 50.dp, end = 36.dp, bottom = 42.dp),
             contentAlignment = Alignment.Center,
         ) {
-            val panelShape = RoundedCornerShape(14.dp)
+            val panelShape = androidx.compose.ui.graphics.RectangleShape
             Column(
                 modifier = Modifier
                     .width(340.dp)
@@ -405,14 +405,14 @@ private fun TvAiJobProgress(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(6.dp)
-                .clip(RoundedCornerShape(3.dp))
+                .clip(androidx.compose.ui.graphics.RectangleShape)
                 .background(Color.White.copy(alpha = 0.14f)),
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth(fraction)
                     .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp))
+                    .clip(androidx.compose.ui.graphics.RectangleShape)
                     .background(Color.White.copy(alpha = 0.92f)),
             )
         }

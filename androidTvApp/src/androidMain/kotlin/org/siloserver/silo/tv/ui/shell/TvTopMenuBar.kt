@@ -279,8 +279,8 @@ fun TvTopMenuBar(
     }
 
     fun panelForFocus(focus: TvTopMenuFocus?): TvTopMenuPanel? = when (focus) {
-        is TvTopMenuFocus.Tab ->
-            TvTopMenuPanel.Root(TvRootDestination.LibraryType(focus.type))
+        // Movies and TV Shows go straight to their library: no drop-down panel.
+        is TvTopMenuFocus.Tab -> null
         TvTopMenuFocus.ForYou -> TvTopMenuPanel.Root(TvRootDestination.ForYou)
         else -> null
     }

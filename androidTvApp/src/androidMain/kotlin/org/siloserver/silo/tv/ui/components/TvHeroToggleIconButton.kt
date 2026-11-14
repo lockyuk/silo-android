@@ -50,7 +50,7 @@ internal fun TvHeroToggleIconButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
-    val shape = RoundedCornerShape(100.dp)
+    val shape = androidx.compose.ui.graphics.RectangleShape
     val restBackground = if (selected) {
         selectedContainerColor
     } else {

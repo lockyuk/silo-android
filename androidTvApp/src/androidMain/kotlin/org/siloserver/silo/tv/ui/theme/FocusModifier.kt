@@ -145,7 +145,7 @@ fun siloCardDefaults(
         } else {
             // A very faint hairline at rest so every card and image reads against the page.
             CardDefaults.border(
-                border = Border(border = BorderStroke(1.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = 0.12f)), shape = shape),
+                border = Border(border = BorderStroke(1.dp, org.siloserver.silo.tv.ui.theme.Level.ImageEdge), shape = shape),
                 focusedBorder = outline,
             )
         },

@@ -351,7 +351,7 @@ private fun BoxSetContent(
         // Bottom: the movies, in release order.
         Column(
             modifier = Modifier.offset(x = grid.edge - 12.mx, y = grid.bodyTop - 8.mx).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(grid.rowTop - grid.bodyTop - 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             org.siloserver.silo.tv.ui.screens.detail.TvDetailSectionHeader(
                 title = if (showStory) "In story order" else "In release order",
@@ -483,7 +483,7 @@ private fun BoxSetCard(
             VArt(movie.backdropUrl ?: movie.posterUrl, 176.mx, 99.mx, progress = progress)
             if (played) {
                 Box(
-                    Modifier.align(Alignment.TopEnd).padding(9.mx).size(22.mx).background(Level.Good, androidx.compose.foundation.shape.CircleShape),
+                    Modifier.align(Alignment.TopEnd).padding(9.mx).size(22.mx).background(Level.Good, androidx.compose.ui.graphics.RectangleShape),
                     contentAlignment = Alignment.Center,
                 ) { Text("\u2713", style = ui(13, FontWeight.Bold, Color(0xFF06130D))) }
             }

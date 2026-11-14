@@ -38,7 +38,7 @@ fun TvFilterChip(
     contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
     textStyle: TextStyle = MaterialTheme.typography.labelLarge,
 ) {
-    val shape = RoundedCornerShape(100.dp)
+    val shape = androidx.compose.ui.graphics.RectangleShape
     Surface(
         onClick = onClick,
         shape = ClickableSurfaceDefaults.shape(shape = shape),

@@ -162,8 +162,9 @@ fun VDot(color: Color, size: Dp = 5.dp) {
         Modifier
             .size(size)
             .drawBehind {
-                drawCircle(color.copy(alpha = 0.35f), radius = this.size.minDimension)
-                drawCircle(color)
+                val halo = this.size.minDimension * 0.6f
+                drawRect(color.copy(alpha = 0.35f), Offset(-halo, -halo), androidx.compose.ui.geometry.Size(this.size.width + halo * 2, this.size.height + halo * 2))
+                drawRect(color)
             },
     )
 }
@@ -301,7 +302,7 @@ fun VArt(
             .size(width, height)
             .clip(shape)
             .background(Color(0xFF151824))
-            .border(1.dp, Color.White.copy(alpha = 0.1f), shape),
+            .border(1.dp, Level.ImageEdge, shape),
     ) {
         if (url != null) {
             ThumbhashImage(url = url, thumbhash = null, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)

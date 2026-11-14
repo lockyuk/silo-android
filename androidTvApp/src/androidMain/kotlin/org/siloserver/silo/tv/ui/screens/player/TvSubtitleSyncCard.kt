@@ -68,7 +68,7 @@ private fun TvSubtitleSyncCardContent(notice: SubtitleSyncNotice) {
     }
     Surface(
         color = Color.Black.copy(alpha = 0.82f),
-        shape = RoundedCornerShape(16.dp),
+        shape = androidx.compose.ui.graphics.RectangleShape,
         border = BorderStroke(1.dp, accent),
         modifier = Modifier.width(360.dp),
     ) {

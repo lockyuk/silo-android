@@ -312,6 +312,7 @@ data class TvMarqueeEnrichment(
     val overview: String? = null,
     /** A series' season count, for the kicker of a show with no episode to resume. */
     val seasonCount: Int? = null,
+    val episodeCount: Int? = null,
 ) {
     companion object {
         fun from(detail: ItemDetail): TvMarqueeEnrichment {
@@ -330,6 +331,7 @@ data class TvMarqueeEnrichment(
                 backdropIsEpisodeStill = detail.backdropIsEpisodeStill,
                 overview = detail.overview?.takeIf { it.isNotBlank() },
                 seasonCount = detail.seasonCount,
+                episodeCount = detail.episodeCount,
             )
         }
 

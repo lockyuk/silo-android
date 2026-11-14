@@ -614,8 +614,9 @@ fun TvPlayerScreen(
                     durationMs = controller.duration.coerceAtLeast(0L),
                 )
                 controller.pause()
+                // Not cleared: emptying the queue crashes the Shield's Bluetooth AVRCP service and
+                // drops its remote for ~5 seconds. Stopped is enough.
                 controller.stop()
-                controller.clearMediaItems()
             } ?: viewModel.stopSessionForExitAsync()
             (destination ?: latestOnExit)()
         }
@@ -1049,7 +1050,6 @@ fun TvPlayerScreen(
                 runCatching {
                     controller.pause()
                     controller.stop()
-                    controller.clearMediaItems()
                 }
                 controller.release()
             }
@@ -3510,7 +3510,7 @@ private fun TvRoomIndicator(
 ) {
     Column(
         modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(androidx.compose.ui.graphics.RectangleShape)
             .background(Color.Black.copy(alpha = 0.55f))
             .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalAlignment = Alignment.End,
@@ -4271,7 +4271,7 @@ private fun TvPlayerOverlays(
                     modifier = Modifier
                         .background(
                             color = Color.Black.copy(alpha = 0.82f),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = androidx.compose.ui.graphics.RectangleShape,
                         )
                         .padding(horizontal = 24.dp, vertical = 14.dp),
                 ) {

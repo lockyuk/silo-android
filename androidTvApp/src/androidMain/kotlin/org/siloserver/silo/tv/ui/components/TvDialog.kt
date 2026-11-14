@@ -57,7 +57,7 @@ data class TvDialogAction(
 /** The one TV dialog surface: an opaque card with a hairline over a deep scrim. */
 internal object TvDialogDefaults {
     val Scrim = Color.Black.copy(alpha = 0.78f)
-    val Shape: Shape = RoundedCornerShape(22.dp)
+    val Shape: Shape = androidx.compose.ui.graphics.RectangleShape
     val Width = 470.dp
 }
 
@@ -209,7 +209,7 @@ fun TvDialogButton(
         destructive -> TvPlayerChrome.StopRest to TvPlayerChrome.StopText
         else -> Color.White.copy(alpha = 0.08f) to TvPlayerChrome.Paper
     }
-    val shape = RoundedCornerShape(22.dp)
+    val shape = androidx.compose.ui.graphics.RectangleShape
     Box(
         modifier = modifier
             .height(44.dp)

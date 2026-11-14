@@ -150,7 +150,7 @@ private fun TvNoticePill(notice: PlayerNotice) {
 
     Surface(
         color = backgroundColor,
-        shape = RoundedCornerShape(16.dp),
+        shape = androidx.compose.ui.graphics.RectangleShape,
         modifier = Modifier.widthIn(max = 480.dp),
     ) {
         Row(
@@ -290,7 +290,7 @@ private fun TvBufferingPillCard(
         onDispose { if (focusedAction != null) latestOnFocusChanged(null) }
     }
 
-    val shape = RoundedCornerShape(16.dp)
+    val shape = androidx.compose.ui.graphics.RectangleShape
     Box(
         modifier = Modifier
             .widthIn(max = 560.dp)

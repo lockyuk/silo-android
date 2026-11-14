@@ -285,7 +285,7 @@ internal fun TvVantagePageBackdrop(
     androidx.compose.foundation.layout.Box(
         Modifier.fillMaxSize().gradientScrim(
             true,
-            0.00f to bg.copy(alpha = 0.88f), 0.45f to bg.copy(alpha = 0.45f), 0.75f to bg.copy(alpha = 0.08f),
+            0.00f to bg.copy(alpha = 0.62f), 0.45f to bg.copy(alpha = 0.32f), 0.75f to bg.copy(alpha = 0.06f),
         ),
     )
     androidx.compose.foundation.layout.Box(

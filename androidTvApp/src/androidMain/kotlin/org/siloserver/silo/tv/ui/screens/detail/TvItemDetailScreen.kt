@@ -130,6 +130,7 @@ import org.siloserver.silo.model.catalog.Season
 import org.siloserver.silo.model.catalog.VersionChapter
 import org.siloserver.silo.model.catalog.isAudiobookItemType
 import org.siloserver.silo.model.catalog.isSpecialsForDisplay
+import org.siloserver.silo.tv.ui.components.TvHeroFactToken
 import org.siloserver.silo.model.catalog.selectedMediaRuntimeMinutes
 import org.siloserver.silo.model.catalog.titleRatings
 import org.siloserver.silo.model.catalog.trailerRailEntries
@@ -782,7 +783,13 @@ private fun TvDetailContent(
         preferredQuality = state.preferredQuality,
         selectedFileId = heroSelectedFileId,
         includePlaybackFormats = false,
-    )
+    ).let { tokens ->
+        // A show reads "17 seasons - 387 episodes", or "Seasons 1-3, 5 - 40 episodes" when some are missing.
+        val summary = if (detail.type.equals("series", ignoreCase = true)) seriesAvailabilitySummary(state.seasons) else null
+        if (summary == null) tokens else tokens.map { t ->
+            if (t is TvHeroFactToken.TextToken && Regex("\\d+ Seasons?").matches(t.value)) TvHeroFactToken.TextToken(summary) else t
+        }
+    }
     val heroArtwork = resolveTvDetailHeroArtwork(detail, state.nextUpEpisode, spoilerPrefs)
     val detailPageTint = rememberAmbientBackdropTintState()
     LaunchedEffect(heroArtwork.url) {
@@ -3107,3 +3114,32 @@ private val tvDirectionalKeys = setOf(
     Key.DirectionLeft,
     Key.DirectionRight,
 )
+
+
+/**
+ * What a show has in the library: its seasons and how many episodes. Contiguous seasons from 1 read as a
+ * count ("17 seasons"); gaps list the seasons present ("Seasons 1-3, 5"). Specials count as episodes but
+ * not as a season. Null until the seasons have loaded.
+ */
+internal fun seriesAvailabilitySummary(seasons: List<org.siloserver.silo.model.catalog.Season>): String? {
+    val numbered = seasons.filter { !it.isSpecialsForDisplay() }.map { it.seasonNumber }.distinct().sorted()
+    if (numbered.isEmpty()) return null
+    val episodes = seasons.sumOf { it.episodeCount }
+    val contiguous = numbered.first() == 1 && numbered.last() == numbered.size
+    val seasonText = if (contiguous) {
+        "${numbered.size} Season${if (numbered.size == 1) "" else "s"}"
+    } else {
+        val ranges = mutableListOf<String>()
+        var start = numbered.first()
+        var prev = start
+        for (n in numbered.drop(1) + Int.MAX_VALUE) {
+            if (n != prev + 1) {
+                ranges += if (start == prev) "$start" else "$start-$prev"
+                start = n
+            }
+            prev = n
+        }
+        "Seasons " + ranges.joinToString(", ")
+    }
+    return if (episodes > 0) "$seasonText | $episodes Episode${if (episodes == 1) "" else "s"}" else seasonText
+}
